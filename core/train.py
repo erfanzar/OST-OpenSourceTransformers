@@ -7,8 +7,9 @@ from modules.commons import *
 from utils.utils import GB
 
 
-def train(data_path: [os.PathLike, str], epoch: int = 500, lr: float = 1e-4, chunk_size: int = 8,
-          pre_show_chunk: bool = False, batch_size: int = 4, set_seed: bool = True, seed: int = 1377):
+def train(data_path: [os.PathLike, str], epochs: int = 10000, lr: float = 1e-4, chunk_size: int = 8,
+          pre_show_chunk: bool = False, batch_size: int = 4, set_seed: bool = True, seed: int = 1377,
+          device: str = 'cuda' if torch.cuda.is_available() else 'cpu'):
     if set_seed: torch.manual_seed(seed)
     with open(data_path, 'r') as stream:
         text = stream.read()
@@ -60,8 +61,34 @@ def train(data_path: [os.PathLike, str], epoch: int = 500, lr: float = 1e-4, chu
     #         target = yb[b, t]
     #         print(f"when input is {context.tolist()} the target: {target}")
 
-    m = BLM(vocab_size=len(chars))
+    m = BLM(vocab_size=len(chars), chunk_size=chunk_size, n_embedded=32, head_size=32)
     fprint('Generating a Poet with 100 length ...')
-    v = m.generate(torch.zeros((1, 1), dtype=torch.long), 100)
-    fprint(decode(v[0].tolist()))
-    optimizer = torch.optim.AdamW(m.parameters(), 1e-3)
+    x, y = get_batch('train')
+    x, y = x.to(device), y.to(device)
+    m = m.to(device)
+    # v = m.generate(torch.zeros((1, 1), dtype=torch.long), 100)
+    # fprint(decode(v[0].tolist()))
+    optimizer = torch.optim.AdamW(m.parameters(), lr)
+    for epoch in range(epochs):
+        predict, loss = m(x, y)
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+        optimizer.step()
+        fprint(f'\r Epoch [{epoch + 1}/{epochs}] | Loss : [{loss.item()}]', end='')
+        if (epoch + 1) % 5000 == 0:
+            print()
+    context = torch.zeros((1, 1), dtype=torch.long, device=device)
+    print(decode(m.generate(context, max_new_tokens=2000)[0].tolist()))
+    saves = {
+        'model': m.state_dict(),
+        'epochs': epochs,
+        'lr': lr,
+        'optim': optimizer.state_dict()
+    }
+    torch.save(saves, 'model.pt')
+    # m = torch.jit.script(m)
+    # torch.jit.save(m,
+    #                'model.pt',
+    #                # _extra_files=saves
+    #                )
+    # m.save('model.pt')
