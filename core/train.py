@@ -7,7 +7,7 @@ from modules.commons import *
 from utils.utils import GB
 
 
-def train(data_path: [os.PathLike, str], epochs: int = 10000, lr: float = 1e-4, chunk_size: int = 8,
+def train(data_path: [os.PathLike, str], epochs: int = 10000, lr: float = 3e-4, chunk_size: int = 256,
           pre_show_chunk: bool = False, batch_size: int = 4, set_seed: bool = True, seed: int = 1377,
           device: str = 'cuda' if torch.cuda.is_available() else 'cpu'):
     if set_seed: torch.manual_seed(seed)
@@ -61,7 +61,7 @@ def train(data_path: [os.PathLike, str], epochs: int = 10000, lr: float = 1e-4, 
     #         target = yb[b, t]
     #         print(f"when input is {context.tolist()} the target: {target}")
 
-    m = BLM(vocab_size=len(chars), chunk_size=chunk_size, n_embedded=32, head_size=32)
+    m = BLM(vocab_size=len(chars), chunk_size=chunk_size, n_embedded=300, head_size=32)
     fprint('Generating a Poet with 100 length ...')
     x, y = get_batch('train')
     x, y = x.to(device), y.to(device)

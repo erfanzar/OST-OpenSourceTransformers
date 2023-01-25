@@ -31,8 +31,8 @@ class Head(nn.Module):
 
 
 class BLM(nn.Module):
-    def __init__(self, vocab_size: int, n_layers: int = 8, n_embedded: int = 64, head_size: int = 16, n_head: int = 4,
-                 chunk_size: int = 8
+    def __init__(self, vocab_size: int, n_layers: int = 8, n_embedded: int = 256, head_size: int = 16, n_head: int = 6,
+                 chunk_size: int = 256
 
                  ):
 
@@ -92,13 +92,13 @@ class BLM(nn.Module):
 class FeedForward(nn.Module):
     """ a simple linear layer followed by a non-linearity """
 
-    def __init__(self, n_embedded: int = 64):
+    def __init__(self, n_embedded: int = 256):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(n_embedded, 4 * n_embedded),
             nn.ReLU(),
             nn.Linear(4 * n_embedded, n_embedded),
-            nn.Dropout(0.0),
+            nn.Dropout(0.2),
         )
 
     def forward(self, x):
@@ -106,12 +106,12 @@ class FeedForward(nn.Module):
 
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, num, head_size: int = 16, chunk_size: int = 8, n_embedded: int = 64):
+    def __init__(self, num, head_size: int = 16, chunk_size: int = 8, n_embedded: int = 256):
         super(MultiHeadAttention, self).__init__()
 
         self.m = nn.ModuleList([Head(head_size=head_size, chunk=chunk_size, c=n_embedded) for _ in range(num)])
         self.proj = nn.Linear(n_embedded, n_embedded)
-        self.dp = nn.Dropout(0.0)
+        self.dp = nn.Dropout(0.2)
 
     def forward(self, x):
         x = torch.cat([h(x) for h in self.m], dim=-1)
@@ -120,7 +120,7 @@ class MultiHeadAttention(nn.Module):
 
 
 class Block(nn.Module):
-    def __init__(self, n_head, n_embedded: int = 64, chunk_size: int = 8, ):
+    def __init__(self, n_head, n_embedded: int = 256, chunk_size: int = 8):
         super(Block, self).__init__()
         head_size = n_embedded // n_head
         self.sa = MultiHeadAttention(n_head, head_size=head_size, chunk_size=chunk_size, n_embedded=n_embedded)
