@@ -27,7 +27,7 @@ def train(config_path: typing.Union[str, os.PathLike],
     number_of_embedded = cfg['number_of_embedded']
 
     for k, v in cfg.items():
-        txt = f' | \033[1;32m{k} : \033[1;36m{v}'
+        txt = f'\033[1;32m | {k} : \033[1;36m{v}'
         print(txt, ' ' * abs(len(txt) - 100), '|')
 
     if set_seed: torch.manual_seed(seed)
@@ -38,11 +38,11 @@ def train(config_path: typing.Union[str, os.PathLike],
     # attar_print(data_length=len(text))
     chars = sorted(list(set(text)))
 
-    fprint(f'len Chars : {len(chars)}', end='\n')
+    fprint(f'len Chars : {len(chars)}\n', end='\n')
     s_to_i = {ch: i for i, ch in enumerate(chars)}
-    fprint('Created String to integer Vocab ~ Successfully')
+    fprint('Created String to integer Vocab ~ Successfully !!\n')
     i_to_s = {i: ch for i, ch in enumerate(chars)}
-    fprint('Created integer to  String Vocab ~ Successfully')
+    fprint('Created integer to String Vocab ~ Successfully  !!\n')
 
     # encode = lambda s: [i_to_s[c] for c in s]
     encode = lambda s: [s_to_i[c] for c in s]
@@ -92,15 +92,21 @@ def train(config_path: typing.Union[str, os.PathLike],
     # v = m.generate(torch.zeros((1, 1), dtype=torch.long), 100)
     # fprint(decode(v[0].tolist()))
     optimizer = torch.optim.AdamW(m.parameters(), lr)
+    last_valid_loss = 'NONE'
     for epoch in range(epochs):
         for mode in modes:
             x, y = get_batch('train')
             x, y = x.to(device), y.to(device)
             predict, loss = m(x, y)
-            optimizer.zero_grad(set_to_none=True)
-            loss.backward()
-            optimizer.step()
-            fprint(f'\rEpoch [{epoch + 1}/{epochs}] | Loss : [{loss.item()}] | Mode : [{mode}]', end='')
+            if mode not in ['valid', 'test']:
+                optimizer.zero_grad(set_to_none=True)
+                loss.backward()
+                optimizer.step()
+            else:
+                last_valid_loss = loss.item()
+            fprint(
+                f'\rEpoch [{epoch + 1}/{epochs}] | Loss : [{loss.item()}] | Mode : [{mode}] | Last Validation Loss : [{last_valid_loss}]',
+                end='')
             if (epoch + 1) % 500 == 0:
                 print()
 
