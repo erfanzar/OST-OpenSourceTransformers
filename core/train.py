@@ -1,5 +1,7 @@
 import os
+import typing
 
+from erutils.utils import read_yaml
 import torch
 from erutils.command_line_interface import fprint
 
@@ -7,9 +9,27 @@ from modules.commons import *
 from utils.utils import GB
 
 
-def train(data_path: [os.PathLike, str], epochs: int = 10000, lr: float = 4e-4, chunk_size: int = 728,
-          pre_show_chunk: bool = False, batch_size: int = 10, set_seed: bool = False, seed: int = 1377,
+def train(config_path: typing.Union[str, os.PathLike],
           device: str = 'cuda' if torch.cuda.is_available() else 'cpu'):
+    cfg = read_yaml(config_path)
+    data_path = cfg['data_path']
+    epochs = cfg['epochs']
+    lr = float(cfg['lr'])
+    chunk_size = cfg['chunk_size']
+    pre_show_chunk = cfg['pre_show_chunk']
+    batch_size = cfg['batch_size']
+    set_seed = cfg['set_seed']
+    seed = cfg['seed']
+
+    number_of_head = cfg['number_of_head']
+    number_of_layers = cfg['number_of_layers']
+    head_size = cfg['head_size']
+    number_of_embedded = cfg['number_of_embedded']
+
+    for k, v in cfg.items():
+        txt = f' | \033[1;32m{k} : \033[1;36m{v}'
+        print(txt, ' ' * abs(len(txt) - 100), '|')
+
     if set_seed: torch.manual_seed(seed)
     with open(data_path, 'r') as stream:
         text = stream.read()
@@ -38,7 +58,7 @@ def train(data_path: [os.PathLike, str], epochs: int = 10000, lr: float = 4e-4, 
         fprint(f'Example for word [{ptt_text}]')
         fprint(encode(ptt_text))
         fprint(decode(encode(ptt_text)))
-
+    modes = ['train', "valid"]
     if pre_show_chunk:
         train_chunk_x = text[:chunk_size]
         train_chunk_y = text[1:chunk_size + 1]
@@ -61,48 +81,46 @@ def train(data_path: [os.PathLike, str], epochs: int = 10000, lr: float = 4e-4, 
     #         target = yb[b, t]
     #         print(f"when input is {context.tolist()} the target: {target}")
 
-    m = BLM(vocab_size=len(chars), chunk_size=chunk_size, n_embedded=324, head_size=64, n_layers=12, n_head=12)
-    fprint('Generating a Poet with 100 length ...')
-    x, y = get_batch('train')
-    x, y = x.to(device), y.to(device)
+    m = BLM(vocab_size=len(chars), chunk_size=chunk_size, number_of_embedded=number_of_embedded, head_size=head_size,
+            number_of_layers=number_of_layers,
+            number_of_head=number_of_head)
+    # fprint('Generating a Poet with 100 length ...')
+
     m = m.to(device)
-    fprint(f'[[ Model Created with {sum(p.numel() for p in m.parameters()) / 1e6} M parameters Over All ]]')
+    fprint(f'[[ Model Created with {sum(p.numel() for p in m.parameters()) / 1e6} M parameters Over All ]]',
+           color='\033[1;32m')
     # v = m.generate(torch.zeros((1, 1), dtype=torch.long), 100)
     # fprint(decode(v[0].tolist()))
     optimizer = torch.optim.AdamW(m.parameters(), lr)
     for epoch in range(epochs):
-        predict, loss = m(x, y)
-        optimizer.zero_grad(set_to_none=True)
-        loss.backward()
-        optimizer.step()
-        fprint(f'\r Epoch [{epoch + 1}/{epochs}] | Loss : [{loss.item()}]', end='')
-        if (epoch + 1) % 500 == 0:
-            print()
+        for mode in modes:
+            x, y = get_batch('train')
+            x, y = x.to(device), y.to(device)
+            predict, loss = m(x, y)
+            optimizer.zero_grad(set_to_none=True)
+            loss.backward()
+            optimizer.step()
+            fprint(f'\rEpoch [{epoch + 1}/{epochs}] | Loss : [{loss.item()}] | Mode : [{mode}]', end='')
+            if (epoch + 1) % 500 == 0:
+                print()
 
-            saves = {
-                'model': m.state_dict(),
-                'epochs': epochs,
-                'lr': lr,
-                'optim': optimizer.state_dict()
-            }
+                saves = {
+                    'model': m.state_dict(),
+                    'epochs': epochs,
+                    'epoch': epoch + 1,
+                    'lr': lr,
+                    'optim': optimizer.state_dict()
+                }
 
-            torch.save(saves, 'model.pt')
+                torch.save(saves, 'model.pt')
 
-        if (epoch + 1) % 1000 == 0:
-            fprint(f'Generating Some Samples To generated-{epoch}.txt')
-            stream = open(f'generated-{epoch}.txt', 'w')
-            context = torch.zeros((1, 1), dtype=torch.long, device=device)
-            stream.write(decode(m.generate(context, max_new_tokens=200)[0].tolist()))
+            if (epoch + 1) % 1000 == 0:
+                fprint(f'Generating Some Samples To generated-{epoch + 1}.txt')
+                stream = open(f'generated-{epoch + 1}.txt', 'w')
+                context = torch.zeros((1, 1), dtype=torch.long, device=device)
+                stream.write(decode(m.generate(context, max_new_tokens=1000)[0].tolist()))
 
     context = torch.zeros((1, 1), dtype=torch.long, device=device)
     stream = open('generated.txt', 'w')
     txt = decode(m.generate(context, max_new_tokens=5000)[0].tolist())
-    print(txt)
-    stream.write(decode(m.generate(context, max_new_tokens=5000)[0].tolist()))
-
-    # m = torch.jit.script(m)
-    # torch.jit.save(m,
-    #                'model.pt',
-    #                # _extra_files=saves
-    #                )
-    # m.save('model.pt')
+    stream.write(txt)

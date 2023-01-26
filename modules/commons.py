@@ -31,7 +31,7 @@ class Head(nn.Module):
 
 
 class BLM(nn.Module):
-    def __init__(self, vocab_size: int, n_layers: int = 8, n_embedded: int = 328, head_size: int = 16, n_head: int = 6,
+    def __init__(self, vocab_size: int, number_of_layers: int = 8, number_of_embedded: int = 328, head_size: int = 16, number_of_head: int = 6,
                  chunk_size: int = 256
 
                  ):
@@ -42,14 +42,14 @@ class BLM(nn.Module):
         self.chunk = chunk_size
         self.head_size = head_size
 
-        self.token_embedding = nn.Embedding(vocab_size, n_embedded)
-        self.position_embedding = nn.Embedding(chunk_size, n_embedded)
+        self.token_embedding = nn.Embedding(vocab_size, number_of_embedded)
+        self.position_embedding = nn.Embedding(chunk_size, number_of_embedded)
 
         self.blocks = nn.Sequential(
-            *[Block(chunk_size=chunk_size, n_embedded=n_embedded, n_head=n_head) for _ in range(n_layers)])
+            *[Block(chunk_size=chunk_size, number_of_embedded=number_of_embedded, number_of_head=number_of_head) for _ in range(number_of_layers)])
 
-        self.ln_f = nn.LayerNorm(n_embedded)  # final layer norm
-        self.lm_head = nn.Linear(n_embedded, vocab_size)
+        self.ln_f = nn.LayerNorm(number_of_embedded)  # final layer norm
+        self.lm_head = nn.Linear(number_of_embedded, vocab_size)
 
     def forward(self, idx, targets: Optional[torch.Tensor] = None):
         B, T = idx.shape
@@ -92,12 +92,12 @@ class BLM(nn.Module):
 class FeedForward(nn.Module):
     """ a simple linear layer followed by a non-linearity """
 
-    def __init__(self, n_embedded: int = 328):
+    def __init__(self, number_of_embedded: int = 328):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(n_embedded, 4 * n_embedded),
+            nn.Linear(number_of_embedded, 4 * number_of_embedded),
             nn.ReLU(),
-            nn.Linear(4 * n_embedded, n_embedded),
+            nn.Linear(4 * number_of_embedded, number_of_embedded),
             nn.Dropout(0.2),
         )
 
@@ -106,11 +106,11 @@ class FeedForward(nn.Module):
 
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, num, head_size: int = 16, chunk_size: int = 8, n_embedded: int = 328):
+    def __init__(self, num, head_size: int = 16, chunk_size: int = 8, number_of_embedded: int = 328):
         super(MultiHeadAttention, self).__init__()
 
-        self.m = nn.ModuleList([Head(head_size=head_size, chunk=chunk_size, c=n_embedded) for _ in range(num)])
-        self.proj = nn.Linear(n_embedded, n_embedded)
+        self.m = nn.ModuleList([Head(head_size=head_size, chunk=chunk_size, c=number_of_embedded) for _ in range(num)])
+        self.proj = nn.Linear(number_of_embedded, number_of_embedded)
         self.dp = nn.Dropout(0.2)
 
     def forward(self, x):
@@ -120,13 +120,13 @@ class MultiHeadAttention(nn.Module):
 
 
 class Block(nn.Module):
-    def __init__(self, n_head, n_embedded: int = 328, chunk_size: int = 8):
+    def __init__(self, number_of_head, number_of_embedded: int = 328, chunk_size: int = 8):
         super(Block, self).__init__()
-        head_size = n_embedded // n_head
-        self.sa = MultiHeadAttention(n_head, head_size=head_size, chunk_size=chunk_size, n_embedded=n_embedded)
-        self.ffwd = FeedForward(n_embedded=n_embedded)
-        self.ln1 = nn.LayerNorm(n_embedded)
-        self.ln2 = nn.LayerNorm(n_embedded)
+        head_size = number_of_embedded // number_of_head
+        self.sa = MultiHeadAttention(number_of_head, head_size=head_size, chunk_size=chunk_size, number_of_embedded=number_of_embedded)
+        self.ffwd = FeedForward(number_of_embedded=number_of_embedded)
+        self.ln1 = nn.LayerNorm(number_of_embedded)
+        self.ln2 = nn.LayerNorm(number_of_embedded)
 
     def forward(self, x):
         x = x + self.sa(self.ln1(x))
