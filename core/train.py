@@ -7,8 +7,8 @@ from modules.commons import *
 from utils.utils import GB
 
 
-def train(data_path: [os.PathLike, str], epochs: int = 10000, lr: float = 3e-4, chunk_size: int = 256,
-          pre_show_chunk: bool = False, batch_size: int = 32, set_seed: bool = True, seed: int = 1377,
+def train(data_path: [os.PathLike, str], epochs: int = 10000, lr: float = 4e-4, chunk_size: int = 728,
+          pre_show_chunk: bool = False, batch_size: int = 10, set_seed: bool = False, seed: int = 1377,
           device: str = 'cuda' if torch.cuda.is_available() else 'cpu'):
     if set_seed: torch.manual_seed(seed)
     with open(data_path, 'r') as stream:
@@ -17,7 +17,7 @@ def train(data_path: [os.PathLike, str], epochs: int = 10000, lr: float = 3e-4, 
 
     # attar_print(data_length=len(text))
     chars = sorted(list(set(text)))
-    fprint(f'Device : [{device}]')
+
     fprint(f'len Chars : {len(chars)}', end='\n')
     s_to_i = {ch: i for i, ch in enumerate(chars)}
     fprint('Created String to integer Vocab ~ Successfully')
@@ -61,7 +61,7 @@ def train(data_path: [os.PathLike, str], epochs: int = 10000, lr: float = 3e-4, 
     #         target = yb[b, t]
     #         print(f"when input is {context.tolist()} the target: {target}")
 
-    m = BLM(vocab_size=len(chars), chunk_size=chunk_size, n_embedded=300, head_size=64,)
+    m = BLM(vocab_size=len(chars), chunk_size=chunk_size, n_embedded=324, head_size=64, n_layers=12, n_head=12)
     fprint('Generating a Poet with 100 length ...')
     x, y = get_batch('train')
     x, y = x.to(device), y.to(device)
@@ -78,13 +78,22 @@ def train(data_path: [os.PathLike, str], epochs: int = 10000, lr: float = 3e-4, 
         fprint(f'\r Epoch [{epoch + 1}/{epochs}] | Loss : [{loss.item()}]', end='')
         if (epoch + 1) % 500 == 0:
             print()
+
             saves = {
                 'model': m.state_dict(),
                 'epochs': epochs,
                 'lr': lr,
                 'optim': optimizer.state_dict()
             }
+
             torch.save(saves, 'model.pt')
+
+        if (epoch + 1) % 1000 == 0:
+            fprint(f'Generating Some Samples To generated-{epoch}.txt')
+            stream = open(f'generated-{epoch}.txt', 'w')
+            context = torch.zeros((1, 1), dtype=torch.long, device=device)
+            stream.write(decode(m.generate(context, max_new_tokens=200)[0].tolist()))
+
     context = torch.zeros((1, 1), dtype=torch.long, device=device)
     stream = open('generated.txt', 'w')
     txt = decode(m.generate(context, max_new_tokens=5000)[0].tolist())
