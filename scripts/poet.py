@@ -4,7 +4,7 @@ import typing
 import torch
 from erutils.utils import read_yaml
 from erutils.command_line_interface import fprint
-
+import os
 from modules.models import PTTMultiHeadAttention
 
 
@@ -56,8 +56,12 @@ def poet(config_path: typing.Union[str, os.PathLike], path_model: typing.Union[s
         fprint('Model Compiled Successfully 🧠')
     txt = ''
     idx = torch.zeros(1, 1, dtype=torch.long if device == 'cuda' else torch.int).to(device)
+    c = input('🧠 Enter The Question ...  : ')
     for i in range(generate_token):
         idx = m.generate(idx, 1)
-        txt += decode(idx[0][-1])
-        fprint(f'\r{txt}', end='')
+        txt = decode([idx[0][-1].cpu().tolist()])
+
+        fprint(f'{txt}', end='')
+        # os.system('cls')
+
     print('EXIT :)')

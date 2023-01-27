@@ -13,7 +13,7 @@ head_size: 128
 number_of_embedded: 320
 chunk_size: 512
 
-use_compile: False
+use_compile: True
 
 load_weights: False
 
