@@ -55,7 +55,7 @@ def poet(config_path: typing.Union[str, os.PathLike], path_model: typing.Union[s
         m = torch.compile(m)
         fprint('Model Compiled Successfully 🧠')
     txt = ''
-    idx = torch.zeros(1, 1)
+    idx = torch.zeros(1, 1, dtype=torch.long if device == 'cuda' else torch.int).to(device)
     for i in range(generate_token):
         idx = m.generate(idx, 1)
         txt += decode(idx[0][-1])
