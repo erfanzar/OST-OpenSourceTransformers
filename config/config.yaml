@@ -12,3 +12,9 @@ number_of_layers: 18
 head_size: 64
 number_of_embedded: 384
 chunk_size: 128
+
+use_compile: True
+
+load_weights: True
+
+path_weights: 'ptt-m.pt'

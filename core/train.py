@@ -5,8 +5,8 @@ from erutils.utils import read_yaml
 import torch
 from erutils.command_line_interface import fprint
 
-from modules.commons import *
-from utils.utils import GB
+from modules.models import PTTMultiHeadAttention
+from utils.utils import GB, save_model
 
 
 def train(config_path: typing.Union[str, os.PathLike],
@@ -20,14 +20,16 @@ def train(config_path: typing.Union[str, os.PathLike],
     batch_size = cfg['batch_size']
     set_seed = cfg['set_seed']
     seed = cfg['seed']
-
+    use_compile = cfg['use_compile']
     number_of_head = cfg['number_of_head']
     number_of_layers = cfg['number_of_layers']
     head_size = cfg['head_size']
     number_of_embedded = cfg['number_of_embedded']
 
+    load_weights = cfg['load_weights']
+    path_weights = cfg['path_weights']
     for k, v in cfg.items():
-        txt = f'\033[1;32m | {k} : \033[1;36m{v}'
+        txt = f'\033[1;36m | \033[1;32m{k} : \033[1;36m{v}'
         print(txt, ' ' * abs(len(txt) - 100), '|')
 
     if set_seed: torch.manual_seed(seed)
@@ -52,13 +54,13 @@ def train(config_path: typing.Union[str, os.PathLike],
     text = torch.tensor(encode(text), dtype=torch.long)
 
     train_data = text[:split]
-    valid_data = text[split:]
+    eval_data = text[split:]
     ptt_text = 'Wellcome To PTT or Poetry Trained Transformer'
     if pre_show_chunk:
         fprint(f'Example for word [{ptt_text}]')
         fprint(encode(ptt_text))
         fprint(decode(encode(ptt_text)))
-    modes = ['train', "valid"]
+    modes = ['train', "eval"]
     if pre_show_chunk:
         train_chunk_x = text[:chunk_size]
         train_chunk_y = text[1:chunk_size + 1]
@@ -72,7 +74,7 @@ def train(config_path: typing.Union[str, os.PathLike],
     else:
         fprint(f'[SKIP] PreShow Status is OFF ! ')
 
-    get_batch = GB(train_data=train_data, valid_data=valid_data, batch_size=batch_size, chunk_size=chunk_size)
+    get_batch = GB(train_data=train_data, eval_data=eval_data, batch_size=batch_size, chunk_size=chunk_size)
 
     # xb, yb = get_batch('train')
     # for b in range(batch_size):
@@ -81,44 +83,65 @@ def train(config_path: typing.Union[str, os.PathLike],
     #         target = yb[b, t]
     #         print(f"when input is {context.tolist()} the target: {target}")
 
-    m = BLM(vocab_size=len(chars), chunk_size=chunk_size, number_of_embedded=number_of_embedded, head_size=head_size,
-            number_of_layers=number_of_layers,
-            number_of_head=number_of_head)
-    # fprint('Generating a Poet with 100 length ...')
+    m = PTTMultiHeadAttention(vocab_size=len(chars), chunk_size=chunk_size, number_of_embedded=number_of_embedded,
+                              head_size=head_size,
+                              number_of_layers=number_of_layers,
+                              number_of_head=number_of_head)
 
     m = m.to(device)
+    optimizer = torch.optim.AdamW(m.parameters(), lr)
+
     fprint(f'[[ Model Created with {sum(p.numel() for p in m.parameters()) / 1e6} M parameters Over All ]]',
            color='\033[1;32m')
     # v = m.generate(torch.zeros((1, 1), dtype=torch.long), 100)
     # fprint(decode(v[0].tolist()))
-    optimizer = torch.optim.AdamW(m.parameters(), lr)
-    last_valid_loss = 'NONE'
+
+    if load_weights:
+        fprint(
+            'Loading Model From Previous Checkpoint ...'
+        )
+        if not os.path.exists(path_weights):
+            fprint(f"Wrong Path To Load Weight This file Doesn't Exist :: => {path_weights}")
+            KeyboardInterrupt()
+        m_s = torch.load(path_weights, device)
+        m.load_state_dict(m_s['model'])
+        optimizer.load_state_dict(m_s['optim'])
+        fprint('Loaded Successfully .')
+    if use_compile:
+        m = torch.compile(m)
+    last_eval_loss = 'NONE'
     for epoch in range(epochs):
         for mode in modes:
             x, y = get_batch('train')
             x, y = x.to(device), y.to(device)
-            predict, loss = m(x, y)
-            if mode not in ['valid', 'test']:
+            # print(f'xShape : {x.shape}')
+
+            if mode not in ['eval', 'test']:
+                m.train()
+                predict, loss = m(x, y)
                 optimizer.zero_grad(set_to_none=True)
                 loss.backward()
                 optimizer.step()
             else:
-                last_valid_loss = loss.item()
+                m.eval()
+                predict, loss = m(x, y)
+                last_eval_loss = loss.item()
             fprint(
-                f'\rEpoch [{epoch + 1}/{epochs}] | Loss : [{loss.item()}] | Mode : [{mode}] | Last Validation Loss : [{last_valid_loss}]',
+                f'\rEpoch [{epoch + 1}/{epochs}] | Loss : [{loss.item()}] | Mode : [{mode}] | Last Evaluation Loss : [{last_eval_loss}]',
                 end='')
             if (epoch + 1) % 500 == 0:
                 print()
+                save_model('ptt-m.pt', model=m.state_dict(), epochs=epochs, epoch=epoch + 1, lr=lr,
+                           optim=optimizer.state_dict())
+                # saves = {
+                #     'model': m.state_dict(),
+                #     'epochs': epochs,
+                #     'epoch': epoch + 1,
+                #     'lr': lr,
+                #     'optim': optimizer.state_dict()
+                # }
 
-                saves = {
-                    'model': m.state_dict(),
-                    'epochs': epochs,
-                    'epoch': epoch + 1,
-                    'lr': lr,
-                    'optim': optimizer.state_dict()
-                }
-
-                torch.save(saves, 'model.pt')
+                # torch.save(saves, 'model.pt')
 
             if (epoch + 1) % 1000 == 0:
                 fprint(f'Generating Some Samples To generated-{epoch + 1}.txt')

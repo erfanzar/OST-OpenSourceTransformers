@@ -1,8 +1,23 @@
 from core.load import load
 import torch
+from erutils.command_line_interface import fprint
+
+import argparse
+
+pars = argparse.ArgumentParser()
+pars.add_argument('--config-path', '-config-path', type=str, default='config/config.yaml', )
+pars.add_argument('--model-path', '-model-path', type=str, default='model.pt', )
+pars.add_argument('--generate', '-generate', type=int, default=5000, )
+opt = pars.parse_args()
+
+
+def main(opt):
+    fprint('Loading the Model ...')
+    _, _ = load(path_model=opt.model_path, config_path=opt.config_path,
+                generate_token=opt.generate,
+                device='cuda' if torch.cuda.is_available() else 'cpu',
+                )
+
 
 if __name__ == "__main__":
-    load(path='model.pt', path_data='data/input.txt', vocab_size=65,
-         generate_token=2000,
-         chunk_size=728, number_of_embedded=324, device='cuda' if torch.cuda.is_available() else 'cpu',
-         head_size=64, number_of_layers=24, number_of_head=12)
+    main(opt)

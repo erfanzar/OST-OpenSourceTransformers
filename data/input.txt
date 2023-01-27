@@ -2095,7 +2095,7 @@ fly?
 
 Third Citizen:
 Nay, your wit will not so soon out as another man's
-will;'tis strongly wedged up in a block-head, but
+will;'tis strongly wedged up in a MultiHeadBlock-head, but
 if it were at liberty, 'twould, sure, southward.
 
 Second Citizen:
@@ -5209,7 +5209,7 @@ thee, I have been blown out of your gates with
 sighs; and conjure thee to pardon Rome, and thy
 petitionary countrymen. The good gods assuage thy
 wrath, and turn the dregs of it upon this varlet
-here,--this, who, like a block, hath denied my
+here,--this, who, like a MultiHeadBlock, hath denied my
 access to thee.
 
 CORIOLANUS:
@@ -18444,7 +18444,7 @@ ROMEO:
 Where Juliet lives; and every cat and dog
 And little mouse, every unworthy thing,
 Live here in heaven and may look on her;
-But Romeo may not: more validity,
+But Romeo may not: more evality,
 More honourable state, more courtship lives
 In carrion-flies than Romeo: they my seize
 On the white wonder of dear Juliet's hand
