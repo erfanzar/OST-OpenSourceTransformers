@@ -108,7 +108,9 @@ def train(config_path: typing.Union[str, os.PathLike],
         optimizer.load_state_dict(m_s['optim'])
         fprint('Loaded Successfully .')
     if use_compile:
+        fprint('Compiling Model For Speed Boost 🚀 ...')
         m = torch.compile(m)
+        fprint('Model Compiled Successfully 🧠')
     last_eval_loss = 'NONE'
     for epoch in range(epochs):
         for mode in modes:
