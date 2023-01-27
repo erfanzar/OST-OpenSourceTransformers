@@ -132,9 +132,10 @@ def train(config_path: typing.Union[str, os.PathLike],
                 f'\rEpoch [{epoch + 1}/{epochs}] | Loss : [{loss.item()}] | Mode : [{mode}] | Last Evaluation Loss : [{last_eval_loss}]',
                 end='')
             if (epoch + 1) % 500 == 0:
-                print()
-                save_model('ptt-m.pt', model=m.state_dict(), epochs=epochs, epoch=epoch + 1, lr=lr,
-                           optim=optimizer.state_dict())
+                if mode == 'train':
+                    print()
+                    save_model('ptt-m.pt', model=m.state_dict(), epochs=epochs, epoch=epoch + 1, lr=lr,
+                               optim=optimizer.state_dict())
                 # saves = {
                 #     'model': m.state_dict(),
                 #     'epochs': epochs,
@@ -146,10 +147,11 @@ def train(config_path: typing.Union[str, os.PathLike],
                 # torch.save(saves, 'model.pt')
 
             if (epoch + 1) % 1000 == 0:
-                fprint(f'Generating Some Samples To generated-{epoch + 1}.txt')
-                stream = open(f'generated-{epoch + 1}.txt', 'w')
-                context = torch.zeros((1, 1), dtype=torch.long, device=device)
-                stream.write(decode(m.generate(context, max_new_tokens=1000)[0].tolist()))
+                if mode == 'eval':
+                    fprint(f'Generating Some Samples To generated-{epoch + 1}.txt')
+                    stream = open(f'generated-{epoch + 1}.txt', 'w')
+                    context = torch.zeros((1, 1), dtype=torch.long, device=device)
+                    stream.write(decode(m.generate(context, max_new_tokens=1000)[0].tolist()))
 
     context = torch.zeros((1, 1), dtype=torch.long, device=device)
     stream = open('generated.txt', 'w')

@@ -1,3 +1,5 @@
+import torch.cuda
+
 from core.train import train
 
 try:
@@ -13,9 +15,12 @@ except:
 import argparse
 
 pars = argparse.ArgumentParser()
-pars.add_argument('--config-path', '-config-path', type=str, default='config/config.yaml', )
+pars.add_argument('--config-path', '-config-path', type=str, default='config/config-normal.yaml', )
 opt = pars.parse_args()
 
 if __name__ == "__main__":
     fprint(f"Config :: => {opt.config_path}")
+    fprint(
+        f'DEVICES : {torch.cuda.get_device_name()} | {torch.cuda.get_device_properties("cuda")} |'
+        f' {torch.cuda.get_device_capability("cuda:0")}')
     train(config_path=opt.config_path)

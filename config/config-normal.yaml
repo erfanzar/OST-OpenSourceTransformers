@@ -1,0 +1,20 @@
+data_path: 'data/input.txt'
+epochs: 10000
+lr: 4e-4
+
+pre_show_chunk: False
+batch_size: 2
+set_seed: False
+seed: 1377
+
+number_of_head: 8
+number_of_layers: 18
+head_size: 64
+number_of_embedded: 512
+chunk_size: 128
+
+use_compile: True
+
+load_weights: False
+
+path_weights: 'ptt-m.pt'
