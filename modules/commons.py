@@ -37,14 +37,14 @@ class Head(nn.Module):
         self.key = nn.Linear(c, head_size, bias=False)
         self.query = nn.Linear(c, head_size, bias=False)
         self.value = nn.Linear(c, head_size, bias=False)
-        self.register_buffer('trill', torch.tril(torch.ones(chunk, chunk)))
+        self.register_buffer('base', torch.tril(torch.ones(chunk, chunk)))
 
     def forward(self, x):
         B, T, C = x.shape
         k = self.key(x)
         q = self.query(x)
         wei = q @ k.transpose(-2, -1) * C ** -0.5
-        wei = wei.masked_fill(self.trill[:T, :T] == 0, float('-inf'))
+        wei = wei.masked_fill(self.base[:T, :T] == 0, float('-inf'))
         wei = F.softmax(wei, dim=-1)
         v = self.value(x)
         out = wei @ v
@@ -154,4 +154,3 @@ class CasualBlock(nn.Module):
         x = x + self.sc(self.ln1(x))
         x = x + self.mlp(self.ln2(x))
         return x
-

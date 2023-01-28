@@ -23,3 +23,15 @@ def save_model(name: str = 'model_save.pt', **kwargs):
     v = {**kwargs}
 
     torch.save(v, name)
+
+
+def tokenize_words(word: list):
+    """
+    :param word: index
+    :return: 1001 for start token | 1002 for end token
+    """
+    start = [1001]
+    end = 1002
+    word = start + word
+    word.append(end)
+    return word
