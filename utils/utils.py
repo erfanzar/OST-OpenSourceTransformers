@@ -28,10 +28,18 @@ def save_model(name: str = 'model_save.pt', **kwargs):
 def tokenize_words(word: list):
     """
     :param word: index
-    :return: 1001 for start token | 1002 for end token
+    :return: 0 for start token | 1002 for end token
     """
-    start = [1001]
-    end = 1002
-    word = start + word
-    word.append(end)
+
+    word = [0] + word
+    word.append(1002)
     return word
+
+
+def detokenize_words(word: list):
+    """
+    :param word: index
+    :return: un tokenized words
+    """
+
+    return [(0 if w == 1001 else w) for w in [w for w in word if w not in [1002, 0]]]
