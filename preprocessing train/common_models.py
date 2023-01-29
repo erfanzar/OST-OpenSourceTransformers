@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 @dataclass
 class Config:
-    chunk = 8
+    chunk = 256
     head_size = 128
     n_embedded = 128
     num_layer = 6
@@ -17,40 +17,26 @@ class Config:
 
 
 class Head(nn.Module):
-    def __init__(self, n_embedded: int, head_size: int, chunk: int):
+    def __init__(self, n_embedded: int, head_size: int):
         super(Head, self).__init__()
 
         self.key = nn.Linear(n_embedded, head_size, bias=False)
         self.query = nn.Linear(n_embedded, head_size, bias=False)
         self.value = nn.Linear(n_embedded, head_size, bias=False)
 
-        self.register_buffer('bias', torch.tril(torch.ones(chunk, chunk)))
-
-    def forward(self, k: torch.Tensor, q: torch.Tensor = None, v: torch.Tensor = None):
-        if q is not None and v is not None:
-            assert k.shape == q.shape and q.shape == v.shape
-            b, t, c = k.shape
-            key = self.key(k)
-            query = self.query(q)
-            value = self.value(v)
-
-            attn = query @ key.transpose(-2, -1) * c ** -0.5
-            attn = attn.masked_fill(self.bias[:t, :t] == 0, float('-inf'))
-            attn = nn.functional.softmax(attn, dim=-1)
-            wei = attn @ value
-            return value
-        else:
-            x = k
-            b, t, c = x.shape
-            key = self.model.key(x)
-            query = self.model.key(x)
-            value = self.model.key(x)
-
-            attn = query @ key.transpose(-2, -1) * c ** -0.5
-            attn = attn.masked_fill(self.bias[:t, :t] == 0, float('-inf'))
-            attn = nn.functional.softmax(attn, dim=-1)
-            wei = attn @ value
-            return value
+    def forward(self, k: torch.Tensor, q: torch.Tensor = None, v: torch.Tensor = None, mask=None):
+        # if q is not None and v is not None:
+        assert k.shape == q.shape and q.shape == v.shape
+        b, t, c = k.shape
+        key = self.key(k)
+        query = self.query(q)
+        value = self.value(v)
+        attn = query @ key.transpose(-2, -1) * c ** -0.5
+        if mask is not None:
+            attn = attn.masked_fill(mask == 0, float('-inf'))
+        attn = nn.functional.softmax(attn, dim=-1)
+        value = attn @ value
+        return value, attn
 
 
 class FeedForward(nn.Module):
@@ -68,11 +54,11 @@ class FeedForward(nn.Module):
 
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, n_embedded: int, head_size: int, chunk: int, num_heads: int):
+    def __init__(self, n_embedded: int, head_size: int, num_heads: int):
         super(MultiHeadAttention, self).__init__()
 
         self.attentions = nn.ModuleList(
-            [Head(n_embedded=n_embedded, head_size=head_size, chunk=chunk) for _ in range(num_heads)])
+            [Head(n_embedded=n_embedded, head_size=head_size) for _ in range(num_heads)])
 
         self.fc0 = nn.Linear(
             n_embedded, n_embedded
@@ -80,11 +66,10 @@ class MultiHeadAttention(nn.Module):
         self.dp = nn.Dropout(Config.dropout)
 
     def forward(self, k: torch.Tensor, q: torch.Tensor, v: torch.Tensor):
-        if q is not None and v is not None:
-            return self.dp(self.fc0(torch.cat([h(k, q, v) for h in self.attentions], dim=-1)))
-        else:
-            x = k
-            return self.dp(self.fc0(torch.cat([h(x) for h in self.attentions], dim=-1)))
+        # if q is not None and v is not None:
+        mask = torch.triu()
+        x = [h(k, q, v) for h in self.attentions]
+        return self.dp(self.fc0(torch.cat(x, dim=-1)))
 
 
 class Block(nn.Module):
@@ -96,7 +81,7 @@ class Block(nn.Module):
             dict(
                 ln1=nn.LayerNorm(n_embedded),
                 ln2=nn.LayerNorm(n_embedded),
-                m1=MultiHeadAttention(n_embedded=n_embedded, chunk=chunk, head_size=head_size, num_heads=n_head),
+                m1=MultiHeadAttention(n_embedded=n_embedded, head_size=head_size, num_heads=n_head),
                 feed_forward=FeedForward(n_embedded=n_embedded)
             )
         )
@@ -127,7 +112,9 @@ class PTTDecoder(nn.Module):
             dict(
                 wte=nn.Embedding(vocab_size, n_embedded),
                 wpe=nn.Embedding(vocab_size, n_embedded),
-                m=nn.ModuleList([Block(n_embedded=n_embedded, n_head=n_head, chunk=chunk) for _ in range(n_layers)]),
+                m=nn.ModuleList(
+                    [Block(n_embedded=n_embedded, n_head=n_head, chunk=chunk) for _ in range(n_layers)]
+                ),
                 ln=nn.LayerNorm(n_embedded),
                 fc=nn.Linear(n_embedded, vocab_size)
             )
@@ -160,6 +147,5 @@ class PTTDecoder(nn.Module):
             next_idx = torch.multinomial(logits, 1)
             idx = torch.cat([idx, next_idx], 1)
         return idx
-
 
 # class

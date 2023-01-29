@@ -10,8 +10,8 @@ seed: 1377
 number_of_head: 8
 number_of_layers: 18
 head_size: 64
-number_of_embedded: 512
-chunk_size: 128
+number_of_embedded: 320
+chunk_size: 512
 
 use_compile: True
 

@@ -7,17 +7,17 @@ import torch.nn.functional as F
 
 from .commons import MultiHeadBlock, CasualBlock
 
-__all__ = ['PTTMultiHeadAttention']
+__all__ = ['PTTDecoder']
 
 
-class PTTMultiHeadAttention(nn.Module):
+class PTTDecoder(nn.Module):
     def __init__(self, vocab_size: int, number_of_layers: int, number_of_embedded: int, head_size: int,
                  number_of_head: int,
                  chunk_size: int
 
                  ):
 
-        super(PTTMultiHeadAttention, self).__init__()
+        super(PTTDecoder, self).__init__()
 
         self.vocab_size = vocab_size
         self.chunk = chunk_size
