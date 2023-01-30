@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .commons import MultiHeadBlock, CasualBlock
+from .commons import MultiHeadBlock, CasualBlock, Decoder, DecoderBlocK, Encoder, Block
 
 __all__ = ['PTTDecoder']
 
@@ -27,7 +27,7 @@ class PTTDecoder(nn.Module):
         self.position_embedding = nn.Embedding(chunk_size, number_of_embedded)
 
         self.blocks = nn.Sequential(
-            *[MultiHeadBlock(chunk_size=chunk_size, number_of_embedded=number_of_embedded,
+            *[MultiHeadBlock(number_of_embedded=number_of_embedded,
                              number_of_head=number_of_head) for _
               in range(number_of_layers)])
 
@@ -42,7 +42,7 @@ class PTTDecoder(nn.Module):
         pos_emb = self.position_embedding(torch.arange(T, device=idx.device))
 
         x = pos_emb + tok_emb
-        x = self.blocks(x)
+        x = self.blocks(x, x, x)
         x = self.ln_f(x)
 
         logits = self.lm_head(x)
@@ -136,3 +136,50 @@ class PTTCasualHeadAttention(nn.Module):
             idx = torch.cat((idx, idx_next), dim=1)
 
         return idx
+
+
+class PTT(nn.Module):
+    def __init__(self,
+                 src_vocab_size, trg_vocab_size, src_pad_idx: int, trg_pad_idx: int, number_of_embedded: int,
+                 chunk: int,
+                 number_of_layers: int, number_of_heads: int, max_length: int):
+        super(PTT, self).__init__()
+        self.decoder = Decoder(
+            number_of_embedded=number_of_embedded,
+            number_of_heads=number_of_heads,
+            number_of_layers=number_of_layers,
+            max_length=max_length,
+            trg_vocab_size=trg_vocab_size
+        )
+        self.encoder = Encoder(
+            number_of_embedded=number_of_embedded,
+            number_of_heads=number_of_heads,
+            number_of_layers=number_of_layers,
+            vocab_size=src_vocab_size,
+            chunk=chunk,
+
+        )
+        self.src_pad_index = src_pad_idx
+        self.trg_pad_index = trg_pad_idx
+
+    def make_src_mask(self, src):
+        src_mask = (src != self.src_pad_index).unsqueeze(1).unsqueeze(2)
+        # (N, 1, 1, src_len)
+        return src_mask.to(src.device)
+
+    def make_trg_mask(self, trg):
+        N, trg_len = trg.shape
+        trg_mask = torch.tril(torch.ones((trg_len, trg_len))).expand(
+            N, 1, trg_len, trg_len
+        )
+
+        return trg_mask.to(trg.device)
+
+    def forward(self, src, trg):
+        src_mask = self.make_src_mask(src)
+        trg_mask = self.make_trg_mask(trg)
+        out_encoder = self.encoder(src, src_mask)
+        # print('[ENCODER STATUS] : DONE !')
+        # print(out_encoder.shape )
+        out_decoder = self.decoder(trg, out_encoder, src_mask, trg_mask)
+        return out_decoder

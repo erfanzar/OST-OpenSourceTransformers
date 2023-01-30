@@ -1,4 +1,5 @@
 from typing import Optional
+from dataclasses import dataclass
 
 try:
     import torch
@@ -95,7 +96,7 @@ class MultiHeadBlock(nn.Module):
         self.ln2 = nn.LayerNorm(number_of_embedded)
 
     def forward(self, x):
-        x = x + self.ln1(self.sa(x))
+        x = x + self.ln1(self.sa(x, x, x))
         x = x + self.ln2(self.ffwd(x))
         return x
 
@@ -157,3 +158,198 @@ class CasualBlock(nn.Module):
         x = x + self.sc(self.ln1(x))
         x = x + self.mlp(self.ln2(x))
         return x
+
+
+@dataclass
+class Config:
+    Dropout = 0.1
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    # device = 'cpu'
+
+
+@torch.jit.script  # good to enable when not using torch.compile, disable when using (our default)
+def new_gelu(x):
+    """
+    Implementation of the GELU activation function currently in Google BERT repo (identical to OpenAI GPT).
+    Reference: Gaussian Error Linear Units (GELU) paper: https://arxiv.org/abs/1606.08415
+    """
+    return 0.5 * x * (1.0 + torch.tanh(math.sqrt(2.0 / math.pi) * (x + 0.044715 * torch.pow(x, 3.0))))
+
+
+class NG(nn.Module):
+    def __init__(self):
+        super(NG, self).__init__()
+
+    def forward(self, x):
+        return 0.5 * x * (1.0 + torch.tanh(math.sqrt(2.0 / math.pi) * (x + 0.044715 * torch.pow(x, 3.0))))
+
+
+class SelfAttention(nn.Module):
+    def __init__(self, number_of_embedded: int, number_of_heads):
+        super(SelfAttention, self).__init__()
+        head_size = number_of_embedded // number_of_heads
+        assert (head_size * number_of_heads == number_of_embedded)
+        self.key = nn.Linear(number_of_embedded, number_of_embedded, bias=False).to(Config.device)
+        self.query = nn.Linear(number_of_embedded, number_of_embedded, bias=False).to(Config.device)
+        self.value = nn.Linear(number_of_embedded, number_of_embedded, bias=False).to(Config.device)
+        self.fc_out = nn.Linear(number_of_embedded, number_of_embedded).to(Config.device)
+        self.dp1, self.dp2 = nn.Dropout(Config.Dropout).to(Config.device), nn.Dropout(Config.Dropout).to(Config.device)
+        self.head_size = head_size
+        self.number_of_embedded = number_of_embedded
+        self.number_of_heads = number_of_heads
+
+    def forward(self, v, k, q, mask: Optional[torch.Tensor] = None):
+        b = q.shape[0]
+        b, t, c = q.shape
+        value_len, key_len, query_len = v.shape[1], k.shape[1], q.shape[1]
+        k = self.key(k)
+        q = self.query(q)
+        v = self.value(v)
+        # print('-' * 40)
+        # print(f'KEY : {k.shape}')
+        # print(f'VALUE : {v.shape}')
+        # print(f'QUERY : {q.shape}')
+        k = k.reshape(b, key_len, self.number_of_heads, self.head_size).transpose(1, 2)
+        # (batch, chunk , number_of_heads, head_size) -> (batch, number_of_heads, chunk, head_size)
+        q = q.reshape(b, query_len, self.number_of_heads, self.head_size).transpose(1, 2)
+        # (batch, chunk , number_of_heads, head_size) -> (batch, number_of_heads, chunk, head_size)
+        v = v.reshape(b, value_len, self.number_of_heads, self.head_size).transpose(1, 2)
+        # (batch, chunk , number_of_heads, head_size) -> (batch, number_of_heads, chunk, head_size)
+
+        score = q @ k.transpose(-2, -1) * (1.0 / math.sqrt(k.size(0)))
+        if mask is not None:
+            score = score.masked_fill(mask == 0, float('-inf'))
+        score = torch.nn.functional.softmax(score, dim=-1)
+        score = self.dp1(score)
+        out = score @ v
+
+        # score = score.transpose(1, 2).contiguous().view(b, t, c)
+        out = out.transpose(1, 2).contiguous().view(b, t, c)
+        out = self.dp2(self.fc_out(out))
+        return out
+
+
+class FeedForward(nn.Module):
+    def __init__(self, number_of_embedded: int):
+        super(FeedForward, self).__init__()
+        ce = 5
+        self.m = nn.Sequential(
+            nn.Linear(number_of_embedded, number_of_embedded * ce),
+            NG(),
+            nn.Linear(number_of_embedded * ce, number_of_embedded),
+            nn.Dropout(Config.Dropout)
+        )
+
+    def forward(self, x: torch.Tensor):
+        return self.m(x)
+
+
+class Block(nn.Module):
+    def __init__(self, number_of_embedded: int, number_of_heads: int):
+        super(Block, self).__init__()
+        self.block = nn.ModuleDict(
+            dict(
+                sa1=SelfAttention(number_of_embedded, number_of_heads),
+                ln1=nn.LayerNorm(number_of_embedded),
+                # Comment [Start]
+                # ln2=nn.LayerNorm(number_of_embedded),
+                # sa2=SelfAttention(number_of_embedded, number_of_heads),
+
+                fd=FeedForward(number_of_embedded),
+                ln3=nn.LayerNorm(number_of_embedded),
+                # Comment [END]
+            )
+        )
+        self.dp = nn.Dropout(Config.Dropout)
+        # self.dp2 = nn.Dropout(Config.Dropout)
+
+    def forward(self, v, k, q, mask):
+        attention = self.block.sa1(v, k, q, mask)
+        x = self.dp(self.block.ln1(attention + q))
+        # comment line below for original transformer block [start]
+        #
+        # x = self.block.sa2(x, x, x, mask)
+        # x =( self.block.fd(self.block.ln3(x)) + x)
+        x = (self.block.fd(self.block.ln3(x)) + x)
+        # x = self.dp2(self.block.ln3(self.block.fd(x)))
+        # [end]
+
+        return x
+
+
+class Encoder(nn.Module):
+    def __init__(self, vocab_size: int, chunk: int, number_of_embedded: int, number_of_layers: int,
+                 number_of_heads: int):
+        super(Encoder, self).__init__()
+        self.token_embedding = nn.Embedding(vocab_size, number_of_embedded)
+        self.position_embedding = nn.Embedding(chunk, number_of_embedded)
+        self.blocks = nn.ModuleList(
+            [Block(number_of_embedded, number_of_heads) for _ in range(number_of_layers)]
+        )
+        self.dp = nn.Dropout(Config.Dropout)
+        self.fc = nn.Linear(number_of_embedded, vocab_size)
+        self.fc.weight = self.token_embedding.weight
+        self.dp = nn.Dropout(Config.Dropout)
+
+    def forward(self, x, mask=None):
+        b, t = x.shape
+        token_emb = self.token_embedding(x)
+        pos_emb = self.position_embedding(
+            torch.arange(t * b, dtype=torch.long if x.device == 'cuda' else torch.int).to(x.device)).view(b, t, -1)
+
+        # print(pos_emb.shape)
+        # print(token_emb.shape)
+        att = self.dp(pos_emb + token_emb)
+        # print(f'ATT : {att.shape}')
+        for i, m in enumerate(self.blocks):
+            att = m(att, att, att, mask)
+            # print(f'[{i}] = {att.shape}')
+        return att
+
+
+class DecoderBlocK(nn.Module):
+    def __init__(self, number_of_embedded, number_of_heads):
+        super(DecoderBlocK, self).__init__()
+        self.attn = SelfAttention(number_of_embedded=number_of_embedded, number_of_heads=number_of_heads)
+        self.ln = nn.LayerNorm(number_of_embedded)
+        self.block = Block(
+            number_of_embedded=number_of_embedded, number_of_heads=number_of_heads
+        )
+        self.ff = FeedForward(number_of_embedded=number_of_embedded)
+        self.ln2 = nn.LayerNorm(number_of_embedded)
+        self.dp = nn.Dropout(Config.Dropout)
+        self.dp2 = nn.Dropout(Config.Dropout)
+
+    def forward(self, x, value, key, src_mask, trg_mask):
+        attention = self.attn(x, x, x, trg_mask)
+        query = self.dp(self.ln(attention + x))
+        out = self.block(value, key, query, src_mask)
+        out = self.dp2(self.ln2(self.ff(out) + out))
+        return out
+
+
+class Decoder(nn.Module):
+    def __init__(self, number_of_embedded: int, number_of_heads: int, number_of_layers: int, max_length: int,
+                 trg_vocab_size: int):
+        super(Decoder, self).__init__()
+        self.token_embedding = nn.Embedding(trg_vocab_size, number_of_embedded)
+        self.position_embedding = nn.Embedding(max_length, number_of_embedded)
+        self.layers = nn.ModuleList(
+            [
+                DecoderBlocK(number_of_embedded=number_of_embedded, number_of_heads=number_of_heads) for _ in
+                range(number_of_layers)
+            ]
+        )
+        self.fc_out = nn.Linear(number_of_embedded, trg_vocab_size)
+        self.dp = nn.Dropout(Config.Dropout)
+
+    def forward(self, x, encoder_outs, src_mask, trg_mask):
+        b, t = x.shape
+        token_emb = self.token_embedding(x)
+        pos_emb = self.position_embedding(
+            torch.arange(t * b, dtype=torch.long if x.device == 'cuda' else torch.int).to(x.device)).view(b, t, -1)
+        pps = self.dp(token_emb + pos_emb)
+        for layer in self.layers:
+            pps = layer(pps, encoder_outs, encoder_outs, src_mask, trg_mask)
+        out = self.fc_out(pps)
+        return out
