@@ -1,5 +1,5 @@
-from typing import Optional
 from dataclasses import dataclass
+from typing import Optional
 
 try:
     import torch
@@ -162,7 +162,7 @@ class CasualBlock(nn.Module):
 
 @dataclass
 class Config:
-    Dropout = 0.1
+    Dropout = 0.2
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     # device = 'cpu'
 
@@ -193,7 +193,8 @@ class SelfAttention(nn.Module):
         self.query = nn.Linear(number_of_embedded, number_of_embedded, bias=False).to(Config.device)
         self.value = nn.Linear(number_of_embedded, number_of_embedded, bias=False).to(Config.device)
         self.fc_out = nn.Linear(number_of_embedded, number_of_embedded).to(Config.device)
-        self.dp1, self.dp2 = nn.Dropout(Config.Dropout).to(Config.device), nn.Dropout(Config.Dropout).to(Config.device)
+        self.dp1 = nn.Dropout(Config.Dropout).to(Config.device)
+        self.dp2 = nn.Dropout(Config.Dropout).to(Config.device)
         self.head_size = head_size
         self.number_of_embedded = number_of_embedded
         self.number_of_heads = number_of_heads
@@ -232,12 +233,13 @@ class SelfAttention(nn.Module):
 class FeedForward(nn.Module):
     def __init__(self, number_of_embedded: int):
         super(FeedForward, self).__init__()
-        ce = 5
+        ce = 4
         self.m = nn.Sequential(
             nn.Linear(number_of_embedded, number_of_embedded * ce),
             NG(),
+            nn.Dropout(Config.Dropout),
             nn.Linear(number_of_embedded * ce, number_of_embedded),
-            nn.Dropout(Config.Dropout)
+
         )
 
     def forward(self, x: torch.Tensor):
@@ -264,13 +266,13 @@ class Block(nn.Module):
         # self.dp2 = nn.Dropout(Config.Dropout)
 
     def forward(self, v, k, q, mask):
-        attention = self.block.sa1(v, k, q, mask)
-        x = self.dp(self.block.ln1(attention + q))
+        attention = self.block.sa1(self.block.ln1(v), self.block.ln1(k), self.block.ln1(q), mask)
+        x = self.dp(attention) + q
         # comment line below for original transformer block [start]
         #
         # x = self.block.sa2(x, x, x, mask)
         # x =( self.block.fd(self.block.ln3(x)) + x)
-        x = (self.block.fd(self.block.ln3(x)) + x)
+        x = (self.block.fd(self.block.ln3(x))) + x
         # x = self.dp2(self.block.ln3(self.block.fd(x)))
         # [end]
 
@@ -293,6 +295,7 @@ class Encoder(nn.Module):
 
     def forward(self, x, mask=None):
         b, t = x.shape
+        # print(x)
         token_emb = self.token_embedding(x)
         pos_emb = self.position_embedding(
             torch.arange(t * b, dtype=torch.long if x.device == 'cuda' else torch.int).to(x.device)).view(b, t, -1)
@@ -310,21 +313,24 @@ class Encoder(nn.Module):
 class DecoderBlocK(nn.Module):
     def __init__(self, number_of_embedded, number_of_heads):
         super(DecoderBlocK, self).__init__()
-        self.attn = SelfAttention(number_of_embedded=number_of_embedded, number_of_heads=number_of_heads)
-        self.ln = nn.LayerNorm(number_of_embedded)
-        self.block = Block(
-            number_of_embedded=number_of_embedded, number_of_heads=number_of_heads
-        )
-        self.ff = FeedForward(number_of_embedded=number_of_embedded)
+        self.attn1 = SelfAttention(number_of_embedded=number_of_embedded, number_of_heads=number_of_heads)
+        self.attn2 = SelfAttention(number_of_embedded=number_of_embedded, number_of_heads=number_of_heads)
+
+        self.ln1 = nn.LayerNorm(number_of_embedded)
         self.ln2 = nn.LayerNorm(number_of_embedded)
-        self.dp = nn.Dropout(Config.Dropout)
+        self.ln3 = nn.LayerNorm(number_of_embedded)
+
+        self.ff = FeedForward(number_of_embedded=number_of_embedded)
+
+        self.dp1 = nn.Dropout(Config.Dropout)
         self.dp2 = nn.Dropout(Config.Dropout)
+        self.dp3 = nn.Dropout(Config.Dropout)
 
     def forward(self, x, value, key, src_mask, trg_mask):
-        attention = self.attn(x, x, x, trg_mask)
-        query = self.dp(self.ln(attention + x))
-        out = self.block(value, key, query, src_mask)
-        out = self.dp2(self.ln2(self.ff(out) + out))
+        x = self.ln1(x)
+        query = self.dp1(self.attn1(x, x, x, trg_mask)) + x
+        out = self.dp2(self.attn2(self.ln2(value), self.ln2(key), self.ln2(query), src_mask)) + query
+        out = self.dp2(self.ff(self.ln2(out))) + out
         return out
 
 
