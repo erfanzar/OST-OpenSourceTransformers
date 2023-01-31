@@ -2,8 +2,43 @@ import math
 from dataclasses import dataclass
 from typing import Optional
 
+import erutils
+import sentencepiece
 import torch
 import torch.nn as nn
+
+
+def tokenize_words(word: list, first_word_token: int = 0, swap: int = 1001, last_word_token: int = 1002,
+                   pad_index: int = 1003):
+    """
+    :param swap:
+    :param pad_index:
+    :param last_word_token:
+    :param first_word_token:
+    :param word: index
+    :return: 0 for start token | 1002 for end token
+    """
+    word = [(swap if w == 0 else w) for w in word]
+    word = [first_word_token] + word
+    word.append(last_word_token)
+    word.append(pad_index)
+    return word
+
+
+def detokenize_words(word: list, first_word_token: int = 0, last_word_token: int = 1002, pad_index: int = 1003):
+    """
+    :param pad_index:
+    :param last_word_token:
+    :param first_word_token:
+    :param word: index
+    :return: un tokenized words
+    """
+
+    w = [(first_word_token if w == last_word_token - 1 else w) for w in
+         [w for w in word if w not in [last_word_token, first_word_token]]]
+    del w[-1]
+    # print(f'W : {w}')
+    return w
 
 
 @dataclass
@@ -139,6 +174,7 @@ class Encoder(nn.Module):
 
     def forward(self, x, mask=None):
         b, t = x.shape
+        # print(x)
         token_emb = self.token_embedding(x)
         pos_emb = self.position_embedding(
             torch.arange(t * b, dtype=torch.long if x.device == 'cuda' else torch.int).to(x.device)).view(b, t, -1)
@@ -238,40 +274,80 @@ class PTT(nn.Module):
 
         return trg_mask.to(trg.device)
 
-    def forward(self, src, trg):
+    def forward_encoder(self, src):
         src_mask = self.make_src_mask(src)
+        return self.encoder(src, src_mask), src_mask
+
+    def forward_decoder(self, trg, encoder_output, src_mask):
         trg_mask = self.make_trg_mask(trg)
-        out_encoder = self.encoder(src, src_mask)
-        # print('[ENCODER STATUS] : DONE !')
-        # print(out_encoder.shape )
-        out_decoder = self.decoder(trg, out_encoder, src_mask, trg_mask)
-        return out_decoder
+        return self.decoder(trg, encoder_output, src_mask, trg_mask)
+
+    def forward(self, src, trg):
+        enc, src_mask = self.forward_encoder(src)
+        out = self.forward_decoder(trg, enc, src_mask)
+        return out
 
 
-chunk = 24
+sentence = sentencepiece.SentencePieceProcessor()
+sentence.Load(model_file='../tokenizer_model/test_model.model')
+
+
+def fix_data(data):
+    for d in data:
+        question = data[d]['question']
+        answers = data[d]['answers']
+        encoded_question = tokenize_words(sentence.Encode(question))
+        encoded_answers = tokenize_words(sentence.Encode(answers))
+        yield encoded_question, encoded_answers
+
+
+def save_model(name: str = 'model_save.pt', **kwargs):
+    v = {**kwargs}
+
+    torch.save(v, name)
+
+
 if __name__ == "__main__":
     src_pad_idx = 0
     trg_pad_idx = 0
+    data = erutils.read_json('../data/train-v2.0-cleared.json')
 
-    x = torch.tensor([[1, 5, 6, 4, 3, 9, 2, 0, 0, 0, 0, 0]]).to(Config.device)
-    trg = torch.tensor([[1, 7, 4, 3, 5, 9, 2, 0, 0, 0, 0]]).to(Config.device)
+    # x = torch.tensor([[1, 5, 6, 4, 3, 9, 2, 0, 0, 0, 0, 0]]).to(Config.device)
+    # trg = torch.tensor([[1, 7, 4, 3, 5, 9, 2, 0, 0, 0, 0]]).to(Config.device)
 
-    transformer = PTT(src_vocab_size=12, trg_vocab_size=121, max_length=500, number_of_layers=8, number_of_heads=102,
-                      number_of_embedded=510, chunk=100, src_pad_idx=src_pad_idx, trg_pad_idx=trg_pad_idx).to(
+    transformer = PTT(src_vocab_size=sentence.vocab_size() + 4, trg_vocab_size=sentence.vocab_size() + 4,
+                      max_length=1000,
+                      number_of_layers=8,
+                      number_of_heads=102,
+                      number_of_embedded=510, chunk=100, src_pad_idx=1003, trg_pad_idx=1003).to(
         Config.device)
-    print(sum(s.numel() for s in transformer.parameters()) / 1e6, " Million Parameters Are In PPT")
+    print(sum(s.numel() for s in transformer.parameters()) / 1e6, " Million Parameters Are In MODEL")
     optim = torch.optim.AdamW(transformer.parameters(), 3e-4)
     epochs = 1000
-    losses = 0
+    losses_t = 0
+    ipa = 0
     for i in range(epochs):
-        predict = transformer.forward(x, trg)
-        optim.zero_grad()
-        b, t, c = predict.shape
-        # predict = torch.nn.functional.softmax(predict, dim=-1)
-        # predict = predict[:, -1, :]
-        # predict = torch.multinomial(predict, num_samples=1)
-        loss = torch.nn.functional.cross_entropy(predict.view(b * t, -1), target=trg.view(-1))
-        loss.backward()
-        optim.step()
-        losses += loss
-        print(f'\r [{i + 1}/{epochs}] | LOSS : {loss.item()} | AVG : {losses / (i + 1)}')
+        losses = 0
+        for ia, xt in enumerate(fix_data(data)):
+            x = torch.tensor(xt[0]).to(Config.device).unsqueeze(0)
+
+            trg = torch.tensor(xt[1]).to(Config.device).unsqueeze(0)
+            predict = transformer.forward(x, trg)
+            optim.zero_grad()
+            b, t, c = predict.shape
+            # predict = torch.nn.functional.softmax(predict, dim=-1)
+            # predict = predict[:, -1, :]
+            # predict = torch.multinomial(predict, num_samples=1)
+            loss = torch.nn.functional.cross_entropy(predict.view(b * t, -1), target=trg.view(-1))
+            loss.backward()
+            optim.step()
+            ipa += 1
+            losses += loss
+            losses_t += loss
+            print(
+                f'\r\033[1;36m [{i + 1}/{epochs}] | ITER : [{ia + 1}] | LOSS : {loss.item()} | AVG ITER : {losses / (ia + 1)} | AVG EP : {losses_t / (ipa)}',
+                end='')
+
+        print()
+        if i % 10 == 0:
+            save_model(model=transformer.state_dict(), optimizer=optim.state_dict(), epochs=epochs, epoch=i)

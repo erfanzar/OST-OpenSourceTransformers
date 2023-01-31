@@ -24,22 +24,34 @@ def save_model(name: str = 'model_save.pt', **kwargs):
 
     torch.save(v, name)
 
-
-def tokenize_words(word: list):
+def tokenize_words(word: list, first_word_token: int = 0, swap: int = 1001, last_word_token: int = 1002,
+                   pad_index: int = 1003):
     """
+    :param swap:
+    :param pad_index:
+    :param last_word_token:
+    :param first_word_token:
     :param word: index
     :return: 0 for start token | 1002 for end token
     """
-
-    word = [0] + word
-    word.append(1002)
+    word = [(swap if w == 0 else w) for w in word]
+    word = [first_word_token] + word
+    word.append(last_word_token)
+    word.append(pad_index)
     return word
 
 
-def detokenize_words(word: list):
+def detokenize_words(word: list, first_word_token: int = 0, last_word_token: int = 1002, pad_index: int = 1003):
     """
+    :param pad_index:
+    :param last_word_token:
+    :param first_word_token:
     :param word: index
     :return: un tokenized words
     """
 
-    return [(0 if w == 1001 else w) for w in [w for w in word if w not in [1002, 0]]]
+    w = [(first_word_token if w == last_word_token - 1 else w) for w in
+         [w for w in word if w not in [last_word_token, first_word_token]]]
+    del w[-1]
+    # print(f'W : {w}')
+    return w

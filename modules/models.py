@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .commons import MultiHeadBlock, CasualBlock, Decoder, DecoderBlocK, Encoder, Block
+from .commons import MultiHeadBlock, CasualBlock, Decoder, Encoder
 
 __all__ = ['PTTDecoder']
 
@@ -138,11 +138,14 @@ class PTTCasualHeadAttention(nn.Module):
         return idx
 
 
+
 class PTT(nn.Module):
     def __init__(self,
-                 src_vocab_size, trg_vocab_size, src_pad_idx: int, trg_pad_idx: int, number_of_embedded: int,
+                 src_vocab_size, trg_vocab_size, src_pad_idx: int,
+                 trg_pad_idx: int, number_of_embedded: int,
                  chunk: int,
-                 number_of_layers: int, number_of_heads: int, max_length: int):
+                 number_of_layers: int, number_of_heads: int,
+                 max_length: int):
         super(PTT, self).__init__()
         self.decoder = Decoder(
             number_of_embedded=number_of_embedded,
@@ -164,7 +167,6 @@ class PTT(nn.Module):
 
     def make_src_mask(self, src):
         src_mask = (src != self.src_pad_index).unsqueeze(1).unsqueeze(2)
-        # (N, 1, 1, src_len)
         return src_mask.to(src.device)
 
     def make_trg_mask(self, trg):
@@ -175,11 +177,15 @@ class PTT(nn.Module):
 
         return trg_mask.to(trg.device)
 
-    def forward(self, src, trg):
+    def forward_encoder(self, src):
         src_mask = self.make_src_mask(src)
+        return self.encoder.forward(src, src_mask), src_mask
+
+    def forward_decoder(self, trg, encoder_output, src_mask):
         trg_mask = self.make_trg_mask(trg)
-        out_encoder = self.encoder(src, src_mask)
-        # print('[ENCODER STATUS] : DONE !')
-        # print(out_encoder.shape )
-        out_decoder = self.decoder(trg, out_encoder, src_mask, trg_mask)
-        return out_decoder
+        return self.decoder.forward(trg, encoder_output, src_mask, trg_mask)
+
+    def forward(self, src, trg):
+        enc, src_mask = self.forward_encoder(src)
+        out = self.forward_decoder(trg, enc, src_mask)
+        return out
