@@ -144,11 +144,11 @@ class Block(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, vocab_size: int, chunk: int, number_of_embedded: int, number_of_layers: int,
+    def __init__(self, vocab_size: int, max_length: int, number_of_embedded: int, number_of_layers: int,
                  number_of_heads: int):
         super(Encoder, self).__init__()
         self.token_embedding = nn.Embedding(vocab_size, number_of_embedded)
-        self.position_embedding = nn.Embedding(chunk, number_of_embedded)
+        self.position_embedding = nn.Embedding(max_length, number_of_embedded)
         self.blocks = nn.ModuleList(
             [Block(number_of_embedded, number_of_heads) for _ in range(number_of_layers)]
         )
@@ -243,7 +243,7 @@ class PTT(nn.Module):
             number_of_heads=number_of_heads,
             number_of_layers=number_of_layers,
             vocab_size=src_vocab_size,
-            chunk=chunk,
+            max_length=max_length,
 
         )
         self.src_pad_index = src_pad_idx
@@ -314,8 +314,7 @@ def save_model(name: str = 'model_save.pt', **kwargs):
 
 
 if __name__ == "__main__":
-    src_pad_idx = 0
-    trg_pad_idx = 0
+
     data = erutils.read_json('../data/train-v2.0-cleared.json')
 
     # x = torch.tensor([[1, 5, 6, 4, 3, 9, 2, 0, 0, 0, 0, 0]]).to(Config.device)

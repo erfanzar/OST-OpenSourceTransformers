@@ -11,8 +11,8 @@ if __name__ == "__main__":
 
             for daa in da['qas']:
                 # print([k for k, v in daa.items()])
-                if len(total) > 600:
-                    break
+                # if len(total) > 600:
+                #     break
                 if 'question' in daa:
                     if daa['is_impossible'] is not True:
                         total[len(total)] = {'question': daa['question'], 'answers': daa['answers'][0]['text']}

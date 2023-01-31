@@ -58,7 +58,7 @@
 #
 #
 if __name__ == '__main__':
-    s = 756
+    s = 728
     for ss in range(s):
         if s % (ss+1) == 0:
             print(ss+1)
