@@ -82,7 +82,7 @@ class MultiHeadAttention(nn.Module):
 
 
 class PositionalEncoder(nn.Module):
-    def __init__(self, d_model, max_seq_len=80):
+    def __init__(self, d_model, max_seq_len=200):
         super().__init__()
         self.d_model = d_model
 
@@ -104,7 +104,7 @@ class PositionalEncoder(nn.Module):
         x = x * math.sqrt(self.d_model)
         # add constant to embedding
         seq_len = x.size(1)
-        torch
+
         x = x + Variable(self.pe[:, :seq_len], requires_grad=False).cuda()
         return x
 
@@ -294,7 +294,7 @@ if __name__ == "__main__":
 
     data = erutils.read_json('../data/train-v2.0-cleared.json')
 
-    transformer = Transformer(src_vocab=1004, trg_vocab=1004, d_model=728, heads=4, N=8).to(
+    transformer = Transformer(src_vocab=1004, trg_vocab=1004, d_model=512, heads=4, N=6).to(
         Config.device)
     for p in transformer.parameters():
         if p.dim() > 1:
@@ -304,31 +304,31 @@ if __name__ == "__main__":
     epochs = 1000
     losses_t = 0
     ipa = 0
+    vppa = 0
     for i in range(epochs):
         losses = 0
         for ia, xt in enumerate(fix_data(data)):
-            try:
-                x = torch.tensor(xt[0]).to(Config.device).unsqueeze(0)
+            # try:
+            x = torch.tensor(xt[0]).to(Config.device).unsqueeze(0)
 
-                trg = torch.tensor(xt[1]).to(Config.device).unsqueeze(0)
-                predict = transformer.forward(x, trg, make_src_mask(x, 1003), make_trg_mask(trg))
-                optim.zero_grad()
-                b, t, c = predict.shape
+            trg = torch.tensor(xt[1]).to(Config.device).unsqueeze(0)
+            predict = transformer.forward(x, trg, make_src_mask(x, 1003), make_trg_mask(trg))
+            optim.zero_grad()
+            b, t, c = predict.shape
 
-                loss = torch.nn.functional.cross_entropy(predict.view(-1, predict.size(-1)), target=trg.view(-1),
-                                                         ignore_index=1003)
-                loss.backward()
-                optim.step()
-                ipa += 1
-                losses += loss
-                losses_t += loss
-            except:
-                print('LOL 1')
+            loss = torch.nn.functional.cross_entropy(predict.view(-1, predict.size(-1)), target=trg.view(-1),
+                                                     ignore_index=1003)
+            loss.backward()
+            optim.step()
+            ipa += 1
+            losses += loss
+            losses_t += loss
+
             print(
-                f'\r\033[1;36m [{i + 1}/{epochs}] | ITER : [{ia + 1}] | LOSS : {loss.item()} | AVG ITER : {losses / (ia + 1)} | AVG EP : {losses_t / (ipa)}',
+                f'\r\033[1;36m [{i + 1}/{epochs}] | ITER : [{ia + 1}] | LOSS : {loss.item()} | AVG ITER : {losses / (ia + 1)} | AVG EP : {losses_t / (ipa)} | VPPA : {vppa}',
                 end='')
 
         print()
-        if i % 2 == 0:
-            save_model(model=transformer.state_dict(), optimizer=optim.state_dict(), epochs=epochs, epoch=i,
-                       name='LAL.pt')
+        # if i % 2 == 0:
+        save_model(model=transformer.state_dict(), optimizer=optim.state_dict(), epochs=epochs, epoch=i,
+                   name='LAL.pt')
