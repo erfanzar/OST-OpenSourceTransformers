@@ -1,5 +1,5 @@
 import math
-
+import torch
 import torch.nn as nn
 from torch.nn import functional as f
 
@@ -36,6 +36,20 @@ class SelfAttention(nn.Module):
 class PositionalEncoding(nn.Module):
     def __init__(self, ne: int, max_len: int = 120):
         super(PositionalEncoding, self).__init__()
+        self.ne = ne
+        pos = torch.zeros(max_len, ne)
+        for p in range(max_len):
+            for i in range(0, ne, 2):
+                pos[p, i] = math.sin(pos / (10000 ** ((2 * i) / ne)))
+                pos[p, i + 1] = math.cos(pos / (10000 ** ((2 * (i + 1)) / ne)))
+        pos = pos.unsqueeze(0)
+        self.register_buffer('p', pos)
+
+    def forward(self, x):
+        x = x + torch.sqrt(self.ne)
+        seq_len = x.size(1)
+        x = x + torch.autograd.Variable(self.p[:, :seq_len], requires_grad=False).cuda()
+        return x
 
 
 class FeedForward(nn.Module):
@@ -117,7 +131,7 @@ class DecoderBlock(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, vocab_size: int, ne: int, nh: int, nl: int):
+    def __init__(self, vocab_size: int, ne: int, nh: int, nl: int, max_length: int):
         super(Decoder, self).__init__()
 
         self.m = nn.ModuleList(
@@ -126,3 +140,43 @@ class Decoder(nn.Module):
             ]
         )
         self.te = nn.Embedding(vocab_size, ne)
+        self.pe = PositionalEncoding(ne=ne, max_len=max_length)
+        self.norm = Norm(ne)
+
+    def forward(self, x, enc_out, src_mask=None, trg_mask=None):
+        x = self.te(x)
+        x = self.pe(x)
+        for m in self.m:
+            x = m(x, enc_out, trg_mask, src_mask)
+        return self.norm(x)
+
+
+class Encoder(nn.Module):
+    def __init__(self, vocab_size: int, ne: int, nh: int, nl: int, max_length: int):
+        super(Encoder, self).__init__()
+        self.norm = Norm(ne)
+        self.m = nn.ModuleList(
+            [
+                EncoderBlock(ne=ne, nh=nh) for _ in nl
+            ]
+        )
+        self.te = nn.Embedding(vocab_size, ne)
+        self.pe = PositionalEncoding(ne=ne, max_len=max_length)
+
+    def forward(self, x, src_mask=None):
+        x = self.pe(self.te(x))
+        for m in self.m:
+            x = m(x, src_mask)
+        return self.norm(x)
+
+
+class PTT(nn.Module):
+    def __init__(self, vocab_size: int, ne: int, nh: int, nl: int, max_length: int):
+        super(PTT, self).__init__()
+        self.enc = Encoder(vocab_size=vocab_size, ne=ne, nh=nh, nl=nl, max_length=max_length)
+        self.dec = Decoder(vocab_size=vocab_size, ne=ne, nh=nh, nl=nl, max_length=max_length)
+        self.fc = nn.Linear(ne, vocab_size)
+
+    def forward(self, src, trg, src_mask, trg_mask):
+        enc = self.enc(src, src_mask)
+        return self.fc(self.dec(trg, enc, src_mask, trg_mask))
