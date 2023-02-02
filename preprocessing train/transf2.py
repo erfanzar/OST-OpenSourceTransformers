@@ -104,7 +104,7 @@ class PositionalEncoder(nn.Module):
         x = x * math.sqrt(self.d_model)
         # add constant to embedding
         seq_len = x.size(1)
-
+        # print(x.shape)
         x = x + Variable(self.pe[:, :seq_len], requires_grad=False).cuda()
         return x
 
@@ -308,10 +308,10 @@ if __name__ == "__main__":
     for i in range(epochs):
         losses = 0
         for ia, xt in enumerate(fix_data(data)):
-            # try:
-            x = torch.tensor(xt[0]).to(Config.device).unsqueeze(0)
 
+            x = torch.tensor(xt[0]).to(Config.device).unsqueeze(0)
             trg = torch.tensor(xt[1]).to(Config.device).unsqueeze(0)
+
             predict = transformer.forward(x, trg, make_src_mask(x, 1003), make_trg_mask(trg))
             optim.zero_grad()
             b, t, c = predict.shape
