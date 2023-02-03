@@ -35,7 +35,7 @@ class PositionalEncoding(nn.Module):
     def forward(self, x):
         x = x * math.sqrt(self.embedded)
         max_length = x.size(1)
-        x = x + torch.autograd.Variable(self.tensor[:, :max_length], requiers_grad=False)
+        x = x + torch.autograd.Variable(self.tensor[:, :max_length], requires_grad=False)
         return x
 
 
@@ -99,7 +99,9 @@ class EncoderLayer(nn.Module):
 
     def forward(self, x, src_mask):
         xl = self.ln1(x)
-        x = self.dp1(self.attn(xl, xl, xl, src_mask)) + x
+        ka = self.dp1(self.attn(xl, xl, xl, src_mask))
+        print(f'KA DIM : {ka.shape}')
+        x = ka + x
         xl = self.ln2(x)
         x = self.dp2(self.ff(xl)) + x
         return x
@@ -121,8 +123,9 @@ class Encoder(nn.Module):
     def forward(self, x, src_mask):
         x = self.position(self.token(x))
 
-        for m in self.layers:
-            x = m(x, x, x, src_mask)
+        for i, m in enumerate(self.layers):
+            print(f'RUNNING ENCODER {i} : {x.shape}')
+            x = m(x, src_mask)
         return self.ln(x)
 
 
@@ -192,15 +195,17 @@ class PTT(nn.Module):
 
     @classmethod
     def make_mask_trg(cls, trg):
-        b, t = trg.shape
-        mask = torch.tril(torch.tensor(t, t)).expand(
+        b, t, c = trg.shape
+        mask = torch.tril(torch.ones(t, t)).expand(
             b, 1, t, t
         )
         return mask.to(trg.device)
 
-    def forward(self, src, trg):
-        trg_mask = self.make_mask_trg(trg)
-        src_mask = self.make_mask_src(src)
+    def forward(self, src, trg, src_mask=None, trg_mask=None):
+        if trg_mask is None:
+            trg_mask = self.make_mask_trg(trg)
+        if src_mask is None:
+            src_mask = self.make_mask_src(src)
         # x, src_mask
         enc = self.enc(src, src_mask)
         # x, enc_out, src_mask, trg_mask
