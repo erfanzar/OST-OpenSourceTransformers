@@ -68,7 +68,7 @@ if __name__ == "__main__":
     number_of_heads: int = 2
     number_of_layers: int = 4
     dataset = DatasetQA(max_length=max_length, src=questions, trg=answers)
-    dataloader = DataLoader(dataset, batch_size=1, num_workers=2)
+    dataloader = DataLoader(dataset, batch_size=4, num_workers=2)
     vocab_size: int = dataset.vocab_size
 
     pad_index: int = dataset.pad_token_id
@@ -88,10 +88,15 @@ if __name__ == "__main__":
     epochs = 400
     for epoch in range(epochs):
         for i, (x, y) in enumerate(dataloader):
-            x = x.to(device).squeeze(0)
-            y = x.to(device).squeeze(0)
-            trg = y[:, :-1]
-            ys = y[:, 1:].contiguous().view(-1)
+            x = x.to(device)
+            y = x.to(device)
+            # print(f'X SHAPE : {x.shape} "|" Y SHAPE : {y.shape}')
+            trg = y[:, :, :]
+            #
+            ys = y[:, :, :].contiguous().view(-1)
+
+            # print(f'TARGET : {trg} "|" Y : {ys}')
+
             predict = ptt(x, trg)
             optimizer.zero_grad()
             loss = F.cross_entropy(predict.view(-1, predict.size(-1)), ys, ignore_index=pad_index)

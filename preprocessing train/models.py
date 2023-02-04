@@ -54,6 +54,7 @@ class SelfAttention(nn.Module):
         self.dp = nn.Dropout()
 
     def forward(self, k, q, v, mask=None):
+        shape_s = k.shape
         b = k.shape[0]
         k = self.key(k)
         q = self.queries(q)
@@ -69,7 +70,7 @@ class SelfAttention(nn.Module):
 
         attn = self.dp(attn)
         attn = attn @ v
-        attn = attn.transpose(1, 2).contiguous().view(b, -1, self.embedded)
+        attn = attn.transpose(1, 2).contiguous().view(shape_s)
         return self.fc(attn)
 
 
@@ -100,7 +101,7 @@ class EncoderLayer(nn.Module):
     def forward(self, x, src_mask):
         xl = self.ln1(x)
         ka = self.dp1(self.attn(xl, xl, xl, src_mask))
-        print(f'KA DIM : {ka.shape}')
+        # print(f'KA DIM : {ka.shape}')
         x = ka + x
         xl = self.ln2(x)
         x = self.dp2(self.ff(xl)) + x
@@ -124,7 +125,7 @@ class Encoder(nn.Module):
         x = self.position(self.token(x))
 
         for i, m in enumerate(self.layers):
-            print(f'RUNNING ENCODER {i} : {x.shape}')
+            # print(f'RUNNING ENCODER {i} : {x.shape}')
             x = m(x, src_mask)
         return self.ln(x)
 
