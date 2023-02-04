@@ -66,28 +66,10 @@ def save_model(name: str = 'model_save.pt', **kwargs):
 
 max_length: int = 256
 embedded: int = 256
-number_of_heads: int = 2
-number_of_layers: int = 4
+number_of_heads: int = 4
+number_of_layers: int = 6
 # dataset = DatasetQA(max_length=max_length)
 
-# if __name__ == "__main__":
-#     vpa = 'this test is here'
-#     tes = dataset.tokenizer.encode_plus(
-#         text=vpa,
-#         max_length=max_length,
-#         add_special_tokens=True,
-#         return_attention_mask=True,
-#         return_tensors='pt',
-#         # return_length=True,
-#         pad_to_max_length=True,
-#         truncation=True
-#
-#     )
-#     print(f'this is test  :  {tes["input_ids"][0]}')
-#     ca = dataset.decode(tes['input_ids'])
-#     print(f'CA : {ca}')
-
-#
 if __name__ == "__main__":
     squad_dataset = load_dataset('squad')
     train_data = squad_dataset['train']
