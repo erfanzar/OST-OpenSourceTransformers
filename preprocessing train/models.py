@@ -1,9 +1,9 @@
 import math
+from dataclasses import dataclass
 
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from dataclasses import dataclass
 
 
 @dataclass
@@ -34,8 +34,10 @@ class PositionalEncoding(nn.Module):
 
     def forward(self, x):
         x = x * math.sqrt(self.embedded)
+        print(x.shape)
+        print(self.tensor.shape)
         max_length = x.size(1)
-        x = x + torch.autograd.Variable(self.tensor[:, :max_length], requires_grad=False)
+        x = x + torch.autograd.Variable(self.tensor[:max_length, :], requires_grad=False)
         return x
 
 
@@ -60,16 +62,21 @@ class SelfAttention(nn.Module):
         q = self.queries(q)
         v = self.value(v)
 
-        k = k.view(b, -1, self.number_of_heads, self.c).transpose(1, 2)
-        q = q.view(b, -1, self.number_of_heads, self.c).transpose(1, 2)
-        v = v.view(b, -1, self.number_of_heads, self.c).transpose(1, 2)
+        k = k.view(b, -1, self.number_of_heads, self.c).permute(0, 2, 1, 3)
+        q = q.view(b, -1, self.number_of_heads, self.c).permute(0, 2, 1, 3)
+        v = v.view(b, -1, self.number_of_heads, self.c).permute(0, 2, 1, 3)
 
         # DotScale
         attn = q @ k.transpose(-2, -1) * (math.sqrt(self.c))
+        print(f'MASK : {mask.shape}')
+        attn = attn.masked_fill(mask == 0, float('-inf'))
         attn = F.softmax(attn, dim=-1)
 
         attn = self.dp(attn)
+        print(f'ATTN : {attn.shape}')
+        print(f'VALUE : {v.shape}')
         attn = attn @ v
+        print(f'SCORE : {attn.shape}')
         attn = attn.transpose(1, 2).contiguous().view(shape_s)
         return self.fc(attn)
 
@@ -122,8 +129,11 @@ class Encoder(nn.Module):
         self.ln = nn.LayerNorm(embedded)
 
     def forward(self, x, src_mask):
+        print('-' * 20)
+        print(f'INPUT TO DECODER : {x.shape}')
         x = self.position(self.token(x))
-
+        print(f'TOKENS : {x.shape}')
+        print('-' * 20)
         for i, m in enumerate(self.layers):
             # print(f'RUNNING ENCODER {i} : {x.shape}')
             x = m(x, src_mask)
@@ -169,7 +179,10 @@ class Decoder(nn.Module):
         self.ln = nn.LayerNorm(embedded)
 
     def forward(self, x, enc_out, src_mask, trg_mask):
+        print('-' * 20)
+        print(f'INPUT TO ENCODER : {x.shape}')
         x = self.position(self.token(x))
+        print(f'TOKENS : {x.shape}')
         for m in self.layers:
             x = m(x, enc_out, src_mask, trg_mask)
         return self.ln(x)
@@ -194,13 +207,16 @@ class PTT(nn.Module):
         c = (x != self.pad_index).unsqueeze(1).unsqueeze(2)
         return c.to(x.device)
 
-    @classmethod
-    def make_mask_trg(cls, trg):
-        b, t, c = trg.shape
-        mask = torch.tril(torch.ones(t, t)).expand(
-            b, 1, t, t
-        )
-        return mask.to(trg.device)
+    def make_mask_trg(self, trg):
+        trg_pad_mask = (trg != self.pad_index).unsqueeze(1).unsqueeze(2)
+
+        trg_len = trg.shape[1]
+
+        trg_sub_mask = torch.tril(torch.ones((trg_len, trg_len), device=trg.device)).bool()
+
+        trg_mask = trg_pad_mask & trg_sub_mask
+
+        return trg_mask.to(trg.device)
 
     def forward(self, src, trg, src_mask=None, trg_mask=None):
         if trg_mask is None:
@@ -208,6 +224,7 @@ class PTT(nn.Module):
         if src_mask is None:
             src_mask = self.make_mask_src(src)
         # x, src_mask
+        # print(f'SRC : {src.shape}')
         enc = self.enc(src, src_mask)
         # x, enc_out, src_mask, trg_mask
         dec = self.dec(trg, enc, src_mask, trg_mask)

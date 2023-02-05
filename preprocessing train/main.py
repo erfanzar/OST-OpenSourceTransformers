@@ -1,13 +1,11 @@
-from models import PTT
-from datasets import load_dataset
 import torch
-import torch.nn as nn
-from erutils.nlp import Lang
-from cms import add_pad, add_special_tokens
-from torch.utils.data import Dataset, DataLoader
+from datasets import load_dataset
 from torch.nn import functional as F
-from transformers import BertTokenizer
+from torch.utils.data import Dataset, DataLoader
 from torch.utils.tensorboard import SummaryWriter
+from transformers import BertTokenizer
+
+from models import PTT
 
 ssm = SummaryWriter(log_dir='./out')
 
@@ -36,7 +34,7 @@ class DatasetQA(Dataset):
             return_attention_mask=True,
             return_tensors='pt',
             # return_length=True,
-            pad_to_max_length=True,
+            # pad_to_max_length=True,
             truncation=True
 
         )
@@ -47,14 +45,14 @@ class DatasetQA(Dataset):
             return_attention_mask=True,
             return_tensors='pt',
             # return_length=True,
-            pad_to_max_length=True,
+            # pad_to_max_length=True,
             truncation=True
 
         )
-        return enc_src['input_ids'], enc_trg['input_ids']
+        return [enc_src['input_ids'], enc_trg['input_ids']]
 
     def decode(self, text):
-        text = self.tokenizer.decode(text[0], skip_special_tokens=True)
+        text = self.tokenizer.decode(text[0], skip_special_tokens=False)
         return text
 
 
@@ -65,8 +63,8 @@ def save_model(name: str = 'model_save.pt', **kwargs):
 
 
 max_length: int = 256
-embedded: int = 256
-number_of_heads: int = 4
+embedded: int = 512
+number_of_heads: int = 8
 number_of_layers: int = 6
 # dataset = DatasetQA(max_length=max_length)
 
@@ -77,7 +75,7 @@ if __name__ == "__main__":
     questions = train_data.data['question']
     answers = train_data.data['answers']
     dataset = DatasetQA(max_length=max_length, src=questions, trg=answers)
-    dataloader = DataLoader(dataset, batch_size=4, num_workers=2)
+    dataloader = DataLoader(dataset, batch_size=1, num_workers=2, pin_memory=False)
     vocab_size: int = dataset.vocab_size
 
     pad_index: int = dataset.pad_token_id
@@ -95,15 +93,16 @@ if __name__ == "__main__":
     print(sum(s.numel() for s in ptt.parameters()) / 1e6, " Million Parameters Are In MODEL")
     optimizer = torch.optim.AdamW(ptt.parameters(), 4e-4)
     epochs = 400
+    # print(dataset.__getitem__(5))
     for epoch in range(epochs):
         for i, (x, y) in enumerate(dataloader):
-            x = x.to(device)
-            y = y.to(device)
+            x = x.to(device).squeeze(0)
+            y = y.to(device).squeeze(0)
 
-            # print(f'X SHAPE : {x.shape} "|" Y SHAPE : {y.shape}')
-            trg = y[:, :, :]
+            print(f'X SHAPE : {x.shape} "|" Y SHAPE : {y.shape}')
+            trg = y[:, :-1]
             #
-            ys = y[:, :, :].contiguous().view(-1)
+            ys = y[:, 1:].contiguous().view(-1)
 
             # print(f'TARGET : {trg} "|" Y : {ys}')
 
@@ -116,15 +115,15 @@ if __name__ == "__main__":
             loss.backward()
             optimizer.step()
             print(f'\033[1;36m\r[{epoch}/{epochs}] | Loss : {loss.item()} | Iter : {i}', end='')
-            if i % 20 == 0:
+            if i % 1 == 0:
                 example_question = dataset.decode(x[0])
                 example_answer = dataset.decode(y[0])
-                predict_sa = dataset.decode(
-                    torch.multinomial(torch.softmax(predict[0, 0], dim=-1), num_samples=1).view(1, -1))
+                predict_sa = torch.multinomial(torch.softmax(predict[0, 0], dim=-1), num_samples=1).view(1, -1)
+                prra = dataset.decode(predict_sa)
                 ssm.add_text('QUESTION', example_question, i)
                 ssm.add_text('ANSWER', example_answer, i)
 
-                ssm.add_text('PREDICT', predict_sa, i)
+                ssm.add_text('PREDICT', prra, i)
                 ssm.add_scalar('train/LOSS', loss.item(), i)
             # dataset.brea()
 
