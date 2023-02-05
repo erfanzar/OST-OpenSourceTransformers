@@ -11,12 +11,14 @@ ssm = SummaryWriter(log_dir='./out')
 
 
 class DatasetQA(Dataset):
-    def __init__(self, src=None, trg=None, mode: str = "bert-base-uncased", max_length: int = 512):
+    def __init__(self, src=None, trg=None, mode: str = "bert-base-uncased", max_length: int = 512,
+                 pad_to_max_length: bool = True):
         super().__init__()
         self.tokenizer = BertTokenizer.from_pretrained(mode)
 
         self.vocab_size = self.tokenizer.vocab_size
         self.pad_token_id = self.tokenizer.pad_token_id
+        self.pad_to_max_length = pad_to_max_length
         self.src = src
         self.max_length = max_length
         self.trg = trg
@@ -34,7 +36,7 @@ class DatasetQA(Dataset):
             return_attention_mask=True,
             return_tensors='pt',
             # return_length=True,
-            # pad_to_max_length=True,
+            pad_to_max_length=self.pad_to_max_length,
             truncation=True
 
         )
@@ -45,7 +47,7 @@ class DatasetQA(Dataset):
             return_attention_mask=True,
             return_tensors='pt',
             # return_length=True,
-            # pad_to_max_length=True,
+            pad_to_max_length=self.pad_to_max_length,
             truncation=True
 
         )
@@ -100,9 +102,9 @@ if __name__ == "__main__":
             y = y.to(device).squeeze(0)
 
             print(f'X SHAPE : {x.shape} "|" Y SHAPE : {y.shape}')
-            trg = y[:, :-1]
+            trg = y[:, :]
             #
-            ys = y[:, 1:].contiguous().view(-1)
+            ys = y[:, :].contiguous().view(-1)
 
             # print(f'TARGET : {trg} "|" Y : {ys}')
 
@@ -116,8 +118,10 @@ if __name__ == "__main__":
             optimizer.step()
             print(f'\033[1;36m\r[{epoch}/{epochs}] | Loss : {loss.item()} | Iter : {i}', end='')
             if i % 1 == 0:
-                example_question = dataset.decode(x[0])
-                example_answer = dataset.decode(y[0])
+                # example_question = dataset.decode(x[0])
+                # example_answer = dataset.decode(y[0])
+                example_question = dataset.decode(x)
+                example_answer = dataset.decode(y)
                 predict_sa = torch.multinomial(torch.softmax(predict[0, 0], dim=-1), num_samples=1).view(1, -1)
                 prra = dataset.decode(predict_sa)
                 ssm.add_text('QUESTION', example_question, i)
