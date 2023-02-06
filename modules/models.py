@@ -139,10 +139,7 @@ class PTTCasualHeadAttention(nn.Module):
 
 
 class PTT(nn.Module):
-
-    def __init__(self, vocab_size: int,
-                 max_length: int, embedded: int,
-                 number_of_heads: int, number_of_layers: int,
+    def __init__(self, vocab_size: int, max_length: int, embedded: int, number_of_heads: int, number_of_layers: int,
                  pad_index: int):
         super(PTT, self).__init__()
         self.enc = Encoder(vocab_size, max_length, embedded, number_of_heads, number_of_layers)
@@ -160,20 +157,57 @@ class PTT(nn.Module):
         c = (x != self.pad_index).unsqueeze(1).unsqueeze(2)
         return c.to(x.device)
 
-    @classmethod
-    def make_mask_trg(cls, trg):
-        b, t = trg.shape
-        mask = torch.tril(torch.tensor(t, t)).expand(
-            b, 1, t, t
-        )
-        return mask.to(trg.device)
+    def make_mask_trg(self, trg):
+        trg_pad_mask = (trg != self.pad_index).unsqueeze(1).unsqueeze(2)
 
-    def forward(self, src, trg):
-        trg_mask = self.make_mask_trg(trg)
-        src_mask = self.make_mask_src(src)
+        trg_len = trg.shape[1]
+
+        trg_sub_mask = torch.tril(torch.ones((trg_len, trg_len), device=trg.device)).bool()
+
+        trg_mask = trg_pad_mask & trg_sub_mask
+
+        return trg_mask.to(trg.device)
+
+    def forward(self, src, trg, src_mask=None, trg_mask=None):
+        if trg_mask is None:
+            trg_mask = self.make_mask_trg(trg)
+        if src_mask is None:
+            src_mask = self.make_mask_src(src)
         # x, src_mask
+        # print(f'SRC : {src.shape}')
         enc = self.enc(src, src_mask)
         # x, enc_out, src_mask, trg_mask
         dec = self.dec(trg, enc, src_mask, trg_mask)
         pred = self.fc(dec)
+        return pred
+
+
+class PTTGenerative(nn.Module):
+    def __init__(self, vocab_size: int, max_length: int, embedded: int, number_of_heads: int, number_of_layers: int,
+                 pad_index: int):
+        super(PTTGenerative, self).__init__()
+        self.enc = Encoder(vocab_size, max_length, embedded, number_of_heads, number_of_layers)
+        # self.dec = Decoder(vocab_size, max_length, embedded, number_of_heads, number_of_layers)
+        self.fc = nn.Linear(embedded, vocab_size)
+        self.pad_index = pad_index
+
+    def forward_encoder(self, x, src_mask):
+        return self.dec(x, src_mask)
+
+    def make_mask(self, src):
+        src_pad_mask = (src != self.pad_index).unsqueeze(1).unsqueeze(2)
+
+        src_len = src.shape[1]
+
+        src_sub_mask = torch.tril(torch.ones((src_len, src_len), device=src.device)).bool()
+
+        src_mask = src_pad_mask & src_sub_mask
+
+        return src_mask.to(src.device)
+
+    def forward(self, src, src_mask=None):
+        if src_mask is None:
+            src_mask = self.make_mask_src(src)
+        enc = self.enc(src, src_mask)
+        pred = self.fc(enc)
         return pred

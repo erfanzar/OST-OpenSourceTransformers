@@ -169,6 +169,7 @@ def new_gelu(x):
     return 0.5 * x * (1.0 + torch.tanh(math.sqrt(2.0 / math.pi) * (x + 0.044715 * torch.pow(x, 3.0))))
 
 
+
 @dataclass
 class Conf:
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -197,8 +198,10 @@ class PositionalEncoding(nn.Module):
 
     def forward(self, x):
         x = x * math.sqrt(self.embedded)
+        print(x.shape)
+        print(self.tensor.shape)
         max_length = x.size(1)
-        x = x + torch.autograd.Variable(self.tensor[:, :max_length], requiers_grad=False)
+        x = x + torch.autograd.Variable(self.tensor[:max_length, :], requires_grad=False)
         return x
 
 
@@ -217,22 +220,28 @@ class SelfAttention(nn.Module):
         self.dp = nn.Dropout()
 
     def forward(self, k, q, v, mask=None):
+        shape_s = k.shape
         b = k.shape[0]
         k = self.key(k)
         q = self.queries(q)
         v = self.value(v)
 
-        k = k.view(b, -1, self.number_of_heads, self.c).transpose(1, 2)
-        q = q.view(b, -1, self.number_of_heads, self.c).transpose(1, 2)
-        v = v.view(b, -1, self.number_of_heads, self.c).transpose(1, 2)
+        k = k.view(b, -1, self.number_of_heads, self.c).permute(0, 2, 1, 3)
+        q = q.view(b, -1, self.number_of_heads, self.c).permute(0, 2, 1, 3)
+        v = v.view(b, -1, self.number_of_heads, self.c).permute(0, 2, 1, 3)
 
         # DotScale
         attn = q @ k.transpose(-2, -1) * (math.sqrt(self.c))
+        # print(f'MASK : {mask.shape}')
+        attn = attn.masked_fill(mask == 0, float('-inf'))
         attn = F.softmax(attn, dim=-1)
 
         attn = self.dp(attn)
+        # print(f'ATTN : {attn.shape}')
+        # print(f'VALUE : {v.shape}')
         attn = attn @ v
-        attn = attn.transpose(1, 2).contiguous().view(b, -1, self.embedded)
+        # print(f'SCORE : {attn.shape}')
+        attn = attn.transpose(1, 2).contiguous().view(shape_s)
         return self.fc(attn)
 
 
@@ -262,7 +271,9 @@ class EncoderLayer(nn.Module):
 
     def forward(self, x, src_mask):
         xl = self.ln1(x)
-        x = self.dp1(self.attn(xl, xl, xl, src_mask)) + x
+        ka = self.dp1(self.attn(xl, xl, xl, src_mask))
+        # print(f'KA DIM : {ka.shape}')
+        x = ka + x
         xl = self.ln2(x)
         x = self.dp2(self.ff(xl)) + x
         return x
@@ -282,10 +293,14 @@ class Encoder(nn.Module):
         self.ln = nn.LayerNorm(embedded)
 
     def forward(self, x, src_mask):
+        # print('-' * 20)
+        # print(f'INPUT TO DECODER : {x.shape}')
         x = self.position(self.token(x))
-
-        for m in self.layers:
-            x = m(x, x, x, src_mask)
+        # print(f'TOKENS : {x.shape}')
+        # print('-' * 20)
+        for i, m in enumerate(self.layers):
+            # print(f'RUNNING ENCODER {i} : {x.shape}')
+            x = m(x, src_mask)
         return self.ln(x)
 
 
@@ -328,7 +343,10 @@ class Decoder(nn.Module):
         self.ln = nn.LayerNorm(embedded)
 
     def forward(self, x, enc_out, src_mask, trg_mask):
+        # print('-' * 20)
+        # print(f'INPUT TO ENCODER : {x.shape}')
         x = self.position(self.token(x))
+        # print(f'TOKENS : {x.shape}')
         for m in self.layers:
             x = m(x, enc_out, src_mask, trg_mask)
         return self.ln(x)

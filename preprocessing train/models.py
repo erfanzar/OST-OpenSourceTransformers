@@ -68,15 +68,15 @@ class SelfAttention(nn.Module):
 
         # DotScale
         attn = q @ k.transpose(-2, -1) * (math.sqrt(self.c))
-        print(f'MASK : {mask.shape}')
+        # print(f'MASK : {mask.shape}')
         attn = attn.masked_fill(mask == 0, float('-inf'))
         attn = F.softmax(attn, dim=-1)
 
         attn = self.dp(attn)
-        print(f'ATTN : {attn.shape}')
-        print(f'VALUE : {v.shape}')
+        # print(f'ATTN : {attn.shape}')
+        # print(f'VALUE : {v.shape}')
         attn = attn @ v
-        print(f'SCORE : {attn.shape}')
+        # print(f'SCORE : {attn.shape}')
         attn = attn.transpose(1, 2).contiguous().view(shape_s)
         return self.fc(attn)
 
@@ -229,4 +229,35 @@ class PTT(nn.Module):
         # x, enc_out, src_mask, trg_mask
         dec = self.dec(trg, enc, src_mask, trg_mask)
         pred = self.fc(dec)
+        return pred
+
+
+class PTTGenerative(nn.Module):
+    def __init__(self, vocab_size: int, max_length: int, embedded: int, number_of_heads: int, number_of_layers: int,
+                 pad_index: int):
+        super(PTTGenerative, self).__init__()
+        self.enc = Encoder(vocab_size, max_length, embedded, number_of_heads, number_of_layers)
+        # self.dec = Decoder(vocab_size, max_length, embedded, number_of_heads, number_of_layers)
+        self.fc = nn.Linear(embedded, vocab_size)
+        self.pad_index = pad_index
+
+    def forward_encoder(self, x, src_mask):
+        return self.dec(x, src_mask)
+
+    def make_mask(self, src):
+        src_pad_mask = (src != self.pad_index).unsqueeze(1).unsqueeze(2)
+
+        src_len = src.shape[1]
+
+        src_sub_mask = torch.tril(torch.ones((src_len, src_len), device=src.device)).bool()
+
+        src_mask = src_pad_mask & src_sub_mask
+
+        return src_mask.to(src.device)
+
+    def forward(self, src, src_mask=None):
+        if src_mask is None:
+            src_mask = self.make_mask_src(src)
+        enc = self.enc(src, src_mask)
+        pred = self.fc(enc)
         return pred
