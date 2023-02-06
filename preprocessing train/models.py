@@ -62,13 +62,18 @@ class SelfAttention(nn.Module):
         q = self.queries(q)
         v = self.value(v)
 
-        k = k.view(b, -1, self.number_of_heads, self.c).permute(0, 2, 1, 3)
-        q = q.view(b, -1, self.number_of_heads, self.c).permute(0, 2, 1, 3)
-        v = v.view(b, -1, self.number_of_heads, self.c).permute(0, 2, 1, 3)
+        k = k.view(b, -1, self.number_of_heads, self.c).transpose(1, 2)
+        q = q.view(b, -1, self.number_of_heads, self.c).transpose(1, 2)
+        v = v.view(b, -1, self.number_of_heads, self.c).transpose(1, 2)
+
+        # k = k.view(b, -1, self.number_of_heads, self.c)
+        # q = q.view(b, -1, self.number_of_heads, self.c)
+        # v = v.view(b, -1, self.number_of_heads, self.c)
 
         # DotScale
         attn = q @ k.transpose(-2, -1) * (math.sqrt(self.c))
         # print(f'MASK : {mask.shape}')
+        # print(f'ATTN : {attn.shape}')
         attn = attn.masked_fill(mask == 0, float('-inf'))
         attn = F.softmax(attn, dim=-1)
 
@@ -107,6 +112,10 @@ class EncoderLayer(nn.Module):
 
     def forward(self, x, src_mask):
         xl = self.ln1(x)
+        # print('-' * 15)
+        # print(f"SRC : {src_mask.shape}")
+        # print(f'ENCODER  : {xl.shape}')
+        # print('-' * 15)
         ka = self.dp1(self.attn(xl, xl, xl, src_mask))
         # print(f'KA DIM : {ka.shape}')
         x = ka + x
@@ -133,7 +142,7 @@ class Encoder(nn.Module):
         # print(f'INPUT TO DECODER : {x.shape}')
         x = self.position(self.token(x))
         # print(f'TOKENS : {x.shape}')
-        print('-' * 20)
+        # print('-' * 20)
         for i, m in enumerate(self.layers):
             # print(f'RUNNING ENCODER {i} : {x.shape}')
             x = m(x, src_mask)
@@ -157,9 +166,13 @@ class DecoderLayer(nn.Module):
 
     def forward(self, x, enc_out, src_mask, trg_mask):
         lx = self.ln1(x)
-        x = self.dp1(self.attn1(lx, lx, lx, trg_mask)) + x
+        # print(f"SRC : {src_mask.shape}")
+        # print(f'TRG : {trg_mask.shape}')
+        # print(f'LX  : {lx.shape}')
+        # print(f'ENC : {enc_out.shape}')
+        x = self.dp1(self.attn1(lx, lx, lx, src_mask)) + x
         lx = self.ln2(x)
-        x = self.dp2(self.attn2(lx, enc_out, enc_out, src_mask)) + x
+        x = self.dp2(self.attn2(lx, enc_out, enc_out, trg_mask)) + x
         lx = self.ln3(x)
         x = self.dp3(self.ff(lx)) + x
         return x
@@ -204,11 +217,12 @@ class PTT(nn.Module):
         return self.enc(x, src_mask)
 
     def make_mask_src(self, x):
-        c = (x != self.pad_index).unsqueeze(1).unsqueeze(2)
+        c = (x != self.pad_index).unsqueeze(0)
+        c = c.float().masked_fill(c == 0, float('-inf')).masked_fill(c == 1, float(0.0))
         return c.to(x.device)
 
     def make_mask_trg(self, trg):
-        trg_pad_mask = (trg != self.pad_index).unsqueeze(1).unsqueeze(2)
+        trg_pad_mask = (trg != self.pad_index).unsqueeze(1)
 
         trg_len = trg.shape[1]
 

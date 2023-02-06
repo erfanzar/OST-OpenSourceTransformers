@@ -35,6 +35,7 @@ class DatasetQA(Dataset):
             add_special_tokens=True,
             return_attention_mask=True,
             return_tensors='pt',
+            # padding='longest',
             # return_length=True,
             pad_to_max_length=self.pad_to_max_length,
             truncation=True
@@ -42,11 +43,12 @@ class DatasetQA(Dataset):
         )
         enc_trg = self.tokenizer.encode_plus(
             text=trg,
-            max_length=self.max_length,
+            max_length=self.max_length + 1,
             add_special_tokens=True,
             return_attention_mask=True,
             return_tensors='pt',
             # return_length=True,
+            # padding='longest',
             pad_to_max_length=self.pad_to_max_length,
             truncation=True
 
@@ -65,9 +67,9 @@ def save_model(name: str = 'model_save.pt', **kwargs):
 
 
 max_length: int = 256
-embedded: int = 512
-number_of_heads: int = 8
-number_of_layers: int = 6
+embedded: int = 256
+number_of_heads: int = 4
+number_of_layers: int = 8
 # dataset = DatasetQA(max_length=max_length)
 
 if __name__ == "__main__":
@@ -101,10 +103,10 @@ if __name__ == "__main__":
             x = x.to(device).squeeze(0)
             y = y.to(device).squeeze(0)
 
-            print(f'X SHAPE : {x.shape} "|" Y SHAPE : {y.shape}')
-            trg = y[:, :]
+            # print(f'X SHAPE : {x.shape} "|" Y SHAPE : {y.shape}')
+            trg = y[:, 1:]
             #
-            ys = y[:, :].contiguous().view(-1)
+            ys = y[:, :-1].contiguous().view(-1)
 
             # print(f'TARGET : {trg} "|" Y : {ys}')
 
@@ -117,12 +119,13 @@ if __name__ == "__main__":
             loss.backward()
             optimizer.step()
             print(f'\033[1;36m\r[{epoch}/{epochs}] | Loss : {loss.item()} | Iter : {i}', end='')
-            if i % 1 == 0:
+            if i % 20 == 0:
                 # example_question = dataset.decode(x[0])
                 # example_answer = dataset.decode(y[0])
                 example_question = dataset.decode(x)
                 example_answer = dataset.decode(y)
-                predict_sa = torch.multinomial(torch.softmax(predict[0, 0], dim=-1), num_samples=1).view(1, -1)
+                # print(predict.shape)
+                predict_sa = torch.multinomial(torch.softmax(predict[0], dim=-1), num_samples=1).view(1, -1)
                 prra = dataset.decode(predict_sa)
                 ssm.add_text('QUESTION', example_question, i)
                 ssm.add_text('ANSWER', example_answer, i)
