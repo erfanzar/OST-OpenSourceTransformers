@@ -37,7 +37,7 @@ class DatasetQA(Dataset):
             return_tensors='pt',
             # padding='longest',
             # return_length=True,
-            pad_to_max_length=self.pad_to_max_length,
+            padding='longest' if not self.pad_to_max_length else 'max_length',
             truncation=True
 
         )
@@ -48,8 +48,8 @@ class DatasetQA(Dataset):
             return_attention_mask=True,
             return_tensors='pt',
             # return_length=True,
-            # padding='longest',
-            pad_to_max_length=self.pad_to_max_length,
+            padding='longest' if not self.pad_to_max_length else 'max_length',
+
             truncation=True
 
         )
@@ -69,7 +69,7 @@ def save_model(name: str = 'model_save.pt', **kwargs):
 max_length: int = 256
 embedded: int = 256
 number_of_heads: int = 4
-number_of_layers: int = 8
+number_of_layers: int = 6
 # dataset = DatasetQA(max_length=max_length)
 
 if __name__ == "__main__":
@@ -78,8 +78,8 @@ if __name__ == "__main__":
     data_len = train_data.num_rows
     questions = train_data.data['question']
     answers = train_data.data['answers']
-    dataset = DatasetQA(max_length=max_length, src=questions, trg=answers)
-    dataloader = DataLoader(dataset, batch_size=1, num_workers=2, pin_memory=False)
+    dataset = DatasetQA(max_length=max_length, src=questions[:800], trg=answers[:800])
+    dataloader = DataLoader(dataset, batch_size=1, num_workers=2, pin_memory=True)
     vocab_size: int = dataset.vocab_size
 
     pad_index: int = dataset.pad_token_id
