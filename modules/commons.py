@@ -198,8 +198,8 @@ class PositionalEncoding(nn.Module):
 
     def forward(self, x):
         x = x * math.sqrt(self.embedded)
-        print(x.shape)
-        print(self.tensor.shape)
+        # print(x.shape)
+        # print(self.tensor.shape)
         max_length = x.size(1)
         x = x + torch.autograd.Variable(self.tensor[:max_length, :], requires_grad=False)
         return x

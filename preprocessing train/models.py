@@ -34,8 +34,8 @@ class PositionalEncoding(nn.Module):
 
     def forward(self, x):
         x = x * math.sqrt(self.embedded)
-        print(x.shape)
-        print(self.tensor.shape)
+        # print(x.shape)
+        # print(self.tensor.shape)
         max_length = x.size(1)
         x = x + torch.autograd.Variable(self.tensor[:max_length, :], requires_grad=False)
         return x
@@ -129,10 +129,10 @@ class Encoder(nn.Module):
         self.ln = nn.LayerNorm(embedded)
 
     def forward(self, x, src_mask):
-        print('-' * 20)
-        print(f'INPUT TO DECODER : {x.shape}')
+        # print('-' * 20)
+        # print(f'INPUT TO DECODER : {x.shape}')
         x = self.position(self.token(x))
-        print(f'TOKENS : {x.shape}')
+        # print(f'TOKENS : {x.shape}')
         print('-' * 20)
         for i, m in enumerate(self.layers):
             # print(f'RUNNING ENCODER {i} : {x.shape}')
@@ -179,10 +179,10 @@ class Decoder(nn.Module):
         self.ln = nn.LayerNorm(embedded)
 
     def forward(self, x, enc_out, src_mask, trg_mask):
-        print('-' * 20)
-        print(f'INPUT TO ENCODER : {x.shape}')
+        # print('-' * 20)
+        # print(f'INPUT TO ENCODER : {x.shape}')
         x = self.position(self.token(x))
-        print(f'TOKENS : {x.shape}')
+        # print(f'TOKENS : {x.shape}')
         for m in self.layers:
             x = m(x, enc_out, src_mask, trg_mask)
         return self.ln(x)
