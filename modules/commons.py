@@ -31,6 +31,18 @@ def new_gelu(x):
     return 0.5 * x * (1.0 + torch.tanh(math.sqrt(2.0 / math.pi) * (x + 0.044715 * torch.pow(x, 3.0))))
 
 
+class LayerNorm(nn.Module):
+    """ LayerNorm but with an optional bias. PyTorch doesn't support simply bias=False """
+
+    def __init__(self, ndim, bias=None):
+        super().__init__()
+        self.weight = nn.Parameter(torch.ones(ndim))
+        self.bias = nn.Parameter(torch.zeros(ndim)) if bias else None
+
+    def forward(self, input):
+        return F.layer_norm(input, self.weight.shape, self.weight, self.bias, 1e-5)
+
+
 class Head(nn.Module):
     def __init__(self, n_embedded: int, head_size: int):
         super(Head, self).__init__()
@@ -92,8 +104,8 @@ class MultiHeadBlock(nn.Module):
         self.sa = MultiHeadAttention(number_of_head, head_size=head_size,
                                      number_of_embedded=number_of_embedded)
         self.ffwd = FeedForward(number_of_embedded=number_of_embedded)
-        self.ln1 = nn.LayerNorm(number_of_embedded)
-        self.ln2 = nn.LayerNorm(number_of_embedded)
+        self.ln1 = LayerNorm(number_of_embedded)
+        self.ln2 = LayerNorm(number_of_embedded)
 
     def forward(self, x):
         x = x + self.ln1(self.sa(x, x, x))
@@ -149,9 +161,9 @@ class MLP(nn.Module):
 class CasualBlock(nn.Module):
     def __init__(self, number_of_embedded: int, number_of_head: int):
         super(CasualBlock, self).__init__()
-        self.ln1 = nn.LayerNorm(number_of_embedded)
+        self.ln1 = LayerNorm(number_of_embedded)
         self.sc = CausalSelfAttention(number_of_embedded=number_of_embedded, number_of_head=number_of_head)
-        self.ln2 = nn.LayerNorm(number_of_embedded)
+        self.ln2 = LayerNorm(number_of_embedded)
         self.mlp = MLP(number_of_embedded=number_of_embedded)
 
     def forward(self, x):
@@ -167,7 +179,6 @@ def new_gelu(x):
     Reference: Gaussian Error Linear Units (GELU) paper: https://arxiv.org/abs/1606.08415
     """
     return 0.5 * x * (1.0 + torch.tanh(math.sqrt(2.0 / math.pi) * (x + 0.044715 * torch.pow(x, 3.0))))
-
 
 
 @dataclass
@@ -226,9 +237,9 @@ class SelfAttention(nn.Module):
         q = self.queries(q)
         v = self.value(v)
 
-        k = k.view(b, -1, self.number_of_heads, self.c).permute(0, 2, 1, 3)
-        q = q.view(b, -1, self.number_of_heads, self.c).permute(0, 2, 1, 3)
-        v = v.view(b, -1, self.number_of_heads, self.c).permute(0, 2, 1, 3)
+        k = k.view(b, -1, self.number_of_heads, self.c).transpose(1, 2)
+        q = q.view(b, -1, self.number_of_heads, self.c).transpose(1, 2)
+        v = v.view(b, -1, self.number_of_heads, self.c).transpose(1, 2)
 
         # DotScale
         attn = q @ k.transpose(-2, -1) * (math.sqrt(self.c))
@@ -262,9 +273,9 @@ class FFD(nn.Module):
 class EncoderLayer(nn.Module):
     def __init__(self, embedded: int, number_of_heads: int):
         super(EncoderLayer, self).__init__()
-        self.ln1 = nn.LayerNorm(embedded)
+        self.ln1 = LayerNorm(embedded)
         self.attn = SelfAttention(embedded, number_of_heads)
-        self.ln2 = nn.LayerNorm(embedded)
+        self.ln2 = LayerNorm(embedded)
         self.dp1 = nn.Dropout(Conf.Dropout)
         self.dp2 = nn.Dropout(Conf.Dropout)
         self.ff = FFD(embedded)
@@ -290,7 +301,7 @@ class Encoder(nn.Module):
 
         self.token = Embedding(vocab_size, embedded)
         self.position = PositionalEncoding(max_length, embedded)
-        self.ln = nn.LayerNorm(embedded)
+        self.ln = LayerNorm(embedded)
 
     def forward(self, x, src_mask):
         # print('-' * 20)
@@ -307,9 +318,9 @@ class Encoder(nn.Module):
 class DecoderLayer(nn.Module):
     def __init__(self, embedded: int, number_of_heads: int):
         super(DecoderLayer, self).__init__()
-        self.ln1 = nn.LayerNorm(embedded)
-        self.ln2 = nn.LayerNorm(embedded)
-        self.ln3 = nn.LayerNorm(embedded)
+        self.ln1 = LayerNorm(embedded)
+        self.ln2 = LayerNorm(embedded)
+        self.ln3 = LayerNorm(embedded)
 
         self.attn1 = SelfAttention(embedded, number_of_heads)
         self.attn2 = SelfAttention(embedded, number_of_heads)
@@ -340,7 +351,7 @@ class Decoder(nn.Module):
 
         self.token = Embedding(vocab_size, embedded)
         self.position = PositionalEncoding(max_length, embedded)
-        self.ln = nn.LayerNorm(embedded)
+        self.ln = LayerNorm(embedded)
 
     def forward(self, x, enc_out, src_mask, trg_mask):
         # print('-' * 20)

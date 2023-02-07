@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 from .commons import MultiHeadBlock, CasualBlock, Decoder, Encoder
 
-__all__ = ['PTTDecoder']
+__all__ = ['PTTDecoder', 'PTT', 'PTTGenerative']
 
 
 class PTTDecoder(nn.Module):
@@ -154,11 +154,12 @@ class PTT(nn.Module):
         return self.enc(x, src_mask)
 
     def make_mask_src(self, x):
-        c = (x != self.pad_index).unsqueeze(1).unsqueeze(2)
+        c = (x != self.pad_index).unsqueeze(0)
+        c = c.float().masked_fill(c == 0, float('-inf')).masked_fill(c == 1, float(0.0))
         return c.to(x.device)
 
     def make_mask_trg(self, trg):
-        trg_pad_mask = (trg != self.pad_index).unsqueeze(1).unsqueeze(2)
+        trg_pad_mask = (trg != self.pad_index).unsqueeze(1)
 
         trg_len = trg.shape[1]
 

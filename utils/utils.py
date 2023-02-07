@@ -1,4 +1,7 @@
 import torch
+from torch.utils.data import Dataset, DataLoader
+
+from transformers import BertTokenizer
 
 
 class GB:
@@ -23,6 +26,7 @@ def save_model(name: str = 'model_save.pt', **kwargs):
     v = {**kwargs}
 
     torch.save(v, name)
+
 
 def tokenize_words(word: list, first_word_token: int = 0, swap: int = 1001, last_word_token: int = 1002,
                    pad_index: int = 1003):
@@ -55,3 +59,53 @@ def detokenize_words(word: list, first_word_token: int = 0, last_word_token: int
     del w[-1]
     # print(f'W : {w}')
     return w
+
+
+class DatasetQA(Dataset):
+    def __init__(self, src=None, trg=None, mode: str = "bert-base-uncased", max_length: int = 512,
+                 pad_to_max_length: bool = True):
+        super().__init__()
+        self.tokenizer = BertTokenizer.from_pretrained(mode)
+
+        self.vocab_size = self.tokenizer.vocab_size
+        self.pad_token_id = self.tokenizer.pad_token_id
+        self.pad_to_max_length = pad_to_max_length
+        self.src = src
+        self.max_length = max_length
+        self.trg = trg
+
+    def __len__(self):
+        return len(self.src) if self.src is not None else 1
+
+    def __getitem__(self, item):
+        src = str(self.src[item])
+        trg = str(self.trg[item]['text'][0])
+        enc_src = self.tokenizer.encode_plus(
+            text=src,
+            max_length=self.max_length,
+            add_special_tokens=True,
+            return_attention_mask=True,
+            return_tensors='pt',
+            # padding='longest',
+            # return_length=True,
+            padding='longest' if not self.pad_to_max_length else 'max_length',
+            truncation=True
+
+        )
+        enc_trg = self.tokenizer.encode_plus(
+            text=trg,
+            max_length=self.max_length + 1,
+            add_special_tokens=True,
+            return_attention_mask=True,
+            return_tensors='pt',
+            # return_length=True,
+            padding='longest' if not self.pad_to_max_length else 'max_length',
+
+            truncation=True
+
+        )
+        return [enc_src['input_ids'], enc_trg['input_ids']]
+
+    def decode(self, text):
+        text = self.tokenizer.decode(text[0], skip_special_tokens=False)
+        return text

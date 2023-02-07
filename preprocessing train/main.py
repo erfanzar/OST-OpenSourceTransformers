@@ -66,7 +66,7 @@ def save_model(name: str = 'model_save.pt', **kwargs):
     torch.save(v, name)
 
 
-max_length: int = 256
+max_length: int = 56
 embedded: int = 256
 number_of_heads: int = 4
 number_of_layers: int = 6
@@ -78,7 +78,7 @@ if __name__ == "__main__":
     data_len = train_data.num_rows
     questions = train_data.data['question']
     answers = train_data.data['answers']
-    dataset = DatasetQA(max_length=max_length, src=questions[:800], trg=answers[:800])
+    dataset = DatasetQA(max_length=max_length, src=questions[:40], trg=answers[:40])
     dataloader = DataLoader(dataset, batch_size=1, num_workers=2, pin_memory=True)
     vocab_size: int = dataset.vocab_size
 
@@ -99,6 +99,7 @@ if __name__ == "__main__":
     epochs = 400
     # print(dataset.__getitem__(5))
     for epoch in range(epochs):
+        epoch_loss = 0
         for i, (x, y) in enumerate(dataloader):
             x = x.to(device).squeeze(0)
             y = y.to(device).squeeze(0)
@@ -118,8 +119,11 @@ if __name__ == "__main__":
 
             loss.backward()
             optimizer.step()
-            print(f'\033[1;36m\r[{epoch}/{epochs}] | Loss : {loss.item()} | Iter : {i}', end='')
-            if i % 20 == 0:
+            epoch_loss += loss.item()
+            print(
+                f'\033[1;36m\r[{epoch + 1}/{epochs}] | Loss : {loss.item()} | Iter : {i + 1} | epoch_loss : {epoch_loss / (i + 1)}',
+                end='')
+            if (i + 1) % 20 == 0:
                 # example_question = dataset.decode(x[0])
                 # example_answer = dataset.decode(y[0])
                 example_question = dataset.decode(x)
@@ -127,14 +131,14 @@ if __name__ == "__main__":
                 # print(predict.shape)
                 predict_sa = torch.multinomial(torch.softmax(predict[0], dim=-1), num_samples=1).view(1, -1)
                 prra = dataset.decode(predict_sa)
-                ssm.add_text('QUESTION', example_question, i)
-                ssm.add_text('ANSWER', example_answer, i)
+                ssm.add_text('QUESTION', example_question, i + 1)
+                ssm.add_text('ANSWER', example_answer, i + 1)
 
-                ssm.add_text('PREDICT', prra, i)
-                ssm.add_scalar('train/LOSS', loss.item(), i)
+                ssm.add_text('PREDICT', prra, i + 1)
+                ssm.add_scalar('train/LOSS', loss.item(), i + 1)
             # dataset.brea()
 
         print('\n')
-
-        save_model(model=ptt.state_dict(), optimizer=optimizer.state_dict(), epochs=epochs, epoch=epoch,
-                   name='TDFA.pt')
+        if epoch % 10 == 0:
+            save_model(model=ptt.state_dict(), optimizer=optimizer.state_dict(), epochs=epochs, epoch=epoch,
+                       name='TDFA.pt')

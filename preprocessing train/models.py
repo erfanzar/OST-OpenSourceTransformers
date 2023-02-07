@@ -6,6 +6,21 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 
+# from torch.
+
+
+class LayerNorm(nn.Module):
+    """ LayerNorm but with an optional bias. PyTorch doesn't support simply bias=False """
+
+    def __init__(self, ndim, bias=None):
+        super().__init__()
+        self.weight = nn.Parameter(torch.ones(ndim))
+        self.bias = nn.Parameter(torch.zeros(ndim)) if bias else None
+
+    def forward(self, input):
+        return F.layer_norm(input, self.weight.shape, self.weight, self.bias, 1e-5)
+
+
 @dataclass
 class Conf:
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -103,9 +118,9 @@ class FeedForward(nn.Module):
 class EncoderLayer(nn.Module):
     def __init__(self, embedded: int, number_of_heads: int):
         super(EncoderLayer, self).__init__()
-        self.ln1 = nn.LayerNorm(embedded)
+        self.ln1 = LayerNorm(embedded)
         self.attn = SelfAttention(embedded, number_of_heads)
-        self.ln2 = nn.LayerNorm(embedded)
+        self.ln2 = LayerNorm(embedded)
         self.dp1 = nn.Dropout(Conf.Dropout)
         self.dp2 = nn.Dropout(Conf.Dropout)
         self.ff = FeedForward(embedded)
@@ -135,7 +150,7 @@ class Encoder(nn.Module):
 
         self.token = Embedding(vocab_size, embedded)
         self.position = PositionalEncoding(max_length, embedded)
-        self.ln = nn.LayerNorm(embedded)
+        self.ln = LayerNorm(embedded)
 
     def forward(self, x, src_mask):
         # print('-' * 20)
@@ -152,9 +167,9 @@ class Encoder(nn.Module):
 class DecoderLayer(nn.Module):
     def __init__(self, embedded: int, number_of_heads: int):
         super(DecoderLayer, self).__init__()
-        self.ln1 = nn.LayerNorm(embedded)
-        self.ln2 = nn.LayerNorm(embedded)
-        self.ln3 = nn.LayerNorm(embedded)
+        self.ln1 = LayerNorm(embedded)
+        self.ln2 = LayerNorm(embedded)
+        self.ln3 = LayerNorm(embedded)
 
         self.attn1 = SelfAttention(embedded, number_of_heads)
         self.attn2 = SelfAttention(embedded, number_of_heads)
@@ -189,7 +204,7 @@ class Decoder(nn.Module):
 
         self.token = Embedding(vocab_size, embedded)
         self.position = PositionalEncoding(max_length, embedded)
-        self.ln = nn.LayerNorm(embedded)
+        self.ln = LayerNorm(embedded)
 
     def forward(self, x, enc_out, src_mask, trg_mask):
         # print('-' * 20)
