@@ -4,7 +4,7 @@ from torch.nn import functional as F
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from transformers import BertTokenizer
-
+import json
 from models import PTT
 
 ssm = SummaryWriter(log_dir='./out')
@@ -27,8 +27,10 @@ class DatasetQA(Dataset):
         return len(self.src) if self.src is not None else 1
 
     def __getitem__(self, item):
+        # src = str(self.src[item])
+        # trg = str(self.trg[item]['text'][0])
         src = str(self.src[item])
-        trg = str(self.trg[item]['text'][0])
+        trg = str(self.trg[item])
         enc_src = self.tokenizer.encode_plus(
             text=src,
             max_length=self.max_length,
@@ -56,7 +58,7 @@ class DatasetQA(Dataset):
         return [enc_src['input_ids'], enc_trg['input_ids']]
 
     def decode(self, text):
-        text = self.tokenizer.decode(text[0], skip_special_tokens=False)
+        text = self.tokenizer.decode(text[0], skip_special_tokens=True)
         return text
 
 
@@ -73,12 +75,15 @@ number_of_layers: int = 6
 # dataset = DatasetQA(max_length=max_length)
 
 if __name__ == "__main__":
-    squad_dataset = load_dataset('squad')
-    train_data = squad_dataset['train']
-    data_len = train_data.num_rows
-    questions = train_data.data['question']
-    answers = train_data.data['answers']
-    dataset = DatasetQA(max_length=max_length, src=questions[:40], trg=answers[:40])
+    # squad_dataset = load_dataset('squad')
+    # train_data = squad_dataset['train']
+    # data_len = train_data.num_rows
+    # questions = train_data.data['question']
+    # answers = train_data.data['answers']
+    data = json.load(open('../data/q&a.json', 'r'))
+    questions = [data[v]['question'] for v in data]
+    answers = [data[v]['answer'] for v in data]
+    dataset = DatasetQA(max_length=max_length, src=questions, trg=answers)
     dataloader = DataLoader(dataset, batch_size=1, num_workers=2, pin_memory=True)
     vocab_size: int = dataset.vocab_size
 
@@ -97,25 +102,20 @@ if __name__ == "__main__":
     print(sum(s.numel() for s in ptt.parameters()) / 1e6, " Million Parameters Are In MODEL")
     optimizer = torch.optim.AdamW(ptt.parameters(), 4e-4)
     epochs = 400
-    # print(dataset.__getitem__(5))
+
     for epoch in range(epochs):
         epoch_loss = 0
         for i, (x, y) in enumerate(dataloader):
             x = x.to(device).squeeze(0)
             y = y.to(device).squeeze(0)
 
-            # print(f'X SHAPE : {x.shape} "|" Y SHAPE : {y.shape}')
             trg = y[:, 1:]
             #
             ys = y[:, :-1].contiguous().view(-1)
 
-            # print(f'TARGET : {trg} "|" Y : {ys}')
-
             predict = ptt(x, trg)
             optimizer.zero_grad()
             loss = F.cross_entropy(predict.view(-1, predict.size(-1)), ys, ignore_index=pad_index)
-
-            # print(predict_sa.shape)
 
             loss.backward()
             optimizer.step()
@@ -124,11 +124,9 @@ if __name__ == "__main__":
                 f'\033[1;36m\r[{epoch + 1}/{epochs}] | Loss : {loss.item()} | Iter : {i + 1} | epoch_loss : {epoch_loss / (i + 1)}',
                 end='')
             if (i + 1) % 20 == 0:
-                # example_question = dataset.decode(x[0])
-                # example_answer = dataset.decode(y[0])
                 example_question = dataset.decode(x)
                 example_answer = dataset.decode(y)
-                # print(predict.shape)
+
                 predict_sa = torch.multinomial(torch.softmax(predict[0], dim=-1), num_samples=1).view(1, -1)
                 prra = dataset.decode(predict_sa)
                 ssm.add_text('QUESTION', example_question, i + 1)
@@ -136,7 +134,6 @@ if __name__ == "__main__":
 
                 ssm.add_text('PREDICT', prra, i + 1)
                 ssm.add_scalar('train/LOSS', loss.item(), i + 1)
-            # dataset.brea()
 
         print('\n')
         if epoch % 10 == 0:
