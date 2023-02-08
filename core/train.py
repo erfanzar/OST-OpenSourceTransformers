@@ -6,10 +6,12 @@ from erutils.command_line_interface import fprint
 from erutils.utils import read_yaml, read_json
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
-# from torch.utils.tensorboard import SummaryWriter
 
 from modules.models import PTTGenerative
 from utils.utils import DatasetQA, save_model
+
+
+# from torch.utils.tensorboard import SummaryWriter
 
 
 def train(config_path: typing.Union[str, os.PathLike],
@@ -101,8 +103,8 @@ def train(config_path: typing.Union[str, os.PathLike],
             losses.backward()
             optimizer.step()
             lsa += losses.item()
-            print(
-                f'\rEPOCH : [{epoch}/{epochs}] | LOSS : {losses.item()} | EPOCH LOSS AVG : {lsa / (i + 1)} | ITER : {i + 1}',
+            fprint(
+                f'\rEPOCH : [{epoch}/{epochs}] | LOSS : {losses.item() / batch_size} | EPOCH LOSS AVG : {(lsa / (i + 1)) / batch_size} | ITER : {i + 1}',
                 end='')
             if i == 500:
                 break
@@ -110,12 +112,12 @@ def train(config_path: typing.Union[str, os.PathLike],
         if epoch % 5 == 0:
             print()
             predictions = ptt.generate(src=question, idx=sos)
-            print(f'QUESTION : {dataset.decode(question)}')
-            print(f'ANSWER   : {dataset.decode(answer)}')
-            print(f'PREDICTION : {dataset.decode(predictions)}')
+            fprint(f'QUESTION : {dataset.decode(question)}')
+            fprint(f'ANSWER   : {dataset.decode(answer)}')
+            fprint(f'PREDICTION : {dataset.decode(predictions)}')
             save_model(model=ptt.state_dict(), optimizer=optimizer.state_dict(), epochs=epochs, epoch=epoch,
                        name='model.pt')
-            print('==> MODEL SAVE SUCCESSFULLY')
+            fprint('==> MODEL SAVE SUCCESSFULLY')
     print()
     predictions = ptt.generate(src=question, idx=sos)
     print(f'PREDICTION : {dataset.decode(predictions)}')

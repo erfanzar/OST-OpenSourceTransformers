@@ -193,7 +193,6 @@ class PTTGenerative(nn.Module):
         self.dec = Decoder(vocab_size, chunk, embedded, number_of_heads, number_of_layers)
         self.fc = nn.Linear(embedded, vocab_size)
         self.pad_index = pad_index
-        self.loss = nn.NLLLoss(ignore_index=pad_index)
 
     def forward_encoder(self, x, src_mask):
         return self.dec(x, src_mask)
@@ -223,7 +222,8 @@ class PTTGenerative(nn.Module):
         global b
         if len(src.shape) == 3:
             b, t, c = src.shape
-
+        else:
+            b = src.shape[0]
         src_mask = self.make_mask_src(src)
         trg_mask = self.make_mask_trg(trg)
         enc = self.enc(src, src_mask)
@@ -232,11 +232,13 @@ class PTTGenerative(nn.Module):
 
         if target is not None:
             pred = self.fc(pred)
-            print(pred.shape)
-            target = target.reshape(-1, target.size(-1))
-            pred_l = F.softmax(pred.view(target.shape[0], -1, pred.size(-1)).permute(0, 2, 1), dim=-1)
-
-            loss = self.loss(pred_l, target)
+            # print(pred.shape)
+            target = target.reshape(b, -1)
+            pred_l = pred.view(b, -1, pred.size(-1))
+            # pred_l = F.softmax(pred_l.permute(0, 2, 1), dim=-1)
+            loss = 0
+            for i in range(b):
+                loss += F.cross_entropy(pred_l[i], target[i], ignore_index=self.pad_index)
         else:
             pred = self.fc(pred[:, [-1], :])
             loss = None
