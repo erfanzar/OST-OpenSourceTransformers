@@ -81,22 +81,15 @@ class SelfAttention(nn.Module):
         q = q.view(b, -1, self.number_of_heads, self.c).transpose(1, 2)
         v = v.view(b, -1, self.number_of_heads, self.c).transpose(1, 2)
 
-        # k = k.view(b, -1, self.number_of_heads, self.c)
-        # q = q.view(b, -1, self.number_of_heads, self.c)
-        # v = v.view(b, -1, self.number_of_heads, self.c)
-
-        # DotScale
         attn = q @ k.transpose(-2, -1) * (math.sqrt(self.c))
-        # print(f'MASK : {mask.shape}')
-        # print(f'ATTN : {attn.shape}')
+
         attn = attn.masked_fill(mask == 0, float('-inf'))
         attn = F.softmax(attn, dim=-1)
 
         attn = self.dp(attn)
-        # print(f'ATTN : {attn.shape}')
-        # print(f'VALUE : {v.shape}')
+
         attn = attn @ v
-        # print(f'SCORE : {attn.shape}')
+
         attn = attn.transpose(1, 2).contiguous().view(shape_s)
         return self.fc(attn)
 

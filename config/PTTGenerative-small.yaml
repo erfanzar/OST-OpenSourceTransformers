@@ -1,0 +1,11 @@
+chunk: 128
+embedded: 512
+number_of_heads: 8
+number_of_layers: 10
+data_path: 'data/q&a.json'
+epochs: 1000
+batch_size: 12
+lr: 4e-4
+load_weights: False
+path_weights: 'ptt-m.pt'
+train: False

@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 
 try:
     import torch
@@ -19,7 +18,7 @@ except:
 # torch.manual_seed(1377)
 import math
 
-__all__ = ['MultiHeadBlock', 'MultiHeadAttention', 'Head', 'FeedForward']
+__all__ = ['MultiHeadBlock', 'MultiHeadAttention', 'Head', 'FeedForward', 'Decoder', 'Encoder', 'CasualBlock']
 
 
 @torch.jit.script  # good to enable when not using torch.compile, disable when using (our default)
@@ -231,29 +230,28 @@ class SelfAttention(nn.Module):
         self.dp = nn.Dropout()
 
     def forward(self, k, q, v, mask=None):
-        shape_s = k.shape
-        b = k.shape[0]
+        b, t, c = k.shape
         k = self.key(k)
         q = self.queries(q)
         v = self.value(v)
 
-        k = k.view(b, -1, self.number_of_heads, self.c).transpose(1, 2)
-        q = q.view(b, -1, self.number_of_heads, self.c).transpose(1, 2)
-        v = v.view(b, -1, self.number_of_heads, self.c).transpose(1, 2)
+        k = k.view(b, t, self.number_of_heads, self.c).transpose(1, 2)
+        q = q.view(b, t, self.number_of_heads, self.c).transpose(1, 2)
+        v = v.view(b, t, self.number_of_heads, self.c).transpose(1, 2)
 
         # DotScale
         attn = q @ k.transpose(-2, -1) * (math.sqrt(self.c))
+        # print(f'ATTN : {attn.shape} ')
         # print(f'MASK : {mask.shape}')
         attn = attn.masked_fill(mask == 0, float('-inf'))
         attn = F.softmax(attn, dim=-1)
 
         attn = self.dp(attn)
-        # print(f'ATTN : {attn.shape}')
-        # print(f'VALUE : {v.shape}')
+
         attn = attn @ v
-        # print(f'SCORE : {attn.shape}')
-        attn = attn.transpose(1, 2).contiguous().view(shape_s)
-        return self.fc(attn)
+
+        attn = self.fc(attn.transpose(1, 2).contiguous().view(b, t, c))
+        return attn
 
 
 class FFD(nn.Module):
@@ -341,23 +339,21 @@ class DecoderLayer(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, vocab_size: int, max_length: int, embedded: int, number_of_heads: int, number_of_layers: int):
+    def __init__(self, vocab_size: int, max_length: int, embedded: int, number_of_heads: int, number_of_layers: int,
+                 ):
         super(Decoder, self).__init__()
         self.embedded = embedded
         self.number_of_layers = number_of_layers
         self.number_of_heads = number_of_heads
 
         self.layers = nn.ModuleList([DecoderLayer(embedded, number_of_heads) for _ in range(number_of_layers)])
-
+        self.fc = nn.Linear(embedded, embedded)
         self.token = Embedding(vocab_size, embedded)
         self.position = PositionalEncoding(max_length, embedded)
         self.ln = LayerNorm(embedded)
 
     def forward(self, x, enc_out, src_mask, trg_mask):
-        # print('-' * 20)
-        # print(f'INPUT TO ENCODER : {x.shape}')
         x = self.position(self.token(x))
-        # print(f'TOKENS : {x.shape}')
         for m in self.layers:
             x = m(x, enc_out, src_mask, trg_mask)
-        return self.ln(x)
+        return self.fc(self.ln(x))

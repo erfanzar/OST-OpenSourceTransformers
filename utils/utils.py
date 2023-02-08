@@ -1,5 +1,5 @@
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 
 from transformers import BertTokenizer
 
@@ -78,8 +78,10 @@ class DatasetQA(Dataset):
         return len(self.src) if self.src is not None else 1
 
     def __getitem__(self, item):
+        # src = str(self.src[item])
+        # trg = str(self.trg[item]['text'][0])
         src = str(self.src[item])
-        trg = str(self.trg[item]['text'][0])
+        trg = str(self.trg[item])
         enc_src = self.tokenizer.encode_plus(
             text=src,
             max_length=self.max_length,
@@ -97,8 +99,9 @@ class DatasetQA(Dataset):
             max_length=self.max_length + 1,
             add_special_tokens=True,
             return_attention_mask=True,
+
             return_tensors='pt',
-            # return_length=True,
+
             padding='longest' if not self.pad_to_max_length else 'max_length',
 
             truncation=True
@@ -107,5 +110,16 @@ class DatasetQA(Dataset):
         return [enc_src['input_ids'], enc_trg['input_ids']]
 
     def decode(self, text):
-        text = self.tokenizer.decode(text[0], skip_special_tokens=False)
+        text = self.tokenizer.decode(text[0], skip_special_tokens=True)
         return text
+
+    def sos(self):
+        return self.tokenizer.encode_plus(
+            text='[CLS]',
+            max_length=self.max_length,
+            add_special_tokens=False,
+            return_attention_mask=True,
+            return_tensors='pt',
+            padding='longest' if not self.pad_to_max_length else 'max_length',
+            truncation=True
+        )['input_ids']

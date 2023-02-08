@@ -184,31 +184,82 @@ class PTT(nn.Module):
 
 
 class PTTGenerative(nn.Module):
-    def __init__(self, vocab_size: int, max_length: int, embedded: int, number_of_heads: int, number_of_layers: int,
-                 pad_index: int):
+    def __init__(self, vocab_size: int, chunk: int, embedded: int, number_of_heads: int, number_of_layers: int,
+                 pad_index: int, eos: int):
         super(PTTGenerative, self).__init__()
-        self.enc = Encoder(vocab_size, max_length, embedded, number_of_heads, number_of_layers)
-        # self.dec = Decoder(vocab_size, max_length, embedded, number_of_heads, number_of_layers)
+        self.chunk = chunk
+        self.eos = eos
+        self.enc = Encoder(vocab_size, chunk, embedded, number_of_heads, number_of_layers)
+        self.dec = Decoder(vocab_size, chunk, embedded, number_of_heads, number_of_layers)
         self.fc = nn.Linear(embedded, vocab_size)
         self.pad_index = pad_index
+        self.loss = nn.NLLLoss(ignore_index=pad_index)
 
     def forward_encoder(self, x, src_mask):
         return self.dec(x, src_mask)
 
-    def make_mask(self, src):
-        src_pad_mask = (src != self.pad_index).unsqueeze(1).unsqueeze(2)
+    def make_mask_trg(self, trg):
+        # print(src.shape)
+        # trg_pad_mask = (trg != self.pad_index).unsqueeze(1).unsqueeze(2)
+        # trg_len = trg.shape[1]
+        # trg_sub_mask = torch.tril(torch.ones((trg_len, trg_len), device=trg.device)).bool()
+        # trg_mask = trg_pad_mask & trg_sub_mask
 
-        src_len = src.shape[1]
+        trg_pad_mask = (trg != self.pad_index).unsqueeze(1).unsqueeze(2).bool()
+        sq_len = trg.shape[1]
+        trg_sub_mask = torch.tril(torch.ones((sq_len, sq_len), device=trg.device)).bool()
+        trg_mask = trg_pad_mask & trg_sub_mask
 
-        src_sub_mask = torch.tril(torch.ones((src_len, src_len), device=src.device)).bool()
+        return trg_mask.to(trg.device)
 
-        src_mask = src_pad_mask & src_sub_mask
+    def make_mask_src(self, x):
 
-        return src_mask.to(src.device)
+        c = (x != self.pad_index).unsqueeze(1).unsqueeze(2)
+        c = c.float().masked_fill(c == 0, float('-inf')).repeat(1, 1, x.shape[1], 1)
 
-    def forward(self, src, src_mask=None):
-        if src_mask is None:
-            src_mask = self.make_mask_src(src)
+        return c.to(x.device)
+
+    def forward(self, src, trg, target=None):
+        global b
+        if len(src.shape) == 3:
+            b, t, c = src.shape
+
+        src_mask = self.make_mask_src(src)
+        trg_mask = self.make_mask_trg(trg)
         enc = self.enc(src, src_mask)
-        pred = self.fc(enc)
-        return pred
+
+        pred = self.dec(trg, enc, src_mask, trg_mask)
+
+        if target is not None:
+            pred = self.fc(pred)
+            print(pred.shape)
+            target = target.reshape(-1, target.size(-1))
+            pred_l = pred.view(target.shape[0], -1, pred.size(-1)).permute(0, 2, 1)
+            print(f'pred_l : {pred_l.shape}')
+            print(f'target  : {target.shape}')
+            loss = self.loss(pred_l, target)
+        else:
+            pred = self.fc(pred[:, [-1], :])
+            loss = None
+        return pred, loss
+
+    @torch.no_grad()
+    def generate(self, src, idx, trg=None, temp=1.0):
+        if len(idx.shape) == 1:
+            idx = idx.unsqueeze(0)
+
+        for i in range(idx.shape[-1] - 1):
+            idx = idx[:, -self.chunk:]
+            pred, _ = self.forward(src, idx, target=trg)
+            pred = pred[:, -1, :] / temp
+            # print('TRG CHUNK : ', idx)
+            pred = F.softmax(pred, dim=-1)
+            next_index = torch.multinomial(pred, 1)
+            # idx = torch.cat([idx, torch.zeros(1, 1, device=idx.device, dtype=torch.long)], 1)
+            index = (i + 1) % self.chunk
+            # print(index)
+            idx[:, index] = next_index
+            # print('TRG WORD : ', idx)
+            if next_index == self.eos:
+                break
+        return idx
