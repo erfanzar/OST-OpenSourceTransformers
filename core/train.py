@@ -6,7 +6,7 @@ from erutils.command_line_interface import fprint
 from erutils.utils import read_yaml, read_json
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 
 from modules.models import PTTGenerative
 from utils.utils import DatasetQA, save_model
@@ -24,7 +24,7 @@ def train(config_path: typing.Union[str, os.PathLike],
     embedded = cfg['embedded']
     use_train = cfg['train']
     batch_size = cfg['batch_size']
-    ssm = SummaryWriter(log_dir='results/out')
+    # ssm = SummaryWriter(log_dir='results/out')
     data = read_json(data_path)
 
     questions = [data[v]['question'] for v in data]

@@ -234,9 +234,8 @@ class PTTGenerative(nn.Module):
             pred = self.fc(pred)
             print(pred.shape)
             target = target.reshape(-1, target.size(-1))
-            pred_l = pred.view(target.shape[0], -1, pred.size(-1)).permute(0, 2, 1)
-            print(f'pred_l : {pred_l.shape}')
-            print(f'target  : {target.shape}')
+            pred_l = F.softmax(pred.view(target.shape[0], -1, pred.size(-1)).permute(0, 2, 1), dim=-1)
+
             loss = self.loss(pred_l, target)
         else:
             pred = self.fc(pred[:, [-1], :])
