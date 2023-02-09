@@ -96,7 +96,7 @@ class DatasetQA(Dataset):
         )
         enc_trg = self.tokenizer.encode_plus(
             text=trg,
-            max_length=self.max_length + 1,
+            max_length=self.max_length ,
             add_special_tokens=True,
             return_attention_mask=True,
 
@@ -107,7 +107,15 @@ class DatasetQA(Dataset):
             truncation=True
 
         )
-        return [enc_src['input_ids'], enc_trg['input_ids']]
+        # it = {
+        #     'input': enc_src['input_ids'],
+        #     'label': enc_trg['input_ids']
+        # }
+        it = {
+            'input': enc_src,
+            'label': enc_trg
+        }
+        return it
 
     def decode(self, text):
         text = self.tokenizer.decode(text[0], skip_special_tokens=True)

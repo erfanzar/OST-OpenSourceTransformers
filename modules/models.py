@@ -264,3 +264,9 @@ class PTTGenerative(nn.Module):
             if next_index == self.eos:
                 break
         return idx
+
+
+class PTT2(nn.Module):
+    def __init__(self):
+        super(PTT2, self).__init__()
+        self.wto = nn.Embedding
