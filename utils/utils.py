@@ -1,3 +1,5 @@
+import dataclasses
+
 import torch
 from torch.utils.data import Dataset
 
@@ -96,7 +98,7 @@ class DatasetQA(Dataset):
         )
         enc_trg = self.tokenizer.encode_plus(
             text=trg,
-            max_length=self.max_length ,
+            max_length=self.max_length,
             add_special_tokens=True,
             return_attention_mask=True,
 
@@ -131,3 +133,52 @@ class DatasetQA(Dataset):
             padding='longest' if not self.pad_to_max_length else 'max_length',
             truncation=True
         )['input_ids']
+
+
+@dataclasses.dataclass
+class CF:
+    ...
+
+
+def create_config(
+        num_embedding: int = 512,
+        num_heads: int = 8,
+        chunk: int = 256,
+        vocab_size: int = 5000,
+        num_layers: int = 2,
+        scale_attn_by_layer_idx: bool = False,
+        use_mask: bool = True,
+        attn_dropout: float = 0.2,
+        residual_dropout: float = 0.2,
+        activation: str = "gelu_new",
+        embd_pdrop: float = 0.1,
+        epochs: int = 500,
+        lr: float = 4e-4,
+        device: str = 'cuda' if torch.cuda.is_available() else 'cpu',
+        **kwargs
+
+):
+    intermediate_size: int = num_embedding * 4
+    hidden_size: int = num_embedding
+    max_len = chunk
+    max_position_embeddings = max_len
+    ttl = ['max_position_embeddings', 'hidden_size',
+           'intermediate_size', 'device', 'lr', 'chunk',
+           'embd_pdrop', 'activation', 'epochs',
+           'residual_dropout', 'attn_dropout',
+           'use_mask', 'scale_attn_by_layer_idx',
+           'num_layers', 'vocab_size',
+           'max_len', 'num_heads', 'num_embedding']
+    cash = CF()
+    for t in ttl:
+        cash.__setattr__(t, eval(t))
+    v = {**kwargs}
+    if len(v) != 0:
+        for k, v in v.items():
+            cash.__setattr__(k, v)
+
+    return cash
+
+
+def make2d(tensor):
+    return tensor.view(-1, tensor.size(-1))

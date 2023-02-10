@@ -1,7 +1,7 @@
-chunk: 128
-embedded: 512
-number_of_heads: 8
-number_of_layers: 6
+chunk: 64
+embedded: 256
+number_of_heads: 4
+number_of_layers: 4
 data_path: 'data/q&a.json'
 epochs: 1000
 batch_size: 5

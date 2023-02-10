@@ -1,6 +1,9 @@
 from dataclasses import dataclass
+from typing import Union, Optional
+from .activations import get_activation
 
 try:
+
     import torch
     import torch.nn as nn
     from torch.nn import functional as F
@@ -18,7 +21,8 @@ except:
 # torch.manual_seed(1377)
 import math
 
-__all__ = ['MultiHeadBlock', 'MultiHeadAttention', 'Head', 'FeedForward', 'Decoder', 'Encoder', 'CasualBlock']
+__all__ = ['MultiHeadBlock', 'MultiHeadAttention', 'Head', 'FeedForward', 'Decoder', 'Encoder', 'CasualBlock',
+           'PGTBlock', 'Conv1D']
 
 
 @torch.jit.script  # good to enable when not using torch.compile, disable when using (our default)
@@ -359,277 +363,139 @@ class Decoder(nn.Module):
         return self.fc(self.ln(x))
 
 
-# =========================================================> PTTG => models
+# =========================================================> PGT => models
+
+@dataclass
+class Config:
+    num_embedding: int = 512
+    num_heads: int = 8
+    max_len: int = 256
+    vocab_size: int = 5000
+    num_layers: int = 2
+    scale_attn_by_layer_idx: bool = False
+    use_mask: bool = True
+    attn_dropout: float = 0.2
+    residual_dropout: float = 0.2
+    activation = 'new_gelu'
+    hidden_size: int = num_embedding
+    max_position_embeddings = max_len
+    embd_pdrop: float = 0.1
+    device: str = 'cuda' if torch.cuda.is_available() else 'cpu'
+    intermediate_size: int = num_embedding * 4
 
 
-class PTTGAttention(nn.Module):
-    def __init__(self, config, is_cross_attention=False, layer_idx=None):
-        super().__init__()
+class Conv1D(nn.Module):
+    def __init__(self, c1, c2):
+        super(Conv1D, self).__init__()
+        self.c2 = c2
+        w = torch.empty(c1, c2)
+        nn.init.normal_(w, std=0.2)
+        self.w = nn.Parameter(w)
+        self.b = nn.Parameter(torch.zeros(c2))
 
-        max_positions = config.max_position_embeddings
-        self.register_buffer(
-            "bias",
-            torch.tril(torch.ones((max_positions, max_positions), dtype=torch.uint8)).view(
-                1, 1, max_positions, max_positions
-            ),
-        )
-        self.register_buffer("masked_bias", torch.tensor(-1e4))
-
-        self.embed_dim = config.hidden_size
-        self.num_heads = config.num_attention_heads
-        self.head_dim = self.embed_dim // self.num_heads
-        self.split_size = self.embed_dim
-        if self.head_dim * self.num_heads != self.embed_dim:
-            raise ValueError(
-                f"`embed_dim` must be divisible by num_heads (got `embed_dim`: {self.embed_dim} and `num_heads`:"
-                f" {self.num_heads})."
-            )
-
-        self.scale_attn_weights = config.scale_attn_weights
-
-        self.layer_idx = layer_idx
-        self.reorder_and_upcast_attn = config.reorder_and_upcast_attn
-
-        self.c_attn = Conv1D(3 * self.embed_dim, self.embed_dim)
-        self.c_proj = Conv1D(self.embed_dim, self.embed_dim)
-
-        self.attn_dropout = nn.Dropout(config.attn_pdrop)
-        self.resid_dropout = nn.Dropout(config.resid_pdrop)
-
-        self.pruned_heads = set()
-
-    def _attn(self, query, key, value, attention_mask=None, head_mask=None):
-        attn_weights = torch.matmul(query, key.transpose(-1, -2))
-
-        if self.scale_attn_weights:
-            attn_weights = attn_weights / torch.full(
-                [], value.size(-1) ** 0.5, dtype=attn_weights.dtype, device=attn_weights.device
-            )
+    def forward(self, x):
+        new_shape = x.size()[:-1] + (self.c2,)
+        x = torch.addmm(self.b, x.view(-1, x.size(-1)), self.w).view(new_shape)
+        return x
 
 
-        if not self.is_cross_attention:
-            query_length, key_length = query.size(-2), key.size(-2)
-            causal_mask = self.bias[:, :, key_length - query_length: key_length, :key_length].to(torch.bool)
-            mask_value = torch.finfo(attn_weights.dtype).min
-
-            mask_value = torch.full([], mask_value, dtype=attn_weights.dtype).to(attn_weights.device)
-            attn_weights = torch.where(causal_mask, attn_weights.to(attn_weights.dtype), mask_value)
-
-        if attention_mask is not None:
-            # Apply the attention mask
-            attn_weights = attn_weights + attention_mask
-
-        attn_weights = nn.functional.softmax(attn_weights, dim=-1)
-
-        # Downcast (if necessary) back to V's dtype (if in mixed-precision) -- No-Op otherwise
-        attn_weights = attn_weights.type(value.dtype)
-        attn_weights = self.attn_dropout(attn_weights)
-
-        # Mask heads if we want to
-        if head_mask is not None:
-            attn_weights = attn_weights * head_mask
-
-        attn_output = torch.matmul(attn_weights, value)
-
-        return attn_output, attn_weights
-
-    def _upcast_and_reordered_attn(self, query, key, value, attention_mask=None, head_mask=None):
-        # Use `torch.baddbmm` (a bit more efficient w/ alpha param for scaling -- from Megatron-LM)
-        bsz, num_heads, q_seq_len, dk = query.size()
-        _, _, k_seq_len, _ = key.size()
-
-        attn_weights = torch.empty(bsz * num_heads, q_seq_len, k_seq_len, dtype=torch.float32, device=query.device)
-
-        # Compute Scale Factor
-        scale_factor = 1.0
-        if self.scale_attn_weights:
-            scale_factor /= float(value.size(-1)) ** 0.5
-
-        with autocast(enabled=False):
-            q, k = query.reshape(-1, q_seq_len, dk), key.transpose(-1, -2).reshape(-1, dk, k_seq_len)
-            attn_weights = torch.baddbmm(attn_weights, q.float(), k.float(), beta=0, alpha=scale_factor)
-            attn_weights = attn_weights.reshape(bsz, num_heads, q_seq_len, k_seq_len)
-
-        if not self.is_cross_attention:
-            # if only "normal" attention layer implements causal mask
-            query_length, key_length = query.size(-2), key.size(-2)
-            causal_mask = self.bias[:, :, key_length - query_length: key_length, :key_length].bool()
-            mask_value = torch.finfo(attn_weights.dtype).min
-            # Need to be a tensor, otherwise we get error: `RuntimeError: expected scalar type float but found double`.
-            # Need to be on the same device, otherwise `RuntimeError: ..., x and y to be on the same device`
-            mask_value = torch.tensor(mask_value, dtype=attn_weights.dtype).to(attn_weights.device)
-            attn_weights = torch.where(causal_mask, attn_weights, mask_value)
-
-        if attention_mask is not None:
-            # Apply the attention mask
-            attn_weights = attn_weights + attention_mask
-
-        attn_weights = nn.functional.softmax(attn_weights, dim=-1)
-
-        # Downcast (if necessary) back to V's dtype (if in mixed-precision) -- No-Op if otherwise
-        if attn_weights.dtype != torch.float32:
-            raise RuntimeError("Error with upcasting, attn_weights does not have dtype torch.float32")
-        attn_weights = attn_weights.type(value.dtype)
-        attn_weights = self.attn_dropout(attn_weights)
-
-        # Mask heads if we want to
-        if head_mask is not None:
-            attn_weights = attn_weights * head_mask
-
-        attn_output = torch.matmul(attn_weights, value)
-
-        return attn_output, attn_weights
-
-    def _split_heads(self, tensor, num_heads, attn_head_size):
-        """
-        Splits hidden_size dim into attn_head_size and num_heads
-        """
-        new_shape = tensor.size()[:-1] + (num_heads, attn_head_size)
-        tensor = tensor.view(new_shape)
-        return tensor.permute(0, 2, 1, 3)  # (batch, head, seq_length, head_features)
-
-    def _merge_heads(self, tensor, num_heads, attn_head_size):
-        """
-        Merges attn_head_size dim and num_attn_heads dim into hidden_size
-        """
-        tensor = tensor.permute(0, 2, 1, 3).contiguous()
-        new_shape = tensor.size()[:-2] + (num_heads * attn_head_size,)
-        return tensor.view(new_shape)
-
-    def forward(
-            self,
-            hidden_states: Optional[Tuple[torch.FloatTensor]],
-            layer_past: Optional[Tuple[torch.Tensor]] = None,
-            attention_mask: Optional[torch.FloatTensor] = None,
-            head_mask: Optional[torch.FloatTensor] = None,
-            encoder_hidden_states: Optional[torch.Tensor] = None,
-            encoder_attention_mask: Optional[torch.FloatTensor] = None,
-            use_cache: Optional[bool] = False,
-            output_attentions: Optional[bool] = False,
-    ) -> Tuple[Union[torch.Tensor, Tuple[torch.Tensor]], ...]:
-
-        query, key, value = self.c_attn(hidden_states).split(self.split_size, dim=2)
-
-        query = self._split_heads(query, self.num_heads, self.head_dim)
-        key = self._split_heads(key, self.num_heads, self.head_dim)
-        value = self._split_heads(value, self.num_heads, self.head_dim)
-
-        if layer_past is not None:
-            past_key, past_value = layer_past
-            key = torch.cat((past_key, key), dim=-2)
-            value = torch.cat((past_value, value), dim=-2)
-
-        if use_cache is True:
-            present = (key, value)
-        else:
-            present = None
-
-        if self.reorder_and_upcast_attn:
-            attn_output, attn_weights = self._upcast_and_reordered_attn(query, key, value, attention_mask, head_mask)
-        else:
-            attn_output, attn_weights = self._attn(query, key, value, attention_mask, head_mask)
-
-        attn_output = self._merge_heads(attn_output, self.num_heads, self.head_dim)
-        attn_output = self.c_proj(attn_output)
-        attn_output = self.resid_dropout(attn_output)
-
-        outputs = (attn_output, present)
-        if output_attentions:
-            outputs += (attn_weights,)
-
-        return outputs  # a, present, (attentions)
-
-
-class PTTGMLP(nn.Module):
-    def __init__(self, intermediate_size, config):
-        super().__init__()
-        embed_dim = config.hidden_size
-        self.c_fc = Conv1D(intermediate_size, embed_dim)
-        self.c_proj = Conv1D(embed_dim, intermediate_size)
-        self.act = ACT2FN[config.activation_function]
-        self.dropout = nn.Dropout(config.resid_pdrop)
-
-    def forward(self, hidden_states: Optional[Tuple[torch.FloatTensor]]) -> torch.FloatTensor:
-        hidden_states = self.c_fc(hidden_states)
-        hidden_states = self.act(hidden_states)
-        hidden_states = self.c_proj(hidden_states)
-        hidden_states = self.dropout(hidden_states)
-        return hidden_states
-
-
-class PTTGBlock(nn.Module):
+class MultiCNNAttention(nn.Module):
     def __init__(self, config, layer_idx=None):
-        super().__init__()
-        hidden_size = config.hidden_size
-        inner_dim = config.n_inner if config.n_inner is not None else 4 * hidden_size
-
-        self.ln_1 = nn.LayerNorm(hidden_size, eps=config.layer_norm_epsilon)
-        self.attn = PTTGAttention(config, layer_idx=layer_idx)
-        self.ln_2 = nn.LayerNorm(hidden_size, eps=config.layer_norm_epsilon)
-
-        if config.add_cross_attention:
-            self.crossattention = PTTGAttention(config, is_cross_attention=True, layer_idx=layer_idx)
-            self.ln_cross_attn = nn.LayerNorm(hidden_size, eps=config.layer_norm_epsilon)
-
-        self.mlp = PTTGMLP(inner_dim, config)
-
-    def forward(
-            self,
-            hidden_states: Optional[Tuple[torch.FloatTensor]],
-            layer_past: Optional[Tuple[torch.Tensor]] = None,
-            attention_mask: Optional[torch.FloatTensor] = None,
-            head_mask: Optional[torch.FloatTensor] = None,
-            encoder_hidden_states: Optional[torch.Tensor] = None,
-            encoder_attention_mask: Optional[torch.FloatTensor] = None,
-            use_cache: Optional[bool] = False,
-            output_attentions: Optional[bool] = False,
-    ) -> Union[Tuple[torch.Tensor], Optional[Tuple[torch.Tensor, Tuple[torch.FloatTensor, ...]]]]:
-        residual = hidden_states
-        hidden_states = self.ln_1(hidden_states)
-        attn_outputs = self.attn(
-            hidden_states,
-            layer_past=layer_past,
-            attention_mask=attention_mask,
-            head_mask=head_mask,
-            use_cache=use_cache,
-            output_attentions=output_attentions,
-        )
-        attn_output = attn_outputs[0]
-        outputs = attn_outputs[1:]
-
-        hidden_states = attn_output + residual
-
-        if encoder_hidden_states is not None:
-            # add one self-attention block for cross-attention
-            if not hasattr(self, "crossattention"):
-                raise ValueError(
-                    f"If `encoder_hidden_states` are passed, {self} has to be instantiated with "
-                    "cross-attention layers by setting `config.add_cross_attention=True`"
-                )
-            residual = hidden_states
-            hidden_states = self.ln_cross_attn(hidden_states)
-            cross_attn_outputs = self.crossattention(
-                hidden_states,
-                attention_mask=attention_mask,
-                head_mask=head_mask,
-                encoder_hidden_states=encoder_hidden_states,
-                encoder_attention_mask=encoder_attention_mask,
-                output_attentions=output_attentions,
+        super(MultiCNNAttention, self).__init__()
+        self.layer_idx = layer_idx
+        self.embedding = config.hidden_size
+        self.num_heads = config.num_heads
+        self.num_div = self.embedding // self.num_heads
+        self.scale_attn_by_layer_idx = config.scale_attn_by_layer_idx
+        self.use_mask = config.use_mask
+        if self.num_heads // self.embedding != 0:
+            raise ValueError(
+                f'hidden_size must be dividable to num_heads {self.num_heads} // {self.embedding} = {self.num_heads // self.embedding}'
             )
-            attn_output = cross_attn_outputs[0]
-            # residual connection
-            hidden_states = residual + attn_output
-            outputs = outputs + cross_attn_outputs[2:]  # add cross attentions if we output attention weights
+        self.c_attn = Conv1D(self.embedding, self.embedding * 3)
+        self.c_proj = Conv1D(self.embedding, self.embedding)
+        self.residual_dropout = nn.Dropout(config.residual_dropout)
+        self.attn_dropout = nn.Dropout(config.attn_dropout)
+        self.register_buffer('bias', torch.tril(
+            torch.ones(config.max_len, config.max_len, dtype=torch.uint8, device=config.device).view(1, 1,
+                                                                                                     config.max_len,
+                                                                                                     config.max_len)))
 
-        residual = hidden_states
-        hidden_states = self.ln_2(hidden_states)
-        feed_forward_hidden_states = self.mlp(hidden_states)
-        # residual connection
-        hidden_states = residual + feed_forward_hidden_states
+        self.register_buffer('masked_bias', torch.tensor(float(-1e4)))
 
-        if use_cache:
-            outputs = (hidden_states,) + outputs
-        else:
-            outputs = (hidden_states,) + outputs[1:]
+    def _split_heads(self, tensor: torch.Tensor):
+        new_shape = tensor.size()[:-1] + (self.num_heads, self.num_div)
+        tensor = tensor.view(new_shape).permute(0, 2, 1, 3)
+        return tensor
 
-        return outputs  # hidden_states, present, (attentions, cross_attentions)
+    def _merge_heads(self, tensor: torch.Tensor):
+        tensor = tensor.permute(0, 2, 1, 3)
+        new_shape = tensor.size()[:-2] + (self.num_heads * self.num_div,)
+        return tensor.reshape(new_shape)
+
+    def _attn(self, query, key, value, attention_mask, head_mask):
+        attn_weight = torch.matmul(query, key.transpose(-2, -1))
+
+        attn_weight = attn_weight / torch.full([], value.size(-1) ** 0.5, dtype=attn_weight.dtype,
+                                               device=attn_weight.device)
+        if self.scale_attn_by_layer_idx:
+            attn_weight /= self.layer_idx
+        if self.use_mask:
+            key_len, query_len = key.size(-2), query.size(-2)
+            masked = self.bias[:, :, key_len - query_len:query_len, :key_len].to(attn_weight.device)
+            attn_weight = attn_weight.masked_fill(masked == 0, self.masked_bias)
+        if attention_mask is not None:
+            if len(attention_mask.shape) == 2:
+                attention_mask = attention_mask[:, None, None, :]
+            attn_weight = attn_weight + attention_mask
+        attn_weight = nn.functional.softmax(attn_weight, dim=-1)
+        attn_weight = self.attn_dropout(attn_weight)
+        attn_weight = attn_weight.type(value.dtype)
+        if head_mask is not None:
+            attn_weight = attn_weight * head_mask
+
+        attn_weight = torch.matmul(attn_weight, value)
+        return attn_weight
+
+    def forward(self, hidden_state: Optional[torch.Tensor], attention_mask=None, head_mask=None):
+        query, key, value = self.c_attn(hidden_state).split(self.embedding, dim=2)
+        query = self._split_heads(query)
+        key = self._split_heads(key)
+        value = self._split_heads(value)
+        attn_output = self._attn(query=query, key=key, value=value, attention_mask=attention_mask, head_mask=head_mask)
+        attn_output = self.residual_dropout(self.c_proj(self._merge_heads(attn_output)))
+        return attn_output
+
+
+class PGTMLP(nn.Module):
+    def __init__(self, config):
+        super(PGTMLP, self).__init__()
+        self.c_op = Conv1D(config.hidden_size, config.intermediate_size)
+        self.c_proj = Conv1D(config.intermediate_size, config.hidden_size)
+        self.dropout = nn.Dropout(config.residual_dropout)
+        self.act = get_activation(config.activation)
+
+    def forward(self, hidden_state):
+        hidden_state = self.c_op(hidden_state)
+        hidden_state = self.act(hidden_state)
+        hidden_state = self.c_proj(hidden_state)
+        hidden_state = self.dropout(hidden_state)
+        return hidden_state
+
+
+class PGTBlock(nn.Module):
+    def __init__(self, config, layer_idx=None):
+        super(PGTBlock, self).__init__()
+        self.ln1 = nn.LayerNorm(config.hidden_size)
+        self.ln2 = nn.LayerNorm(config.hidden_size)
+        self.h = MultiCNNAttention(config=config, layer_idx=layer_idx)
+        self.mlp = PGTMLP(config)
+
+    def forward(self, hidden_state, attention_mask=None, heads_mask=None):
+        residual = hidden_state
+        hidden_state = self.ln1(hidden_state)
+        hidden_state = self.h(hidden_state, attention_mask, heads_mask) + residual
+        residual = hidden_state
+        hidden_state = self.ln2(residual)
+        hidden_state = self.mlp(hidden_state) + residual
+        return hidden_state

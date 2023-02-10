@@ -1,63 +1,59 @@
-# from erutils.utils import read_yaml, read_json
-# from transformers import GPT2Config, GPT2Model, TrainingArguments, Trainer, LineByLineTextDataset, BertTokenizer
-#
-# from utils.utils import DatasetQA
-#
-# config_path = 'config/PTTGenerative-small.yaml'
-#
-# if __name__ == "__main__":
-#     cfg = read_yaml(config_path)
-#
-#     data_path = cfg['data_path']
-#     epochs = cfg['epochs']
-#     lr = float(cfg['lr'])
-#     max_length = cfg['chunk']
-#     number_of_heads = cfg['number_of_heads']
-#     number_of_layers = cfg['number_of_layers']
-#     embedded = cfg['embedded']
-#     use_train = cfg['train']
-#     batch_size = cfg['batch_size']
-#     # ssm = SummaryWriter(log_dir='results/out')
-#     data = read_json(data_path)
-#
-#     questions = [data[v]['question'] for v in data]
-#     answers = [data[v]['answer'] for v in data]
-#     tokenizer = BertTokenizer.from_pretrained("bert-base-uncased", max_len=max_length, padding='longest')
-#     datas = DatasetQA(
-#         src=questions,
-#         trg=answers,
-#         max_length=max_length
-#     )
-#     # tokenizer.encode_plus
-#     dataset_ll = LineByLineTextDataset(file_path='data/q&a_cleaned.txt', tokenizer=tokenizer,
-#                                        block_size=max_length)
-#     vocab_size: int = tokenizer.vocab_size
-#     pad_token: int = tokenizer.pad_token_id
-#     eos_token: int = tokenizer.eos_token_id
-#     bos_token: int = tokenizer.bos_token_id
-#
-#     config = GPT2Config(eos_token_id=eos_token, bos_token_id=bos_token, pad_token_id=pad_token, n_head=number_of_heads,
-#                         n_layer=number_of_layers, n_embd=embedded, chunk_size_feed_forward=max_length,
-#                         vocab_size=vocab_size)
-#
-#     model = GPT2Model(config=config)
-#     print(model)
-#     print(sum(p.numel() for p in model.parameters()) / 1e6, ' Million Parameters ')
-#     training_arg = TrainingArguments(
-#         output_dir='./GPT2',
-#         save_steps=100,
-#         save_total_limit=2,
-#         overwrite_output_dir=True,
-#         prediction_loss_only=True,
-#         auto_find_batch_size=True,
-#         num_train_epochs=5
-#     )
-#     trainer = Trainer(
-#         model=model,
-#         args=training_arg,
-#         train_dataset=dataset_ll,
-#
-#     )
-#
-#     trainer.train()
-#     trainer.save_model('./GPT2')
+import torch.utils.data
+from erutils.utils import read_yaml, read_json
+from modules.models import PGT
+from utils.utils import create_config
+from erutils.utils import read_json
+from erutils.command_line_interface import fprint
+from utils.utils import DatasetQA, make2d, save_model
+
+if __name__ == "__main__":
+    Config = create_config(
+        batch_size=6,
+        data_path='data/q&a.json',
+        num_heads=8,
+        chunk=512,
+        num_embedding=512,
+        num_layers=6
+    )
+    data = read_json(Config.data_path)
+    src, trg = [data[s]['question'] for s in data], [data[s]['answer'] for s in data]
+    dataset = DatasetQA(src=src, trg=trg, max_length=Config.max_position_embeddings)
+    Config.vocab_size = dataset.tokenizer.vocab_size
+    dataloader = torch.utils.data.DataLoader(dataset=dataset, batch_size=Config.batch_size, num_workers=2)
+    fprint('Creating Model ...')
+    model = PGT(config=Config)
+    fprint(f'Model Created With {sum(p.numel() for p in model.parameters()) / 1e6} Million Parameters')
+    criterion = torch.nn.CrossEntropyLoss(ignore_index=dataset.pad_token_id)
+    optimizer = torch.optim.AdamW(model.parameters(), Config.lr)
+    total_iterations = dataset.__len__() // Config.batch_size
+    data_ip = dataset.__getitem__(1)
+    answer = data_ip['input']['input_ids'].to(Config.device)
+    question = data_ip['label']['input_ids'].to(Config.device)
+    for epoch in range(Config.epochs):
+        loss_avg = 0
+        for i, inputs in enumerate(dataloader):
+            inp = make2d(inputs['input']['input_ids'])
+            inp_mask = make2d(inputs['input']['attention_mask'])
+            label = make2d(inputs['label']['input_ids'])
+            # label_mask = make2d(inputs['label']['attention_mask'])
+            predict = model(inputs=inp, attention_mask=inp_mask)
+            # print(predict.shape)
+            optimizer.zero_grad()
+            loss = criterion(predict.permute(0, 2, 1), label)
+            loss_avg += loss.item()
+            loss.backward()
+            optimizer.step()
+            fprint(
+                f'\rEPOCH : [{epoch}/{Config.epochs}] | LOSS : {loss.item() / Config.batch_size} | EPOCH LOSS AVG : {(loss_avg / (i + 1)) / Config.batch_size} | ITER : {i + 1}',
+                end='')
+
+        print()
+        if epoch % 5 == 0:
+            print()
+            save_model(model=model.state_dict(), optimizer=optimizer.state_dict(), epochs=Config.epochs, epoch=epoch,
+                       name='model.pt')
+            fprint('==> MODEL SAVE SUCCESSFULLY')
+            predictions = model.generate(idx=question, eos=dataset.tokenizer.eos_token_id)
+            fprint(f'QUESTION : {dataset.decode(question)}')
+            fprint(f'ANSWER   : {dataset.decode(answer)}')
+            fprint(f'PREDICTION : {dataset.decode(predictions)}')

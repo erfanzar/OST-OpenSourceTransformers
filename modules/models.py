@@ -5,9 +5,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .commons import MultiHeadBlock, CasualBlock, Decoder, Encoder
+from .commons import MultiHeadBlock, CasualBlock, Decoder, Encoder, PGTBlock, Conv1D
 
-__all__ = ['PTTDecoder', 'PTT', 'PTTGenerative']
+__all__ = ['PTTDecoder', 'PTT', 'PTTGenerative', 'PGT']
 
 
 class PTTDecoder(nn.Module):
@@ -266,7 +266,56 @@ class PTTGenerative(nn.Module):
         return idx
 
 
-class PTT2(nn.Module):
-    def __init__(self):
-        super(PTT2, self).__init__()
-        self.wto = nn.Embedding
+class PGT(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+
+        self.embed_dim = config.hidden_size
+
+        self.wte = nn.Embedding(config.vocab_size, self.embed_dim)
+        self.wpe = nn.Embedding(config.max_position_embeddings, self.embed_dim)
+        self.max_position_embeddings = config.max_position_embeddings
+        self.drop = nn.Dropout(config.embd_pdrop)
+        self.h = nn.ModuleList([PGTBlock(config, layer_idx=i) for i in range(config.num_layers)])
+        self.ln_f = nn.LayerNorm(self.embed_dim)
+        self.fc = Conv1D(self.embed_dim, config.vocab_size)
+        # Model parallel
+        self.model_parallel = False
+        self.device_map = None
+        self.gradient_checkpointing = False
+        self.pad_token_idx = 0
+
+    def make_attention_mask(self, inp):
+        return inp != self.pad_token_idx
+
+    def get_input_embeddings(self):
+        return self.wte
+
+    def set_input_embeddings(self, new_embeddings):
+        self.wte = new_embeddings
+
+    def forward(self, inputs: typing.Optional[torch.LongTensor], attention_mask=None, heads_mask=None):
+        token_embeddings = self.wte(inputs)
+        pos_embeddings = self.wpe(torch.arange(0, inputs.size(-1), dtype=inputs.dtype, device=inputs.device))
+        hidden = self.drop(token_embeddings + pos_embeddings)
+        if attention_mask is None:
+            attention_mask = self.make_attention_mask(hidden)
+        for m in self.h:
+            hidden = m(hidden, attention_mask=attention_mask, heads_mask=heads_mask)
+        hidden = self.fc(self.ln_f(hidden))
+        return hidden
+
+    @torch.no_grad()
+    def generate(self, idx, generate=5000, temp=1.0, eos: int = 2):
+        if len(idx.shape) == 1:
+            idx = idx.unsqueeze(0)
+        for _ in range(generate):
+            idx = idx[:, -self.max_position_embeddings:]
+            pred, _ = self.forward(idx)
+            pred = pred[:, -1, :] / temp
+            pred = F.softmax(pred, dim=-1)
+            next_index = torch.multinomial(pred, 1)
+            idx = torch.cat([idx, next_index], 1)
+            if next_index == eos:
+                break
+        return idx
