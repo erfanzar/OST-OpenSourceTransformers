@@ -7,11 +7,16 @@ from erutils.command_line_interface import fprint
 from utils.utils import DatasetQA, make2d, save_model
 
 if __name__ == "__main__":
+    prp = torch.cuda.get_device_properties("cuda")
+    fprint(
+        f'DEVICES : {torch.cuda.get_device_name()} | {prp.name} |'
+        f' {prp.total_memory / 1e9} GB Memory')
+
     Config = create_config(
-        batch_size=6,
+        batch_size=2,
         data_path='data/q&a.json',
         num_heads=8,
-        chunk=512,
+        chunk=128,
         num_embedding=512,
         num_layers=6
     )
@@ -21,20 +26,21 @@ if __name__ == "__main__":
     Config.vocab_size = dataset.tokenizer.vocab_size
     dataloader = torch.utils.data.DataLoader(dataset=dataset, batch_size=Config.batch_size, num_workers=2)
     fprint('Creating Model ...')
-    model = PGT(config=Config)
+    model = PGT(config=Config).to(Config.device)
     fprint(f'Model Created With {sum(p.numel() for p in model.parameters()) / 1e6} Million Parameters')
     criterion = torch.nn.CrossEntropyLoss(ignore_index=dataset.pad_token_id)
     optimizer = torch.optim.AdamW(model.parameters(), Config.lr)
     total_iterations = dataset.__len__() // Config.batch_size
     data_ip = dataset.__getitem__(1)
-    answer = data_ip['input']['input_ids'].to(Config.device)
-    question = data_ip['label']['input_ids'].to(Config.device)
+    answer = data_ip['label']['input_ids'].to(Config.device)
+    question = data_ip['input']['input_ids'].to(Config.device)
+    question_mask = data_ip['input']['attention_mask'].to(Config.device)
     for epoch in range(Config.epochs):
         loss_avg = 0
         for i, inputs in enumerate(dataloader):
-            inp = make2d(inputs['input']['input_ids'])
-            inp_mask = make2d(inputs['input']['attention_mask'])
-            label = make2d(inputs['label']['input_ids'])
+            inp = make2d(inputs['input']['input_ids']).to(Config.device)
+            inp_mask = make2d(inputs['input']['attention_mask']).to(Config.device)
+            label = make2d(inputs['label']['input_ids']).to(Config.device)
             # label_mask = make2d(inputs['label']['attention_mask'])
             predict = model(inputs=inp, attention_mask=inp_mask)
             # print(predict.shape)
@@ -44,7 +50,7 @@ if __name__ == "__main__":
             loss.backward()
             optimizer.step()
             fprint(
-                f'\rEPOCH : [{epoch}/{Config.epochs}] | LOSS : {loss.item() / Config.batch_size} | EPOCH LOSS AVG : {(loss_avg / (i + 1)) / Config.batch_size} | ITER : {i + 1}',
+                f'\rEPOCH : [{epoch}/{Config.epochs}] | LOSS : {loss.item() / Config.batch_size} | EPOCH LOSS AVG : {(loss_avg / (i + 1)) / Config.batch_size} | ITER : {i + 1} | DEVICE : {Config.device}',
                 end='')
 
         print()
@@ -53,7 +59,7 @@ if __name__ == "__main__":
             save_model(model=model.state_dict(), optimizer=optimizer.state_dict(), epochs=Config.epochs, epoch=epoch,
                        name='model.pt')
             fprint('==> MODEL SAVE SUCCESSFULLY')
-            predictions = model.generate(idx=question, eos=dataset.tokenizer.eos_token_id)
+            predictions = model.generate(idx=question, eos=dataset.tokenizer.eos_token_id, attention_mask=question_mask)
             fprint(f'QUESTION : {dataset.decode(question)}')
             fprint(f'ANSWER   : {dataset.decode(answer)}')
             fprint(f'PREDICTION : {dataset.decode(predictions)}')

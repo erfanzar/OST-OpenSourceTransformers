@@ -299,19 +299,19 @@ class PGT(nn.Module):
         pos_embeddings = self.wpe(torch.arange(0, inputs.size(-1), dtype=inputs.dtype, device=inputs.device))
         hidden = self.drop(token_embeddings + pos_embeddings)
         if attention_mask is None:
-            attention_mask = self.make_attention_mask(hidden)
+            attention_mask = self.make_attention_mask(inputs)
         for m in self.h:
             hidden = m(hidden, attention_mask=attention_mask, heads_mask=heads_mask)
         hidden = self.fc(self.ln_f(hidden))
         return hidden
 
     @torch.no_grad()
-    def generate(self, idx, generate=5000, temp=1.0, eos: int = 2):
+    def generate(self, idx, generate=5000, temp=0.8555, eos: int = 2, attention_mask=None):
         if len(idx.shape) == 1:
             idx = idx.unsqueeze(0)
         for _ in range(generate):
             idx = idx[:, -self.max_position_embeddings:]
-            pred, _ = self.forward(idx)
+            pred = self.forward(idx, attention_mask=attention_mask)
             pred = pred[:, -1, :] / temp
             pred = F.softmax(pred, dim=-1)
             next_index = torch.multinomial(pred, 1)
