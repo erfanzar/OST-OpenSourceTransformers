@@ -79,6 +79,18 @@ class DatasetQA(Dataset):
     def __len__(self):
         return len(self.src) if self.src is not None else 1
 
+    def encode(self, text, padding: bool = False):
+        enc_trg = self.tokenizer.encode_plus(
+            text=text,
+            max_length=self.max_length,
+            add_special_tokens=True,
+            return_attention_mask=True,
+            return_tensors='pt',
+            padding='longest' if padding else padding,
+            truncation=True
+        )
+        return enc_trg
+
     def __getitem__(self, item):
         # src = str(self.src[item])
         # trg = str(self.trg[item]['text'][0])
@@ -135,12 +147,70 @@ class DatasetQA(Dataset):
         )['input_ids']
 
 
+class DatasetPGT(Dataset):
+    def __init__(self, src=None,
+                 mode: str = "bert-base-uncased", chunk: int = 128):
+        super().__init__()
+        self.tokenizer = BertTokenizer.from_pretrained(mode)
+        self.chunk = chunk + 2
+        self.vocab_size = self.tokenizer.vocab_size
+        self.src = src
+
+    def __len__(self):
+        return (len(self.src) // self.chunk) if self.src is not None else 1
+
+    def encode(self, text):
+        enc_trg = self.tokenizer.encode_plus(
+            text=text,
+            max_length=self.chunk,
+            add_special_tokens=True,
+            return_attention_mask=True,
+            return_tensors='pt',
+            truncation=True
+        )
+        return enc_trg
+
+    def __getitem__(self, item):
+        data = self.tokenizer.encode_plus(
+            text=self.src[self.chunk * (item + 1):],
+            add_special_tokens=False,
+            return_attention_mask=True,
+            return_tensors='pt',
+            max_length=self.chunk,
+            truncation=True
+        )
+        mask = data['attention_mask']
+        data = data['input_ids']
+
+        x = data[:, 0:-2]
+        mask = mask[:, 0:-2]
+        y = data[:, 1:-1]
+        inputs = {
+            "x": x, 'y': y, 'mask': mask
+        }
+        return inputs
+
+    def decode(self, text):
+        text = self.tokenizer.decode(text[0], skip_special_tokens=True)
+        return text
+
+    def sos(self):
+        return self.tokenizer.encode_plus(
+            text='[CLS]',
+            add_special_tokens=False,
+            return_attention_mask=True,
+            return_tensors='pt',
+            truncation=True
+        )['input_ids']
+
+
 @dataclasses.dataclass
 class CF:
     ...
 
 
 def create_config(
+        model_type: str = 'PGT-s',
         num_embedding: int = 512,
         num_heads: int = 8,
         chunk: int = 256,
@@ -182,3 +252,86 @@ def create_config(
 
 def make2d(tensor):
     return tensor.view(-1, tensor.size(-1))
+
+
+def get_config_by_name(name: str = 'PGT-s', vocab_size: int = 5000,
+                       device: str = 'cuda' if torch.cuda.is_available() else 'cpu') -> create_config:
+    """
+    :param device: device for model
+    :param vocab_size: vocab_size
+    :param name: name of the type of model you want to get config
+    [chooses] = ['PGT-ss']['PGT-s']['PGT-m']['PGT-x']['PGT-l']['PGT-A']
+    :return: Config
+    """
+
+    if name == 'PGT-ss':
+        return create_config(
+            name,
+            num_embedding=512,
+            num_heads=8,
+            num_layers=6,
+            device=device,
+            vocab_size=vocab_size,
+            chunk=64,
+            use_mask=True
+        )
+    elif name == 'PGT-s':
+        return create_config(
+            name,
+            num_embedding=256,
+            num_heads=6,
+            num_layers=4,
+            device=device,
+            vocab_size=vocab_size,
+            chunk=64,
+            use_mask=True
+        )
+    elif name == 'PGT-m':
+        return create_config(
+            name,
+            num_embedding=512,
+            num_heads=8,
+            num_layers=8,
+            device=device,
+            vocab_size=vocab_size,
+            chunk=128,
+            use_mask=True
+        )
+    elif name == 'PGT-x':
+        return create_config(
+            name,
+            num_embedding=512,
+            num_heads=16,
+            num_layers=14,
+            device=device,
+            vocab_size=vocab_size,
+            chunk=256,
+            use_mask=True
+        )
+    elif name == 'PGT-l':
+        return create_config(
+            name,
+            num_embedding=728,
+            num_heads=14,
+            num_layers=20,
+            device=device,
+            vocab_size=vocab_size,
+            chunk=512,
+            use_mask=True
+        )
+    elif name == 'PGT-A':
+        prp = torch.cuda.get_device_properties("cuda")
+        print(f'\033[1;32mWarning You Loading the Largest Model on {prp.name} : {prp.total_memory / 1e9} GB')
+        return create_config(
+            name,
+            num_embedding=1024,
+            num_heads=32,
+            num_layers=42,
+            device=device,
+            vocab_size=vocab_size,
+            chunk=728,
+            use_mask=True
+        )
+    else:
+        raise NameError(
+            f"Valid Names for Model are ['PGT-s']['PGT-m']['PGT-x']['PGT-l']['PGT-A'] | [ERROR : Unknown {name} type]")
