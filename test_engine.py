@@ -56,8 +56,8 @@ if __name__ == "__main__":
             x = inputs['x']
             y = inputs['y']
 
-            inp = make2d(x).to(Config.device)
-            label = make2d(y).to(Config.device)
+            inp = x.to(Config.device)
+            label =y.to(Config.device)
             # inp_mask = make2d(mask).to(Config.device)
             predict = model(inputs=inp)
             # print(predict.shape)

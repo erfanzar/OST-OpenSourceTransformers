@@ -278,12 +278,29 @@ class PGT(nn.Module):
         self.drop = nn.Dropout(config.embd_pdrop)
         self.h = nn.ModuleList([PGTBlock(config, layer_idx=i) for i in range(config.num_layers)])
         self.ln_f = nn.LayerNorm(self.embed_dim)
-        self.fc = Conv1D(self.embed_dim, config.vocab_size)
+        # self.fc = Conv1D(self.embed_dim, config.vocab_size)
+        self.fc = nn.Linear(self.embed_dim, config.vocab_size)
         # Model parallel
         self.model_parallel = False
         self.device_map = None
         self.gradient_checkpointing = False
         self.pad_token_idx = 0
+        self.apply(self._init_weights)
+
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+        elif isinstance(module, nn.LayerNorm):
+            torch.nn.init.zeros_(module.bias)
+            torch.nn.init.ones_(module.weight)
+        elif isinstance(module, Conv1D):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
 
     def make_attention_mask(self, inp):
         return inp != self.pad_token_idx

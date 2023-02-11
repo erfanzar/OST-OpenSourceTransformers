@@ -390,12 +390,12 @@ class Conv1D(nn.Module):
         self.c2 = c2
         w = torch.empty(c1, c2)
         nn.init.normal_(w, std=0.2)
-        self.w = nn.Parameter(w)
-        self.b = nn.Parameter(torch.zeros(c2))
+        self.weight = nn.Parameter(w)
+        self.bias = nn.Parameter(torch.zeros(c2))
 
     def forward(self, x):
         new_shape = x.size()[:-1] + (self.c2,)
-        x = torch.addmm(self.b, x.view(-1, x.size(-1)), self.w).view(new_shape)
+        x = torch.addmm(self.bias, x.view(-1, x.size(-1)), self.weight).view(new_shape)
         return x
 
 
