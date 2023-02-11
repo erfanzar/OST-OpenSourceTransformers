@@ -599,4 +599,904 @@ hi, how are you doing?[SEP]i'm fine. how about yourself?
 [SEP]can you make it?[SEP]what time does it start?
 [SEP]what time does it start?[SEP]the party starts at 8.
 [SEP]the party starts at 8.[SEP]yeah, i think i'll go.
+[SEP]yeah, i think i'll go.[SEP]am i going to see you there?
+[SEP]what's going on?[SEP]nothing really, you?
+[SEP]nothing really, you?[SEP]i'm throwing a party next saturday.
+[SEP]i'm throwing a party next saturday.[SEP]is that right?
+[SEP]is that right?[SEP]yeah, are you going to come?
+[SEP]yeah, are you going to come?[SEP]i'm sorry, i can't.
+[SEP]i'm sorry, i can't.[SEP]why not?
+[SEP]why not?[SEP]i don't really want to.
+[SEP]i don't really want to.[SEP]well, why don't you?
+[SEP]well, why don't you?[SEP]i hate going to parties.
+[SEP]i hate going to parties.[SEP]well, that's okay.
+[SEP]well, that's okay.[SEP]yeah, sorry.
+[SEP]what's up?[SEP]nothing, how about you?
+[SEP]nothing, how about you?[SEP]next saturday, i'm going to have a party.
+[SEP]next saturday, i'm going to have a party.[SEP]oh, really?
+[SEP]oh, really?[SEP]you are coming?
+[SEP]you are coming?[SEP]probably not.
+[SEP]probably not.[SEP]why is that?
+[SEP]why is that?[SEP]i don't feel like going.
+[SEP]i don't feel like going.[SEP]why not?
+[SEP]why not?[SEP]i really can't stand going to parties.
+[SEP]i really can't stand going to parties.[SEP]i understand, i guess.
+[SEP]i understand, i guess.[SEP]sorry about that.
+[SEP]what's happening?[SEP]not a lot, what about you?
+[SEP]not a lot, what about you?[SEP]i'm having a party next saturday.
+[SEP]i'm having a party next saturday.[SEP]that's nice.
+[SEP]that's nice.[SEP]are you going to be there?
+[SEP]are you going to be there?[SEP]i don't think so.
+[SEP]i don't think so.[SEP]is there a reason why?
+[SEP]is there a reason why?[SEP]i just really don't want to go.
+[SEP]i just really don't want to go.[SEP]how come?
+[SEP]how come?[SEP]i don't really like parties.
+[SEP]i don't really like parties.[SEP]i wish you would go, but that's okay.
+[SEP]what's up?[SEP]nothing much, what's going on?
+[SEP]nothing much, what's going on?[SEP]i'm having a party this friday.
+[SEP]i'm having a party this friday.[SEP]oh, really? that's nice.
+[SEP]oh, really? that's nice.[SEP]i wanted to see if you wanted to come.
+[SEP]i wanted to see if you wanted to come.[SEP]this friday? sorry, i already have plans.
+[SEP]this friday? sorry, i already have plans.[SEP]doing what?
+[SEP]doing what?[SEP]i'm going to dinner with my family.
+[SEP]i'm going to dinner with my family.[SEP]i really wanted you to come, but i understand.
+[SEP]i really wanted you to come, but i understand.[SEP]yeah, maybe next time.
+[SEP]yeah, maybe next time.[SEP]i'll hold you to that.
+[SEP]i'll hold you to that.[SEP]sounds like a plan.
+[SEP]hey, what's good with you?[SEP]not a lot. what about you?
+[SEP]not a lot. what about you?[SEP]i'm throwing a party on friday.
+[SEP]i'm throwing a party on friday.[SEP]that sounds like fun.
+[SEP]that sounds like fun.[SEP]do you think you can come?
+[SEP]do you think you can come?[SEP]i'm sorry. i'm already doing something this friday.
+[SEP]i'm sorry. i'm already doing something this friday.[SEP]what are you going to be doing?
+[SEP]what are you going to be doing?[SEP]my family and i are going to dinner.
+[SEP]my family and i are going to dinner.[SEP]i was hoping you would come.
+[SEP]i was hoping you would come.[SEP]i'll definitely try to make it the next time.
+[SEP]i'll definitely try to make it the next time.[SEP]i'd better see you there.
+[SEP]i'd better see you there.[SEP]all right. i'll see you next time.
+[SEP]what's going on?[SEP]nothing really. how about you?
+[SEP]nothing really. how about you?[SEP]a lot, like the party i'm having on friday.
+[SEP]a lot, like the party i'm having on friday.[SEP]well, that's cool.
+[SEP]well, that's cool.[SEP]will you be able to make it?
+[SEP]will you be able to make it?[SEP]i'm busy this friday. i'm sorry.
+[SEP]i'm busy this friday. i'm sorry.[SEP]what do you have to do?
+[SEP]what do you have to do?[SEP]i'm having dinner with my family
+[SEP]i'm having dinner with my family[SEP]maybe you can come next time.
+[SEP]maybe you can come next time.[SEP]i'll make sure and come to your next party.
+[SEP]i'll make sure and come to your next party.[SEP]i'll look for you at my next party.
+[SEP]it was nice talking to you.[SEP]why are you trying to rush me off the phone?
+[SEP]why are you trying to rush me off the phone?[SEP]i really have to go.
+[SEP]i really have to go.[SEP]why? i still wanted to talk to you.
+[SEP]why? i still wanted to talk to you.[SEP]i have things to do.
+[SEP]i have things to do.[SEP]like what?
+[SEP]like what?[SEP]don't be nosey.
+[SEP]don't be nosey.[SEP]i'm not. i just want to know.
+[SEP]i'm not. i just want to know.[SEP]well, it's really none of your business.
+[SEP]well, it's really none of your business.[SEP]that's harsh.
+[SEP]that's harsh.[SEP]i'm sorry, but i have to go.
+[SEP]i'm sorry, but i have to go.[SEP]fine.
+[SEP]i've enjoyed conversing with you.[SEP]is there a reason why you're trying to get off the phone so fast?
+[SEP]is there a reason why you're trying to get off the phone so fast?[SEP]i've got to go.
+[SEP]i've got to go.[SEP]i wasn't done talking to you.
+[SEP]i wasn't done talking to you.[SEP]i have to do some things, and besides, it's not polite to be nosey.
+[SEP]i have to do some things, and besides, it's not polite to be nosey.[SEP]i'm not being nosey. i'm just asking.
+[SEP]i'm not being nosey. i'm just asking.[SEP]i really don't think it's any of your business.
+[SEP]i really don't think it's any of your business.[SEP]that's not nice.
+[SEP]that's not nice.[SEP]i apologize, but i'm getting off the phone now.
+[SEP]i apologize, but i'm getting off the phone now.[SEP]okay.
+[SEP]i'll talk to you later.[SEP]what's the rush?
+[SEP]what's the rush?[SEP]i have to get off the phone now.
+[SEP]i have to get off the phone now.[SEP]i'm not ready to get off the phone with you.
+[SEP]i'm not ready to get off the phone with you.[SEP]there are other things i need to take care of.
+[SEP]there are other things i need to take care of.[SEP]what is it that you need to do?
+[SEP]what is it that you need to do? [SEP]please don't be nosey.
+[SEP]please don't be nosey.[SEP]i'm not being nosey, it's just a question.
+[SEP]i'm not being nosey, it's just a question.[SEP]you don't need to worry about that.
+[SEP]you don't need to worry about that.[SEP]that was mean to say.
+[SEP]that was mean to say.[SEP]i am very sorry, but i must go.
+[SEP]well, it was nice talking to you.[SEP]it was nice talking to you too.
+[SEP]it was nice talking to you too.[SEP]we should really hang out again.
+[SEP]we should really hang out again.[SEP]that would be fun.
+[SEP]that would be fun.[SEP]where do you want to go?
+[SEP]where do you want to go?[SEP]i think we should go out to eat.
+[SEP]i think we should go out to eat.[SEP]that sounds good.
+[SEP]that sounds good.[SEP]all right, so i'll see you then.
+[SEP]all right, so i'll see you then.[SEP]i'll call you later.
+[SEP]i'll call you later.[SEP]okay, i'll talk to you later then.
+[SEP]okay, i'll talk to you later then.[SEP]see you later.
+[SEP]see you later.[SEP]bye.
+[SEP]i enjoyed talking to you.[SEP]i enjoyed talking to you too.
+[SEP]i enjoyed talking to you too.[SEP]we should hang out some time.
+[SEP]we should hang out some time.[SEP]i think that would be nice.
+[SEP]i think that would be nice.[SEP]is there anything you would like to do next time?
+[SEP]is there anything you would like to do next time?[SEP]do you want to go out to eat?
+[SEP]do you want to go out to eat?[SEP]i'd like that.
+[SEP]i'd like that.[SEP]so i'll see you next time.
+[SEP]so i'll see you next time.[SEP]i'm going to call you soon.
+[SEP]i'm going to call you soon. [SEP]i'll talk to you later.
+[SEP]i'll talk to you later.[SEP]see you soon.
+[SEP]see you soon.[SEP]goodbye.
+[SEP]i had fun talking to you.[SEP]it was really nice talking to you also.
+[SEP]it was really nice talking to you also.[SEP]i think we should really do something sometime.
+[SEP]i think we should really do something sometime.[SEP]that should be loads of fun.
+[SEP]that should be loads of fun.[SEP]what do you want to do next time?
+[SEP]what do you want to do next time?[SEP]would you like to go to dinner or something?
+[SEP]would you like to go to dinner or something?[SEP]yeah, let's do that.
+[SEP]yeah, let's do that.[SEP]okay, until next time then.
+[SEP]okay, until next time then.[SEP]i'll call you so we can set that up.
+[SEP]i'll call you so we can set that up.[SEP]talk to you then.
+[SEP]talk to you then.[SEP]all right, see you.
+[SEP]where do you live?[SEP]i live in pasadena.
+[SEP]i live in pasadena.[SEP]where is pasadena?
+[SEP]where is pasadena?[SEP]it's in california.
+[SEP]it's in california.[SEP]is it in northern california?
+[SEP]is it in northern california?[SEP]no. it's in southern california.
+[SEP]no. it's in southern california.[SEP]is pasadena a big city?
+[SEP]is pasadena a big city?[SEP]it's pretty big.
+[SEP]it's pretty big.[SEP]how big is "pretty big"?
+[SEP]how big is "pretty big"?[SEP]it has about 140,000 people.
+[SEP]it has about 140,000 people.[SEP]how big is los angeles?
+[SEP]how big is los angeles?[SEP]it has about 3 million people.
+[SEP]do you have a car?[SEP]yes, i do.
+[SEP]yes, i do.[SEP]what kind of car do you have?
+[SEP]what kind of car do you have?[SEP]i have a honda.
+[SEP]i have a honda.[SEP]is it new?
+[SEP]is it new?[SEP]it was new in 2003.
+[SEP]it was new in 2003.[SEP]so, it's pretty old now.
+[SEP]so, it's pretty old now.[SEP]yes, it is. but it still looks good.
+[SEP]yes, it is. but it still looks good.[SEP]do you take good care of it?
+[SEP]do you take good care of it?[SEP]oh, yes. i wash it once a week.
+[SEP]oh, yes. i wash it once a week.[SEP]do you change the oil?
+[SEP]do you change the oil?[SEP]my mechanic changes the oil twice a year.
+[SEP]do you have a girlfriend?[SEP]no, i don't. do you?
+[SEP]no, i don't. do you?[SEP]i don't have a girlfriend, either.
+[SEP]i don't have a girlfriend, either.[SEP]why not?
+[SEP]why not?[SEP]i don't know. maybe i'm not rich enough.
+[SEP]i don't know. maybe i'm not rich enough.[SEP]girls like guys with money.
+[SEP]girls like guys with money.[SEP]they sure do.
+[SEP]they sure do.[SEP]they like guys with new cars.
+[SEP]they like guys with new cars.[SEP]i don't have money or a new car.
+[SEP]i don't have money or a new car.[SEP]me, neither.
+[SEP]me, neither.[SEP]but girls like guys who are funny.
+[SEP]but girls like guys who are funny.[SEP]maybe we should learn some good jokes.
+[SEP]where are you going?[SEP]i have to walk the dog.
+[SEP]i have to walk the dog.[SEP]what kind of dog do you have?
+[SEP]what kind of dog do you have?[SEP]i have a little poodle.
+[SEP]i have a little poodle.[SEP]poodles bark a lot.
+[SEP]poodles bark a lot.[SEP]they sure do.
+[SEP]they sure do.[SEP]they bark at everything.
+[SEP]they bark at everything.[SEP]they never shut up.
+[SEP]they never shut up.[SEP]why did you get a poodle?
+[SEP]why did you get a poodle?[SEP]it's my mom's dog.
+[SEP]it's my mom's dog.[SEP]so she likes poodles.
+[SEP]so she likes poodles.[SEP]she says they're good watchdogs.
+[SEP]can i borrow $5?[SEP]sure. why do you need it?
+[SEP]sure. why do you need it?[SEP]i want to buy lunch.
+[SEP]i want to buy lunch.[SEP]where's your money?
+[SEP]where's your money?[SEP]it's not in my wallet.
+[SEP]it's not in my wallet.[SEP]your wallet is empty?
+[SEP]your wallet is empty?[SEP]i don't have even one dollar in it.
+[SEP]i don't have even one dollar in it.[SEP]being broke is no fun.
+[SEP]being broke is no fun.[SEP]even if it's only for a short while.
+[SEP]even if it's only for a short while.[SEP]it's always good to have friends.
+[SEP]it's always good to have friends.[SEP]friends will lend you money when you're broke.
+[SEP]friends will lend you money when you're broke.[SEP]as long as you pay them back.
+[SEP]let's go to the beach.[SEP]that's a great idea.
+[SEP]that's a great idea.[SEP]we haven't been in a while.
+[SEP]we haven't been in a while.[SEP]we haven't been in a month.
+[SEP]we haven't been in a month.[SEP]the last time we went, you almost drowned.
+[SEP]the last time we went, you almost drowned.[SEP]no, i didn't.
+[SEP]no, i didn't.[SEP]then why did the lifeguard dive into the water?
+[SEP]then why did the lifeguard dive into the water?[SEP]i think he wanted to cool off.
+[SEP]i think he wanted to cool off.[SEP]he swam right up to you.
+[SEP]he swam right up to you.[SEP]and then he turned right around.
+[SEP]and then he turned right around.[SEP]maybe you're right.
+[SEP]maybe you're right.[SEP]maybe we should get going.
+[SEP]are you married?[SEP]no. i'm divorced.
+[SEP]no. i'm divorced.[SEP]when did you get divorced?
+[SEP]when did you get divorced?[SEP]i got divorced two years ago.
+[SEP]i got divorced two years ago.[SEP]why did you get divorced?
+[SEP]why did you get divorced?[SEP]my wife left me.
+[SEP]my wife left me.[SEP]why did she leave you?
+[SEP]why did she leave you?[SEP]she said she didn't love me anymore.
+[SEP]she said she didn't love me anymore.[SEP]wow! that's terrible.
+[SEP]wow! that's terrible.[SEP]yes, it was.
+[SEP]yes, it was.[SEP]why didn't she love you anymore?
+[SEP]why didn't she love you anymore?[SEP]she fell in love with my best friend.
+[SEP]i'm bored.[SEP]what's on tv?
+[SEP]what's on tv?[SEP]nothing.
+[SEP]nothing.[SEP]there must be something on tv!
+[SEP]there must be something on tv![SEP]nothing that's interesting.
+[SEP]nothing that's interesting.[SEP]what about that new game show?
+[SEP]what about that new game show?[SEP]which one?
+[SEP]which one?[SEP]"deal or no deal"
+[SEP]"deal or no deal"[SEP]tell me you're joking.
+[SEP]tell me you're joking.[SEP]i love that show.
+[SEP]i love that show.[SEP]i watched it once. that was enough.
+[SEP]i watched it once. that was enough.[SEP]it's on right now. let's watch it together.
+[SEP]i like living here.[SEP]i agree. pasadena is a nice city.
+[SEP]i agree. pasadena is a nice city.[SEP]it's not too big.
+[SEP]it's not too big.[SEP]and it's not too small.
+[SEP]and it's not too small.[SEP]it has great weather all year long.
+[SEP]it has great weather all year long.[SEP]it has the rose parade.
+[SEP]it has the rose parade.[SEP]it has beautiful houses.
+[SEP]it has beautiful houses.[SEP]it has wonderful restaurants.
+[SEP]it has wonderful restaurants.[SEP]it has great schools.
+[SEP]it has great schools.[SEP]it's close to the mountains.
+[SEP]it's close to the mountains.[SEP]the people are friendly.
+[SEP]the people are friendly.[SEP]i'm not ever going to leave.
+[SEP]we need a new mattress.[SEP]what's the matter with this one?
+[SEP]what's the matter with this one?[SEP]it's not comfortable.
+[SEP]it's not comfortable.[SEP]it seems fine to me.
+[SEP]it seems fine to me.[SEP]i toss and turn all night.
+[SEP]i toss and turn all night.[SEP]you should stop drinking coffee.
+[SEP]you should stop drinking coffee.[SEP]look at these marks on my arms.
+[SEP]look at these marks on my arms.[SEP]what are they?
+[SEP]what are they?[SEP]they are bites.
+[SEP]they are bites.[SEP]did the cat bite you?
+[SEP]did the cat bite you?[SEP]no. the bedbugs in that mattress bit me.
+[SEP]no. the bedbugs in that mattress bit me.[SEP]okay. let's get a new mattress.
+[SEP]my laptop is so slow.[SEP]buy a new one.
+[SEP]buy a new one.[SEP]i would if i had the money.
+[SEP]i would if i had the money.[SEP]why is it so slow?
+[SEP]why is it so slow?[SEP]that's a good question.
+[SEP]that's a good question.[SEP]did you take it to a computer shop?
+[SEP]did you take it to a computer shop?[SEP]i would if i had the money.
+[SEP]i would if i had the money.[SEP]well, i guess you have to live with it.
+[SEP]well, i guess you have to live with it.[SEP]sometimes i want to throw it out the window.
+[SEP]sometimes i want to throw it out the window.[SEP]you don't want to do that.
+[SEP]you don't want to do that.[SEP]why not?
+[SEP]why not?[SEP]you might hit someone in the head.
+[SEP]what's for dinner?[SEP]i'm not sure.
+[SEP]i'm not sure.[SEP]how about a pizza?
+[SEP]how about a pizza?[SEP]you had pizza for lunch.
+[SEP]you had pizza for lunch.[SEP]but i love pizza.
+[SEP]but i love pizza.[SEP]everybody loves pizza.
+[SEP]everybody loves pizza.[SEP]so why can't i have pizza for dinner?
+[SEP]so why can't i have pizza for dinner?[SEP]because you need variety.
+[SEP]because you need variety.[SEP]what's "variety?
+[SEP]what's "variety?[SEP]different thingsÂ—not the same thing all the time.
+[SEP]different thingsÂ—not the same thing all the time.[SEP]you mean, like a pepperoni pizza instead of a cheese pizza?
+[SEP]you mean, like a pepperoni pizza instead of a cheese pizza?[SEP]no, i mean a salad instead of a pizza.
+[SEP]we need to save money.[SEP]why do we need to save money?
+[SEP]why do we need to save money?[SEP]because we need to buy a house.
+[SEP]because we need to buy a house.[SEP]but a house is so expensive.
+[SEP]but a house is so expensive.[SEP]that's why we need to save money.
+[SEP]that's why we need to save money.[SEP]how much do we need to save?
+[SEP]how much do we need to save?[SEP]we need to save enough for a down payment.
+[SEP]we need to save enough for a down payment.[SEP]how much is that?
+[SEP]how much is that?[SEP]that's about $30,000.
+[SEP]that's about $30,000.[SEP]thirty thousand dollars! that will take forever.
+[SEP]thirty thousand dollars! that will take forever.[SEP]not if we save every penny.
+[SEP]not if we save every penny.[SEP]okay. here's seven pennies.
+[SEP]the ocean is so big.[SEP]you can't see the end of it.
+[SEP]you can't see the end of it.[SEP]it goes on and on forever.
+[SEP]it goes on and on forever.[SEP]and it's deep, too.
+[SEP]and it's deep, too.[SEP]i think it's five miles deep.
+[SEP]i think it's five miles deep.[SEP]are there fish at the bottom?
+[SEP]are there fish at the bottom?[SEP]there are fish at the top and the bottom.
+[SEP]there are fish at the top and the bottom.[SEP]are there more fish or more people?
+[SEP]are there more fish or more people?[SEP]i think there are more fish.
+[SEP]i think there are more fish.[SEP]i hope so. i love to eat fish.
+[SEP]i'm upset with my mom.[SEP]why is that?
+[SEP]why is that?[SEP]i warned her about her new boyfriend. she didn't listen to me.
+[SEP]i warned her about her new boyfriend. she didn't listen to me.[SEP]what happened?
+[SEP]what happened?[SEP]i gave her $1,000 for her birthday. i told her to spend it on herself.
+[SEP]i gave her $1,000 for her birthday. i told her to spend it on herself.[SEP]that was very nice of you.
+[SEP]that was very nice of you.[SEP]i found out that she gave it to her new boyfriend.
+[SEP]i found out that she gave it to her new boyfriend.[SEP]why did she do that?
+[SEP]why did she do that?[SEP]he said he would buy her a nice ring.
+[SEP]he said he would buy her a nice ring.[SEP]what's wrong with that?
+[SEP]what's wrong with that?[SEP]he went to las vegas. he lost it all gambling.
+[SEP]he went to las vegas. he lost it all gambling.[SEP]i hope your mom broke up with him.
+[SEP]do animals talk to each other?[SEP]of course they talk to each other.
+[SEP]of course they talk to each other.[SEP]what do they talk about?
+[SEP]what do they talk about?[SEP]they talk about other animals.
+[SEP]they talk about other animals.[SEP]what else do they talk about?
+[SEP]what else do they talk about?[SEP]they talk about food and the weather.
+[SEP]they talk about food and the weather.[SEP]do they talk about us?
+[SEP]do they talk about us?[SEP]of course they talk about us.
+[SEP]of course they talk about us.[SEP]what do they say about us?
+[SEP]what do they say about us?[SEP]they say that we are funny-looking.
+[SEP]they say that we are funny-looking.[SEP]ha! we're not funny-looking; animals are funny-looking.
+[SEP]ha! we're not funny-looking; animals are funny-looking.[SEP]we're funny-looking because we wear clothes.
+[SEP]i have to clean the house.[SEP]yes, it's very dirty.
+[SEP]yes, it's very dirty.[SEP]you can help me.
+[SEP]you can help me.[SEP]why me?
+[SEP]why me?[SEP]because you helped make it dirty.
+[SEP]because you helped make it dirty.[SEP]what do you want me to do?
+[SEP]what do you want me to do?[SEP]i want you to clean the bathroom.
+[SEP]i want you to clean the bathroom.[SEP]oh, that's easy.
+[SEP]oh, that's easy.[SEP]clean the sink, the tub, the counter, and the toilet.
+[SEP]clean the sink, the tub, the counter, and the toilet.[SEP]that's a lot of work.
+[SEP]that's a lot of work.[SEP]tell me when you finish.
+[SEP]tell me when you finish.[SEP]i don't think so. you'll just give me more work.
+[SEP]you're watching too much tv.[SEP]what do you mean?
+[SEP]what do you mean?[SEP]i mean you're wasting your life.
+[SEP]i mean you're wasting your life.[SEP]i'm having fun.
+[SEP]i'm having fun.[SEP]you're sitting there with your mouth open.
+[SEP]you're sitting there with your mouth open.[SEP]who cares?
+[SEP]who cares?[SEP]i care. do something.
+[SEP]i care. do something.[SEP]okay. i did something.
+[SEP]okay. i did something.[SEP]what did you do?
+[SEP]what did you do?[SEP]i turned up the volume.
+[SEP]i turned up the volume.[SEP]that's not what i meant by "do something."
+[SEP]that's not what i meant by "do something."[SEP]will you do something? leave me alone.
+[SEP]did you write a letter to grandma?[SEP]yes, i did.
+[SEP]yes, i did.[SEP]did you tell her about school?
+[SEP]did you tell her about school?[SEP]i told her that school is fun.
+[SEP]i told her that school is fun.[SEP]did you put the letter in an envelope?
+[SEP]did you put the letter in an envelope?[SEP]yes, and i sealed the envelope.
+[SEP]yes, and i sealed the envelope.[SEP]did you put a stamp on the envelope?
+[SEP]did you put a stamp on the envelope?[SEP]i couldn't find any stamps.
+[SEP]i couldn't find any stamps.[SEP]they're in the kitchen drawer.
+[SEP]they're in the kitchen drawer.[SEP]okay. i just put a stamp on the envelope.
+[SEP]okay. i just put a stamp on the envelope.[SEP]give me the envelope, and i'll mail it for you.
+[SEP]give me the envelope, and i'll mail it for you.[SEP]when is grandma going to learn about e-mail?
+[SEP]why are you yawning?[SEP]i'm sleepy.
+[SEP]i'm sleepy.[SEP]why don't you go to bed?
+[SEP]why don't you go to bed?[SEP]i want to watch this tv show.
+[SEP]i want to watch this tv show.[SEP]maybe you should record it.
+[SEP]maybe you should record it.[SEP]the tape recorder is broken.
+[SEP]the tape recorder is broken.[SEP]then you should watch the rerun.
+[SEP]then you should watch the rerun.[SEP]why? i'm watching the original.
+[SEP]why? i'm watching the original.[SEP]but you'll be asleep in about one minute.
+[SEP]but you'll be asleep in about one minute.[SEP]i'm just yawning because the commercials are on.
+[SEP]i'm just yawning because the commercials are on.[SEP]okay. i'll tell you how the show ends.
+[SEP]okay. i'll tell you how the show ends.[SEP]zzz.
+[SEP]it's sunday.[SEP]so?
+[SEP]so?[SEP]you know what that means.
+[SEP]you know what that means.[SEP]i forgot.
+[SEP]i forgot.[SEP]sunday means we go to church.
+[SEP]sunday means we go to church.[SEP]oh, yeah.
+[SEP]oh, yeah.[SEP]put on a coat and tie.
+[SEP]put on a coat and tie.[SEP]why?
+[SEP]why?[SEP]to show respect to god and others.
+[SEP]to show respect to god and others.[SEP]i'm glad sunday is only once a week.
+[SEP]i'm glad sunday is only once a week.[SEP]i hope god didn't hear that.
+[SEP]i hope god didn't hear that.[SEP]he'll forgive me.
+[SEP]did you feed the cat?[SEP]i'll do that in a minute.
+[SEP]i'll do that in a minute.[SEP]the cat is meowing. he's hungry.
+[SEP]the cat is meowing. he's hungry.[SEP]okay. i'll feed him right now.
+[SEP]okay. i'll feed him right now.[SEP]you shouldn't make him wait.
+[SEP]you shouldn't make him wait.[SEP]i was doing my homework.
+[SEP]i was doing my homework.[SEP]the cat doesn't care about your homework.
+[SEP]the cat doesn't care about your homework.[SEP]the cat doesn't care about anything.
+[SEP]the cat doesn't care about anything.[SEP]that's the way cats are.
+[SEP]that's the way cats are.[SEP]all they think about is themselves.
+[SEP]all they think about is themselves.[SEP]maybe we should get rid of him.
+[SEP]maybe we should get rid of him.[SEP]of course not! he's family.
+[SEP]i hate shaving.[SEP]me too.
+[SEP]me too.[SEP]i just cut myself again.
+[SEP]i just cut myself again.[SEP]did you use a new blade?
+[SEP]did you use a new blade?[SEP]it doesn't matter. old blades cut, new blades cut.
+[SEP]it doesn't matter. old blades cut, new blades cut.[SEP]maybe you should use an electric shaver.
+[SEP]maybe you should use an electric shaver.[SEP]they make a lot of noise, but they don't give a close shave.
+[SEP]they make a lot of noise, but they don't give a close shave.[SEP]maybe you should stop shaving.
+[SEP]maybe you should stop shaving.[SEP]and grow a beard?
+[SEP]and grow a beard?[SEP]sure. why not?
+[SEP]sure. why not?[SEP]because food and other stuff sticks in my beard.
+[SEP]because food and other stuff sticks in my beard.[SEP]hmm. here's an idea. put cream on your face and have the cat lick it off.
+[SEP]excuse me.[SEP]yes?
+[SEP]yes?[SEP]are you reading this paper?
+[SEP]are you reading this paper?[SEP]oh, no. help yourself.
+[SEP]oh, no. help yourself.[SEP]i asked because the paper is sitting next to you.
+[SEP]i asked because the paper is sitting next to you.[SEP]thank you. that's polite of you to ask.
+[SEP]thank you. that's polite of you to ask.[SEP]some people would just pick it up.
+[SEP]some people would just pick it up.[SEP]yes, i know. some people are rude.
+[SEP]yes, i know. some people are rude.[SEP]i always try to be polite.
+[SEP]i always try to be polite.[SEP]so do i.
+[SEP]so do i.[SEP]the world needs more polite people like us.
+[SEP]the world needs more polite people like us.[SEP]i agree 100 percent.
+[SEP]mom, i want a puppy.[SEP]let me think about it.
+[SEP]let me think about it.[SEP]why do you have to think about it?
+[SEP]why do you have to think about it?[SEP]because a puppy costs money.
+[SEP]because a puppy costs money.[SEP]no, it doesn't. puppies are free.
+[SEP]no, it doesn't. puppies are free.[SEP]yes, but a puppy needs shots.
+[SEP]yes, but a puppy needs shots.[SEP]shots for what?
+[SEP]shots for what?[SEP]so it won't get sick. just like you get shots.
+[SEP]so it won't get sick. just like you get shots.[SEP]i hate shots.
+[SEP]i hate shots.[SEP]and a puppy eats food. food costs money.
+[SEP]and a puppy eats food. food costs money.[SEP]no problem. i'll give him food off my plate.
+[SEP]no problem. i'll give him food off my plate.[SEP]oh, no you don't. puppies don't eat vegetables.
+[SEP]look at all these kittens![SEP]how many are there?
+[SEP]how many are there?[SEP]eight.
+[SEP]eight.[SEP]they're all so cute.
+[SEP]they're all so cute.[SEP]yes, but i can't keep them.
+[SEP]yes, but i can't keep them.[SEP]what are you going to do with them?
+[SEP]what are you going to do with them?[SEP]i'm going to give them away. do you want one?
+[SEP]i'm going to give them away. do you want one?[SEP]yes, i would love one.
+[SEP]yes, i would love one.[SEP]which one do you want?
+[SEP]which one do you want?[SEP]that one. the one that's all black.
+[SEP]that one. the one that's all black.[SEP]yes, i like that one, too.
+[SEP]yes, i like that one, too.[SEP]i'll call him blacky.
+[SEP]my parents go to church every sunday.[SEP]they trust in god.
+[SEP]they trust in god.[SEP]they hope they will go to heaven.
+[SEP]they hope they will go to heaven.[SEP]they probably will.
+[SEP]they probably will.[SEP]but no one knows for sure.
+[SEP]but no one knows for sure.[SEP]that's for sure.
+[SEP]that's for sure.[SEP]no one knows what happens after we die.
+[SEP]no one knows what happens after we die.[SEP]if we are good, we will be happy in heaven with god.
+[SEP]if we are good, we will be happy in heaven with god.[SEP]that's what many people believe.
+[SEP]that's what many people believe.[SEP]if we are bad, we will be unhappy forever in hell.
+[SEP]if we are bad, we will be unhappy forever in hell.[SEP]i don't want to go to hell.
+[SEP]i don't want to go to hell.[SEP]let's go to church with your parents on sunday.
+[SEP]my husband died.[SEP]i'm sorry for you.
+[SEP]i'm sorry for you.[SEP]thank you.
+[SEP]thank you.[SEP]when did he die?
+[SEP]when did he die?[SEP]a couple of months ago.
+[SEP]a couple of months ago.[SEP]you still miss him.
+[SEP]you still miss him.[SEP]yes, but i talk to him almost every day.
+[SEP]yes, but i talk to him almost every day.[SEP]when you go to church?
+[SEP]when you go to church?[SEP]no, when i call him on his cell phone.
+[SEP]no, when i call him on his cell phone.[SEP]what do you mean?
+[SEP]what do you mean?[SEP]i buried him with his cell phone.
+[SEP]i buried him with his cell phone.[SEP]what will you do when the battery dies?
+[SEP]today is friday the thirteenth.[SEP]that's a bad day.
+[SEP]that's a bad day.[SEP]it's supposed to be unlucky.
+[SEP]it's supposed to be unlucky.[SEP]you're supposed to stay home all day.
+[SEP]you're supposed to stay home all day.[SEP]that's what i do.
+[SEP]that's what i do.[SEP]my friend stayed in a hotel on friday the thirteenth.
+[SEP]my friend stayed in a hotel on friday the thirteenth.[SEP]that was a mistake.
+[SEP]that was a mistake.[SEP]he stayed on the thirteenth floor.
+[SEP]he stayed on the thirteenth floor.[SEP]what happened?
+[SEP]what happened?[SEP]someone stole his laptop.
+[SEP]someone stole his laptop.[SEP]he was asking for it.
+[SEP]he was asking for it.[SEP]he learned his lesson. he's home today.
+[SEP]do you really love me?[SEP]of course.
+[SEP]of course.[SEP]prove it.
+[SEP]prove it.[SEP]how can i prove it?
+[SEP]how can i prove it?[SEP]take me to dinner.
+[SEP]take me to dinner.[SEP]that's it? that's all i have to do?
+[SEP]that's it? that's all i have to do?[SEP]take me to a nice restaurant, not to mcdonald's.
+[SEP]take me to a nice restaurant, not to mcdonald's.[SEP]but a nice restaurant costs money.
+[SEP]but a nice restaurant costs money.[SEP]yes, and you have to make a reservation.
+[SEP]yes, and you have to make a reservation.[SEP]that's such a hassle.
+[SEP]that's such a hassle.[SEP]i knew you didn't love me.
+[SEP]i knew you didn't love me.[SEP]okay, okay! i'll make a reservation right now.
+[SEP]my parents are divorced.[SEP]so are mine.
+[SEP]so are mine.[SEP]why did your parents get divorced?
+[SEP]why did your parents get divorced?[SEP]my father found a new girlfriend.
+[SEP]my father found a new girlfriend.[SEP]that's too bad.
+[SEP]that's too bad.[SEP]my mother was hurt and angry.
+[SEP]my mother was hurt and angry.[SEP]she had good reason. what did she do?
+[SEP]she had good reason. what did she do?[SEP]she told him to drop his girlfriend.
+[SEP]she told him to drop his girlfriend.[SEP]what did your father do?
+[SEP]what did your father do?[SEP]he moved out of our house.
+[SEP]he moved out of our house.[SEP]i guess he really liked his new girlfriend.
+[SEP]i guess he really liked his new girlfriend.[SEP]yes, but she left him a year later.
+[SEP]my grandma's apartment smells funny.[SEP]so does mine.
+[SEP]so does mine.[SEP]i think it's an old people's smell.
+[SEP]i think it's an old people's smell.[SEP]really?
+[SEP]really?[SEP]yes. i think when you get old, you begin to smell.
+[SEP]yes. i think when you get old, you begin to smell.[SEP]like fruit that is too ripe?
+[SEP]like fruit that is too ripe?[SEP]yes, just like fruit that is too ripe.
+[SEP]yes, just like fruit that is too ripe.[SEP]but the smell is different.
+[SEP]but the smell is different.[SEP]yes, old people don't smell like fruit.
+[SEP]yes, old people don't smell like fruit.[SEP]no, they smell like a thrift shop.
+[SEP]no, they smell like a thrift shop.[SEP]yes, a thrift shop has that same smell.
+[SEP]yes, a thrift shop has that same smell.[SEP]yes, an old smell.
+[SEP]the price of stamps goes up and up.[SEP]i think stamps used to cost a penny.
+[SEP]i think stamps used to cost a penny.[SEP]that was a long time ago.
+[SEP]that was a long time ago.[SEP]it was before i was born.
+[SEP]it was before i was born.[SEP]now a stamp is 42 cents.
+[SEP]now a stamp is 42 cents.[SEP]but in may it will be 44 cents.
+[SEP]but in may it will be 44 cents.[SEP]have you ever lost a letter in the mail?
+[SEP]have you ever lost a letter in the mail?[SEP]no, i haven't.
+[SEP]no, i haven't.[SEP]neither have i.
+[SEP]neither have i.[SEP]so, they do a good job for the money.
+[SEP]so, they do a good job for the money.[SEP]yes, they do.
+[SEP]yes, they do.[SEP]maybe we shouldn't complain.
+[SEP]a button came off my shirt.[SEP]what are you going to do?
+[SEP]what are you going to do?[SEP]first, i have to find the button.
+[SEP]first, i have to find the button.[SEP]where did you lose it?
+[SEP]where did you lose it?[SEP]i have no idea.
+[SEP]i have no idea.[SEP]a button is hard to find. did you look in your pant cuffs?
+[SEP]a button is hard to find. did you look in your pant cuffs?[SEP]that's a good idea.
+[SEP]that's a good idea.[SEP]i found a button in my pant cuffs one time.
+[SEP]i found a button in my pant cuffs one time.[SEP]let me look. no, it's not there.
+[SEP]let me look. no, it's not there.[SEP]many shirts come with an extra button.
+[SEP]many shirts come with an extra button.[SEP]you're right. this one does have an extra button.
+[SEP]you're right. this one does have an extra button.[SEP]now all you have to do is sew it on.
+[SEP]i have to go to the bathroom.[SEP]you drink too much coffee.
+[SEP]you drink too much coffee.[SEP]but i love coffee.
+[SEP]but i love coffee.[SEP]well, it's your life.
+[SEP]well, it's your life.[SEP]you eat too much chocolate.
+[SEP]you eat too much chocolate.[SEP]i don't think so.
+[SEP]i don't think so.[SEP]have you looked in the mirror?
+[SEP]have you looked in the mirror?[SEP]do you think i'm getting fat?
+[SEP]do you think i'm getting fat?[SEP]i didn't say that.
+[SEP]i didn't say that.[SEP]what did you say?
+[SEP]what did you say?[SEP]i said i have to go to the bathroom.
+[SEP]i said i have to go to the bathroom.[SEP]that's what i thought you said.
+[SEP]did you do the laundry?[SEP]yes, i did.
+[SEP]yes, i did.[SEP]what did you wash?
+[SEP]what did you wash?[SEP]i washed the sheets and towels.
+[SEP]i washed the sheets and towels.[SEP]what about the pillowcases?
+[SEP]what about the pillowcases?[SEP]yes, i took them off the pillows and washed them.
+[SEP]yes, i took them off the pillows and washed them.[SEP]did you dry everything in the dryer?
+[SEP]did you dry everything in the dryer?[SEP]yes, i dried everything in the dryer.
+[SEP]yes, i dried everything in the dryer.[SEP]then what did you do?
+[SEP]then what did you do?[SEP]i folded all the towels.
+[SEP]i folded all the towels.[SEP]did you put the sheets on the beds?
+[SEP]did you put the sheets on the beds?[SEP]yes, and i put the pillowcases on the pillows.
+[SEP]do you listen to the radio?[SEP]i listen day and night.
+[SEP]i listen day and night.[SEP]what do you listen to?
+[SEP]what do you listen to?[SEP]mostly talk radio.
+[SEP]mostly talk radio.[SEP]what's that?
+[SEP]what's that?[SEP]people talk about current events.
+[SEP]people talk about current events.[SEP]what do they say?
+[SEP]what do they say?[SEP]they say they want change.
+[SEP]they say they want change.[SEP]what kind of change?
+[SEP]what kind of change?[SEP]they want tax cuts.
+[SEP]they want tax cuts.[SEP]why do they want tax cuts?
+[SEP]why do they want tax cuts?[SEP]because tax cuts will save them money.
+[SEP]mom, i'm hungry.[SEP]look in the fridge.
+[SEP]look in the fridge.[SEP]i'm looking. there's nothing to eat.
+[SEP]i'm looking. there's nothing to eat.[SEP]are you sure?
+[SEP]are you sure?[SEP]it's almost empty.
+[SEP]it's almost empty.[SEP]i went to the market yesterday.
+[SEP]i went to the market yesterday.[SEP]i don't see anything.
+[SEP]i don't see anything.[SEP]i bought lots of oranges and apples.
+[SEP]i bought lots of oranges and apples.[SEP]i don't want fruit. i want something tasty.
+[SEP]i don't want fruit. i want something tasty.[SEP]eat the fruit. it's good for you.
+[SEP]eat the fruit. it's good for you.[SEP]next time you go to the market, let me go with you.
+[SEP]next time you go to the market, let me go with you.[SEP]no, thank you. all you want to eat are hot dogs and candy bars.
+[SEP]what is there to eat?[SEP]i don't know. look in the fridge.
+[SEP]i don't know. look in the fridge.[SEP]i think i'll make a sandwich.
+[SEP]i think i'll make a sandwich.[SEP]what kind?
+[SEP]what kind?[SEP]a ham sandwich.
+[SEP]a ham sandwich.[SEP]the bread is in the cabinet.
+[SEP]the bread is in the cabinet.[SEP]where's the mustard?
+[SEP]where's the mustard?[SEP]it's in the fridge, i think.
+[SEP]it's in the fridge, i think.[SEP]oh, yes, here it is. do you want a sandwich?
+[SEP]oh, yes, here it is. do you want a sandwich?[SEP]yes, that sounds nice.
+[SEP]yes, that sounds nice.[SEP]how about some potato chips?
+[SEP]how about some potato chips?[SEP]yes. and a pickle, if we have any.
+[SEP]it's time for your bath, young lady.[SEP]but, mom, i'm not dirty.
+[SEP]but, mom, i'm not dirty.[SEP]you need a bath every day.
+[SEP]you need a bath every day.[SEP]why?
+[SEP]why?[SEP]because you don't want to smell bad.
+[SEP]because you don't want to smell bad.[SEP]i don't smell bad.
+[SEP]i don't smell bad.[SEP]that's what you think.
+[SEP]that's what you think.[SEP]if i smelled bad, i could smell me.
+[SEP]if i smelled bad, i could smell me.[SEP]i can smell you.
+[SEP]i can smell you.[SEP]i can smell you, too.
+[SEP]i can smell you, too.[SEP]that's my perfume.
+[SEP]that's my perfume.[SEP]when can i wear perfume?
+[SEP]something's wrong with my computer.[SEP]exactly what?
+[SEP]exactly what?[SEP]all i get is a black screen.
+[SEP]all i get is a black screen.[SEP]what's the matter?
+[SEP]what's the matter?[SEP]i think i know, because this happened before.
+[SEP]i think i know, because this happened before.[SEP]what happened before?
+[SEP]what happened before?[SEP]my hard drive crashed.
+[SEP]my hard drive crashed.[SEP]oh, no. that's bad news.
+[SEP]oh, no. that's bad news.[SEP]it sure is, but i'm going to call hp first, just to make sure.
+[SEP]it sure is, but i'm going to call hp first, just to make sure.[SEP]will you lose all your files?
+[SEP]will you lose all your files?[SEP]no, i always back up my files.
+[SEP]no, i always back up my files.[SEP]you're smart.
+[SEP]i called hp about my computer.[SEP]what did they say?
+[SEP]what did they say?[SEP]they said i need a new hard drive.
+[SEP]they said i need a new hard drive.[SEP]that's too bad. how much is a new one?
+[SEP]that's too bad. how much is a new one?[SEP]it's not too much, only about $85.
+[SEP]it's not too much, only about $85.[SEP]plus installation?
+[SEP]plus installation?[SEP]no, my hard drive is easy to remove and replace.
+[SEP]no, my hard drive is easy to remove and replace.[SEP]really?
+[SEP]really?[SEP]yes, it's just a couple of screws.
+[SEP]yes, it's just a couple of screws.[SEP]that's nice.
+[SEP]that's nice.[SEP]it's a lot better than paying someone $60.
+[SEP]it's a lot better than paying someone $60.[SEP]if my hard drive crashes, i'll just call you.
+[SEP]what's your email address?[SEP]it's bluedog123.
+[SEP]it's bluedog123.[SEP]bluedog123. are you sure that's all?
+[SEP]bluedog123. are you sure that's all?[SEP]yes.
+[SEP]yes.[SEP]no. that's incomplete.
+[SEP]no. that's incomplete.[SEP]what do you mean?
+[SEP]what do you mean?[SEP]what's your mailing address?
+[SEP]what's your mailing address?[SEP]456 cherry drive, pasadena, ca 91170.
+[SEP]456 cherry drive, pasadena, ca 91170.[SEP]that's correct.
+[SEP]that's correct.[SEP]so what's the problem?
+[SEP]so what's the problem?[SEP]bluedog123 is just the street. you have to give me the city, state, and zip code.
+[SEP]bluedog123 is just the street. you have to give me the city, state, and zip code.[SEP]oh, i get it. my email address is bluedog123@yahoo.com.
+[SEP]i'm going to take a nap.[SEP]you should unplug the phone.
+[SEP]you should unplug the phone.[SEP]that's a good idea.
+[SEP]that's a good idea.[SEP]do you want me to wake you in an hour?
+[SEP]do you want me to wake you in an hour?[SEP]no, thanks. just let me sleep until i wake up.
+[SEP]no, thanks. just let me sleep until i wake up.[SEP]i'll start dinner at 6:00.
+[SEP]i'll start dinner at 6:00.[SEP]okay. i think i'll be awake by then.
+[SEP]okay. i think i'll be awake by then.[SEP]if not, your nose will wake you up.
+[SEP]if not, your nose will wake you up.[SEP]you mean i will smell the food cooking?
+[SEP]you mean i will smell the food cooking?[SEP]you might even dream about dinner.
+[SEP]you might even dream about dinner.[SEP]i don't think i'm going to dream about anything. i'm really tired.
+[SEP]i don't think i'm going to dream about anything. i'm really tired.[SEP]have a nice nap.
+[SEP]that was a nice funeral.[SEP]yes, dad, it was.
+[SEP]yes, dad, it was.[SEP]the son gave a nice speech about his father.
+[SEP]the son gave a nice speech about his father.[SEP]it was long, too.
+[SEP]it was long, too.[SEP]i think it was about 45 minutes long.
+[SEP]i think it was about 45 minutes long.[SEP]but it went by fast. it was interesting.
+[SEP]but it went by fast. it was interesting.[SEP]i liked it.
+[SEP]i liked it.[SEP]i'll give you a speech like that, too.
+[SEP]i'll give you a speech like that, too.[SEP]do you think anyone will come to my funeral?
+[SEP]do you think anyone will come to my funeral?[SEP]of course.
+[SEP]of course.[SEP]i think only the family will be there.
+[SEP]i think only the family will be there.[SEP]you have lots of friends. they will be there, too!
+[SEP]yikes! what was that noise?[SEP]i had to blow my nose.
+[SEP]i had to blow my nose.[SEP]did you have to blow right next to the phone?
+[SEP]did you have to blow right next to the phone?[SEP]did you hear that?
+[SEP]did you hear that?[SEP]of course i heard that. i thought a plane had crashed into your house.
+[SEP]of course i heard that. i thought a plane had crashed into your house.[SEP]it wasn't that loud.
+[SEP]it wasn't that loud.[SEP]i will blow my nose sometime for you, and you'll see.
+[SEP]i will blow my nose sometime for you, and you'll see.[SEP]okay. i'll take your word for it.
+[SEP]okay. i'll take your word for it.[SEP]i thought you had an elephant in your house.
+[SEP]i thought you had an elephant in your house.[SEP]you're funny.
+[SEP]you're funny.[SEP]what did you say? i think i've gone deaf.
+[SEP]what did you say? i think i've gone deaf.[SEP]i'm going into the bathroom to blow my nose. i'll be right back.
+[SEP]i have lots of friends.[SEP]really? how many do you have?
+[SEP]really? how many do you have?[SEP]i don't know, maybe one hundred.
+[SEP]i don't know, maybe one hundred.[SEP]that is a lot of friends. do you have a best friend?
+[SEP]that is a lot of friends. do you have a best friend?[SEP]of course. i have lots of best friends.
+[SEP]of course. i have lots of best friends.[SEP]how many best friends do you have?
+[SEP]how many best friends do you have?[SEP]i think about twenty-five.
+[SEP]i think about twenty-five.[SEP]hmm. i have only one best friend.
+[SEP]hmm. i have only one best friend.[SEP]i feel sorry for you.
+[SEP]i feel sorry for you.[SEP]i have only a few friends.
+[SEP]i have only a few friends.[SEP]you must be lonely. i will share my friends with you.
+[SEP]you must be lonely. i will share my friends with you.[SEP]that's very nice of you.
+[SEP]don't you ever cheat on me.[SEP]why would i do that?
+[SEP]why would i do that?[SEP]because men like to cheat.
+[SEP]because men like to cheat.[SEP]some men do, but not me.
+[SEP]some men do, but not me.[SEP]i'm watching you.
+[SEP]i'm watching you.[SEP]i'm an open book. watch me all you want.
+[SEP]i'm an open book. watch me all you want.[SEP]if i catch you, you'll be sorry.
+[SEP]if i catch you, you'll be sorry.[SEP]you won't catch me, because i love you. i'm not a cheater.
+[SEP]you won't catch me, because i love you. i'm not a cheater.[SEP]i will poke your eyes out.
+[SEP]i will poke your eyes out. [SEP]i don't want any other woman.
+[SEP]i don't want any other woman.[SEP]i will chop your toes off, one by one.
+[SEP]i will chop your toes off, one by one.[SEP]honey, please. you're the only woman for me, forever. i swear it.
+[SEP]i hate to go outside.[SEP]me too.
+[SEP]me too.[SEP]why do you hate to go outside?
+[SEP]why do you hate to go outside?[SEP]i meet too many jerks.
+[SEP]i meet too many jerks.[SEP]i agree.
+[SEP]i agree.[SEP]this city is full of jerks.
+[SEP]this city is full of jerks.[SEP]rude people are everywhere.
+[SEP]rude people are everywhere.[SEP]but what can you do?
+[SEP]but what can you do?[SEP]you can yell at them.
+[SEP]you can yell at them.[SEP]and they will yell back at you.
+[SEP]and they will yell back at you.[SEP]yelling doesn't do any good.
+[SEP]yelling doesn't do any good.[SEP]no. the best thing to do is just stay home.
+[SEP]will you look at this form?[SEP]are you having problems with it?
+[SEP]are you having problems with it?[SEP]i don't understand some things.
+[SEP]i don't understand some things.[SEP]let me help you.
+[SEP]let me help you.[SEP]what does "mi" mean?
+[SEP]what does "mi" mean?[SEP]"mi" stands for middle initial.
+[SEP]"mi" stands for middle initial.[SEP]what does "mm/dd/yy" mean?
+[SEP]what does "mm/dd/yy" mean?[SEP]that means month/day/year. use numbers.
+[SEP]that means month/day/year. use numbers.[SEP]i don't understand.
+[SEP]i don't understand.[SEP]for example, if your birth date is january 12, 1987, write 01/12/87.
+[SEP]for example, if your birth date is january 12, 1987, write 01/12/87.[SEP]oh. that's simple enough.
+[SEP]oh. that's simple enough.[SEP]always print clearly, and fill in the bubbles completely.
+[SEP]let's go to the animal shelter.[SEP]what do you want to do?
+[SEP]what do you want to do?[SEP]i want to get a puppy for my son.
+[SEP]i want to get a puppy for my son.[SEP]that will make him so happy.
+[SEP]that will make him so happy.[SEP]i'll get him one of those little dogs.
+[SEP]i'll get him one of those little dogs.[SEP]one that won't grow up too big.
+[SEP]one that won't grow up too big.[SEP]and eat too much.
+[SEP]and eat too much.[SEP]do you know which one he would like?
+[SEP]do you know which one he would like?[SEP]oh, yes, i took him there yesterday. he showed me one that he really liked.
+[SEP]oh, yes, i took him there yesterday. he showed me one that he really liked.[SEP]i bet you had to drag him away.
+[SEP]i bet you had to drag him away.[SEP]he wanted to take it home yesterday.
+[SEP]he wanted to take it home yesterday.[SEP]i wonder what he'll name it.
+[SEP]what's the weather like?[SEP]i don't know. i just woke up.
+[SEP]i don't know. i just woke up.[SEP]why don't you look outside?
+[SEP]why don't you look outside?[SEP]okay. it looks like rain.
+[SEP]okay. it looks like rain.[SEP]why do you say that?
+[SEP]why do you say that?[SEP]the sky is gray.
+[SEP]the sky is gray.[SEP]is it raining right now?
+[SEP]is it raining right now?[SEP]no.
+[SEP]no.[SEP]how do you know?
+[SEP]how do you know?[SEP]the street isn't wet.
+[SEP]the street isn't wet.[SEP]i have to go shopping today.
+[SEP]i have to go shopping today.[SEP]you'd better take an umbrella.
+[SEP]i can't believe how hot it is.[SEP]it's not even noon yet.
+[SEP]it's not even noon yet.[SEP]that means it will get hotter.
+[SEP]that means it will get hotter.[SEP]i am dying from the heat.
+[SEP]i am dying from the heat.[SEP]turn on the air conditioner.
+[SEP]turn on the air conditioner.[SEP]it doesn't work.
+[SEP]it doesn't work.[SEP]what happened?
+[SEP]what happened?[SEP]i don't know.
+[SEP]i don't know.[SEP]did you call the repairman?
+[SEP]did you call the repairman?[SEP]of course.
+[SEP]of course.[SEP]when is he coming?
+[SEP]when is he coming?[SEP]he's busy. he said next week.
+[SEP]i'll be glad when winter comes.[SEP]why is that?
+[SEP]why is that?[SEP]because i love the snow.
+[SEP]because i love the snow.[SEP]yes, the snow is fun.
+[SEP]yes, the snow is fun.[SEP]last year we made a big snowman.
+[SEP]last year we made a big snowman.[SEP]how big was it?
+[SEP]how big was it?[SEP]it was seven feet tall.
+[SEP]it was seven feet tall.[SEP]how long did it take?
+[SEP]how long did it take?[SEP]it took us all day.
+[SEP]it took us all day.[SEP]did you give him a nose?
+[SEP]did you give him a nose?[SEP]of course. we gave him a big carrot for a nose.
+[SEP]of course. we gave him a big carrot for a nose.[SEP]let me help you make one this year.
+[SEP]i'm going to the bank.[SEP]what do you need to do?
+[SEP]what do you need to do?[SEP]i need to withdraw some money.
+[SEP]i need to withdraw some money.[SEP]how are you going to do that?
+[SEP]how are you going to do that?[SEP]i'll just use the atm.
+[SEP]i'll just use the atm.[SEP]what's that?
+[SEP]what's that?[SEP]it's the automatic teller machine.
+[SEP]it's the automatic teller machine.[SEP]it gives you money?
+[SEP]it gives you money?[SEP]i just insert my debit card into the machine.
+[SEP]i just insert my debit card into the machine.[SEP]and it gives you money?
+[SEP]and it gives you money?[SEP]well, it gives me money, but it's my own money.
+[SEP]well, it gives me money, but it's my own money.[SEP]oh. what good is that? i thought it gave you free money.
+[SEP]did you put the blue bin out on the street?[SEP]oh, no. i forgot.
+[SEP]oh, no. i forgot.[SEP]well, you'd better take it out front.
+[SEP]well, you'd better take it out front.[SEP]what time does the recycle truck come by?
+[SEP]what time does the recycle truck come by?[SEP]it usually gets here at noon on tuesday, which is tomorrow.
+[SEP]it usually gets here at noon on tuesday, which is tomorrow.[SEP]i'll just take it out to the street tomorrow morning.
+[SEP]i'll just take it out to the street tomorrow morning.[SEP]oh, no, you don't.
+[SEP]oh, no, you don't.[SEP]what do you mean?
+[SEP]what do you mean?[SEP]every morning you get up late and rush off to work late.
+[SEP]every morning you get up late and rush off to work late.[SEP]do you think i'll forget to do it?
+[SEP]do you think i'll forget to do it?[SEP]you'll remember to do it, but you won't have time to do it.
+[SEP]you'll remember to do it, but you won't have time to do it.[SEP]okay, i'll take it out front right now.
+[SEP]are you ready?[SEP]ready for what?
+[SEP]ready for what?[SEP]ready for the big switch.
+[SEP]ready for the big switch.[SEP]what are you talking about?
+[SEP]what are you talking about?[SEP]the nation is switching to digital tv.
+[SEP]the nation is switching to digital tv.[SEP]oh. of course i'm ready.
+[SEP]oh. of course i'm ready.[SEP]did you buy the converter?
+[SEP]did you buy the converter?[SEP]no, i don't need a converter because i bought a digital tv.
+[SEP]no, i don't need a converter because i bought a digital tv.[SEP]how much was that?
+[SEP]how much was that?[SEP]it was only about $120 for a 13-inch screen.
+[SEP]it was only about $120 for a 13-inch screen.[SEP]does it pick up any digital channels?
+[SEP]does it pick up any digital channels?[SEP]oh, yes. i get six korean channels but nothing in english!
+[SEP]people are funny.[SEP]they sure are.
+[SEP]they sure are.[SEP]did you hear about the pilot?
+[SEP]did you hear about the pilot?[SEP]the one that stole a small plane?
+[SEP]the one that stole a small plane?[SEP]yes, he stole a plane in canada and flew into the u.s.
+[SEP]yes, he stole a plane in canada and flew into the u.s.[SEP]did they catch him?
+[SEP]did they catch him?[SEP]yes. after two u.s. fighter jets followed him for an hour, he landed on a highway.
+[SEP]yes. after two u.s. fighter jets followed him for an hour, he landed on a highway.[SEP]did he crash?
+[SEP]did he crash?[SEP]no, he just landed the plane and walked to a restaurant.
+[SEP]no, he just landed the plane and walked to a restaurant.[SEP]did the cops find out why he flew into the u.s.?
+[SEP]did the cops find out why he flew into the u.s.?[SEP]his life sucked. he was hoping a fighter jet would shoot him down.
+[SEP]his life sucked. he was hoping a fighter jet would shoot him down.[SEP]poor guy.
+[SEP]the police need our help finding a robber.[SEP]how do you know?
+[SEP]how do you know?[SEP]the tv news is reporting a bank robbery.
+[SEP]the tv news is reporting a bank robbery.[SEP]do they know what the robber looks like?
+[SEP]do they know what the robber looks like?[SEP]yes, he's 6 feet tall, 200 pounds, black hair, and about 30 years old.
+[SEP]yes, he's 6 feet tall, 200 pounds, black hair, and about 30 years old.[SEP]what race is he?
+[SEP]what race is he?[SEP]they didn't say.
+[SEP]they didn't say.[SEP]the tv news doesn't tell us the race anymore.
+[SEP]the tv news doesn't tell us the race anymore.[SEP]of course not. that would be racist.
+[SEP]of course not. that would be racist.[SEP]but how can we identify someone if we don't know their race?
+[SEP]but how can we identify someone if we don't know their race?[SEP]don't ask me.
+[SEP]don't ask me.[SEP]then they also shouldn't tell us if the robber is male or female, because that is sexist.
+[SEP]don't wipe your nose on your sleeve.[SEP]but i don't have a tissue.
+[SEP]but i don't have a tissue.[SEP]then go find a tissue in the bathroom.
+[SEP]then go find a tissue in the bathroom.[SEP]i didn't have time to get one from there.
+[SEP]i didn't have time to get one from there.[SEP]your sleeves are not tissues.
+[SEP]your sleeves are not tissues.[SEP]but mom, all my friends use their sleeves.
+[SEP]but mom, all my friends use their sleeves.[SEP]that doesn't make it right.
+[SEP]that doesn't make it right.[SEP]i saw dad wipe his nose on his sleeve yesterday.
+[SEP]i saw dad wipe his nose on his sleeve yesterday.[SEP]i will talk to your father about that.
+[SEP]i will talk to your father about that.[SEP]i bet dad did it all the time when he was my age.
+[SEP]i bet dad did it all the time when he was my age.[SEP]your daddy was a good little boy.
+[SEP]your daddy was a good little boy.[SEP]how do you know? were you his mommy, too?
+[SEP]i'm worried.[SEP]worried about what?
+[SEP]worried about what?[SEP]i'm getting married.
+[SEP]i'm getting married.[SEP]you should be happy, not worried.
+[SEP]you should be happy, not worried.[SEP]i am happy, but marriage is a lot of responsibility.
+[SEP]i am happy, but marriage is a lot of responsibility.[SEP]yes, you have to take care of your wife.
+[SEP]yes, you have to take care of your wife.[SEP]and i have to take care of our children.
+[SEP]and i have to take care of our children.[SEP]are you going to start a family?
+[SEP]are you going to start a family?[SEP]yes. we want to have a little boy and a little girl.
+[SEP]yes. we want to have a little boy and a little girl.[SEP]that sounds wonderful.
+[SEP]that sounds wonderful.[SEP]except we can't afford it!
+[SEP]except we can't afford it![SEP]no wonder you're worried.
+[SEP]i don't get art.[SEP]or artists.
+[SEP]or artists.[SEP]they're in a different world.
+[SEP]they're in a different world.[SEP]i saw a painting of a jar that was full of pencils.
+[SEP]i saw a painting of a jar that was full of pencils.[SEP]the artist said the jar was both full and empty.
+[SEP]the artist said the jar was both full and empty.[SEP]but it was full of pencils! how could he say it was empty?
+[SEP]but it was full of pencils! how could he say it was empty?[SEP]artists see things differently.
+[SEP]artists see things differently.[SEP]did you ever see anything that picasso painted?
+[SEP]did you ever see anything that picasso painted?[SEP]of course! he's world famous.
+[SEP]of course! he's world famous.[SEP]did he ever take art lessons?
+[SEP]did he ever take art lessons?[SEP]i can't believe it. i drew paintings like that in third grade.
+[SEP]i can't believe it. i drew paintings like that in third grade.[SEP]where are they? maybe they are worth millions.
+[SEP]what's the point?[SEP]the point of what?
+[SEP]the point of what?[SEP]of living.
+[SEP]of living.[SEP]who knows? you live, and then you die.
+[SEP]who knows? you live, and then you die.[SEP]we must be here for some reason.
+[SEP]we must be here for some reason.[SEP]maybe we're here to have fun.
+[SEP]maybe we're here to have fun.[SEP]then why aren't i having fun?
+[SEP]then why aren't i having fun?[SEP]because you're thinking too much.
+[SEP]because you're thinking too much.[SEP]so i should stop thinking?
+[SEP]so i should stop thinking?[SEP]stop thinking about what the point is.
+[SEP]stop thinking about what the point is.[SEP]okay. i'll start thinking about having some fun.
+[SEP]okay. i'll start thinking about having some fun.[SEP]just be patient. fun doesn't come along every five minutes.
+[SEP]beer is a powerful drug.[SEP]so are cigarettes.
+[SEP]so are cigarettes.[SEP]which would you prefer?
+[SEP]which would you prefer?[SEP]what do you mean?
+[SEP]what do you mean?[SEP]when you die and go to heaven, they will offer you beer or cigarettes.
+[SEP]when you die and go to heaven, they will offer you beer or cigarettes.[SEP]i could pick only one or the other?
+[SEP]i could pick only one or the other?[SEP]yes. nothing's perfect, not even in heaven.
+[SEP]yes. nothing's perfect, not even in heaven.[SEP]boy, that's a tough one.
+[SEP]boy, that's a tough one.[SEP]what's so tough about it? of course, i would pick cigarettes.
+[SEP]what's so tough about it? of course, i would pick cigarettes.[SEP]but cigarettes taste much better when you have a cold beer.
+[SEP]but cigarettes taste much better when you have a cold beer.[SEP]well, you can't have everything.
+[SEP]well, you can't have everything.[SEP]i don't think i want to go to your heaven.
+[SEP]my pants have a hole in the front pocket.[SEP]you shouldn't carry pens in your pocket.
+[SEP]you shouldn't carry pens in your pocket.[SEP]yesterday a pen fell through my pants onto my shoe.
+[SEP]yesterday a pen fell through my pants onto my shoe.[SEP]lucky for you it wasn't a sharp knife.
+[SEP]lucky for you it wasn't a sharp knife.[SEP]who carries a sharp knife in their pocket?
+[SEP]who carries a sharp knife in their pocket?[SEP]criminals, of course.
+[SEP]criminals, of course.[SEP]anyway, i have to fix the hole.
+[SEP]anyway, i have to fix the hole.[SEP]you can sew it up or use an iron-on patch.
+[SEP]you can sew it up or use an iron-on patch.[SEP]tell me about this patch.
+[SEP]tell me about this patch.[SEP]the patch has glue. the hot iron melts the glue so the patch sticks on.
+[SEP]the patch has glue. the hot iron melts the glue so the patch sticks on.[SEP]that sounds a lot easier than sewing.
+[SEP]that sounds a lot easier than sewing.[SEP]it is. but after about ten washings, the glue washes off.
+[SEP]do you know any good jokes?[SEP]i can't remember jokes.
+[SEP]i can't remember jokes.[SEP]neither can i.
+[SEP]neither can i.[SEP]they go in one ear and out the other.
+[SEP]they go in one ear and out the other.[SEP]who makes up all these jokes?
+[SEP]who makes up all these jokes?[SEP]who knows? but there must be a hundred new ones every day.
+[SEP]who knows? but there must be a hundred new ones every day.[SEP]yes, just in english alone.
+[SEP]yes, just in english alone.[SEP]i wonder if every language has jokes.
+[SEP]i wonder if every language has jokes.[SEP]of course! people everywhere like good jokes.
+[SEP]of course! people everywhere like good jokes.[SEP]what do you think people joke about the most?
+[SEP]what do you think people joke about the most?[SEP]i think most jokes are about women.
+[SEP]i think most jokes are about women.[SEP]oh, really? i think most jokes are about men!
+[SEP]you're very lucky.[SEP]why do you say that?
+[SEP]why do you say that?[SEP]you speak two languages.
+[SEP]you speak two languages.[SEP]well, my english isn't perfect.
+[SEP]well, my english isn't perfect.[SEP]no one speaks perfect english.
+[SEP]no one speaks perfect english.[SEP]maybe i will be the first!
+[SEP]maybe i will be the first![SEP]i've been thinking about learning spanish.
+[SEP]i've been thinking about learning spanish.[SEP]spanish is easy. i'll be happy to teach you.
+[SEP]spanish is easy. i'll be happy to teach you.[SEP]how long will it take me to learn?
+[SEP]how long will it take me to learn?[SEP]i think it will only take you a year or two.
+[SEP]i think it will only take you a year or two.[SEP]how soon can we begin?
+[SEP]how soon can we begin?[SEP]ahora! that means right now.
+[SEP]do you know what today is?[SEP]yes, it's april 22.
+[SEP]yes, it's april 22.[SEP]it's more than just a date.
+[SEP]it's more than just a date.[SEP]is it your birthday or anniversary?
+[SEP]is it your birthday or anniversary?[SEP]no, it's earth day.
+[SEP]no, it's earth day.[SEP]what's that?
+[SEP]what's that?[SEP]it's a yearly reminder to take care of our planet.
+[SEP]it's a yearly reminder to take care of our planet.[SEP]oh, you mean like reuse things and recycle stuff?
+[SEP]oh, you mean like reuse things and recycle stuff?[SEP]yes. we need to think green, save water, and stop using plastic bags.
+[SEP]yes. we need to think green, save water, and stop using plastic bags.[SEP]how about if i take shorter showers?
+[SEP]how about if i take shorter showers?[SEP]that's a good idea, because showers waste a lot of water.
+[SEP]that's a good idea, because showers waste a lot of water.[SEP]from now on i'll spend only 20 minutes in the shower.
+[SEP]poetry sucks.[SEP]i don't know anyone who likes it.
+[SEP]i don't know anyone who likes it.[SEP]some of it is okay, i guess.
+[SEP]some of it is okay, i guess.[SEP]yes, the poems that rhyme and are easy to remember.
+[SEP]yes, the poems that rhyme and are easy to remember.[SEP]like "one, two, buckle my shoe."
+[SEP]like "one, two, buckle my shoe."[SEP]but people still write poems.
+[SEP]but people still write poems.[SEP]no one makes any money at it.
+[SEP]no one makes any money at it.[SEP]shakespeare was a poet.
+[SEP]shakespeare was a poet.[SEP]did he get rich from his poetry?
+[SEP]did he get rich from his poetry?[SEP]probably not.
+[SEP]probably not.[SEP]poems are a little bit like songs.
+[SEP]poems are a little bit like songs.[SEP]yes, but songs have music. without music, songs would suck, too.
+[SEP]how smart are you?[SEP]i don't know. i think i'm average.
+[SEP]i don't know. i think i'm average.[SEP]did you ever take an iq test?
+[SEP]did you ever take an iq test?[SEP]no, i never did. all i know is that i got a's and b's in school.
+[SEP]no, i never did. all i know is that i got a's and b's in school.[SEP]i wish i was really smart.
+[SEP]i wish i was really smart.[SEP]don't be ridiculous.
+[SEP]don't be ridiculous.[SEP]what do you mean?
+[SEP]what do you mean?[SEP]if you're going to make a wish, wish that you were really rich or famous.
+[SEP]if you're going to make a wish, wish that you were really rich or famous.[SEP]don't you ever wonder what it's like to be super-smart?
+[SEP]don't you ever wonder what it's like to be super-smart?[SEP]it must be very lonely.
+[SEP]it must be very lonely.[SEP]why's that?
+[SEP]why's that?[SEP]because if you're super-smart, no one understands what you're saying.
+[SEP]i missed the tv news last night. what was on?[SEP]nothing that would pass as news.
+[SEP]nothing that would pass as news.[SEP]what's the weather going to be like this weekend?
+[SEP]what's the weather going to be like this weekend?[SEP]i don't know. whenever the weather comes on, i switch channels.
+[SEP]i don't know. whenever the weather comes on, i switch channels.[SEP]what was the lead story on the news?
+[SEP]what was the lead story on the news?[SEP]some actress was in court for driving without a license.
 [SEP]

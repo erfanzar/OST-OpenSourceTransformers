@@ -6,6 +6,7 @@ if __name__ == "__main__":
             data_list = line.split('\t')
             v.append(data_list[0] + '[SEP]')
             v.append(data_list[1] + '[SEP]')
-
+            if i == 1500:
+                break
     with open('q&a_cleaned.txt', 'w') as stream:
         stream.writelines(v)

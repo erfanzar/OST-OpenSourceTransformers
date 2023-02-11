@@ -148,16 +148,17 @@ class DatasetQA(Dataset):
 
 
 class DatasetPGT(Dataset):
-    def __init__(self, src=None,
+    def __init__(self, src=None, batch_size: int = 4,
                  mode: str = "bert-base-uncased", chunk: int = 128):
         super().__init__()
         self.tokenizer = BertTokenizer.from_pretrained(mode)
         self.chunk = chunk + 2
         self.vocab_size = self.tokenizer.vocab_size
         self.src = src
+        self.batch_size = batch_size
 
     def __len__(self):
-        return (len(self.src) // self.chunk) if self.src is not None else 1
+        return (len(self.src) // self.chunk) - (self.batch_size * 2) if self.src is not None else 1
 
     def encode(self, text):
         enc_trg = self.tokenizer.encode_plus(
@@ -176,19 +177,22 @@ class DatasetPGT(Dataset):
             add_special_tokens=False,
             return_attention_mask=True,
             return_tensors='pt',
+            padding='longest',
             max_length=self.chunk,
             truncation=True
         )
-        mask = data['attention_mask']
+        # mask = data['attention_mask']
         data = data['input_ids']
 
         x = data[:, 0:-2]
-        mask = mask[:, 0:-2]
+        # mask = mask[:, 0:-2]
         y = data[:, 1:-1]
-        inputs = {
-            "x": x, 'y': y, 'mask': mask
-        }
-        return inputs
+        x = x.type(torch.long)
+        y = y.type(torch.long)
+
+        # print(
+        #     f'shape x collected : {x.shape} un collected : {data[:, 0:-2].shape} | shape y collected : {y.shape} un collected : {data[:, 1:-1].shape}')
+        return x, y
 
     def decode(self, text):
         text = self.tokenizer.decode(text[0], skip_special_tokens=True)
@@ -269,7 +273,7 @@ def get_config_by_name(name: str = 'PGT-s', vocab_size: int = 5000,
             name,
             num_embedding=512,
             num_heads=8,
-            num_layers=10,
+            num_layers=8,
             device=device,
             vocab_size=vocab_size,
             chunk=128,

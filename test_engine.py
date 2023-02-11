@@ -5,16 +5,18 @@ from utils.utils import create_config
 from erutils.utils import read_json
 from erutils.command_line_interface import fprint
 import time
+import math
 from utils.utils import DatasetPGT, make2d, save_model, get_config_by_name
 
 if __name__ == "__main__":
+    batch = 4
     prp = torch.cuda.get_device_properties("cuda")
     fprint(
         f'DEVICES : {torch.cuda.get_device_name()} | {prp.name} |'
         f' {prp.total_memory / 1e9} GB Memory')
 
     data_path = 'data/q&a_cleaned.txt'
-    dataset = DatasetPGT()
+    dataset = DatasetPGT(batch_size=batch)
 
     Config = get_config_by_name('PGT-ss', dataset.vocab_size)
     Config.load = False
@@ -25,7 +27,7 @@ if __name__ == "__main__":
     data = open(Config.data_path, 'r').read()
     dataset.src = data
 
-    Config.batch_size = 32
+    Config.batch_size = batch
     dataloader = torch.utils.data.DataLoader(dataset=dataset, batch_size=Config.batch_size, num_workers=2)
 
     if Config.load:
@@ -48,13 +50,14 @@ if __name__ == "__main__":
     total_iterations = dataset.__len__() // Config.batch_size
     question = dataset.encode('hello how are you ?').to(Config.device)
     question = question['input_ids'].to(Config.device)
-
+    mxl = math.ceil(dataset.__len__() / Config.batch_size)
     for epoch in range(Config.epochs):
         loss_avg = 0
         st = time.time()
-        for i, inputs in enumerate(dataloader):
-            x = inputs['x']
-            y = inputs['y']
+        # for i, inputs in enumerate(dataloader):
+        for i, (x, y) in enumerate(dataloader):
+            # x = inputs['x']
+            # y = inputs['y']
 
             inp = make2d(x).to(Config.device)
             label = make2d(y).to(Config.device)
@@ -67,7 +70,7 @@ if __name__ == "__main__":
             loss.backward()
             optimizer.step()
             fprint(
-                f'\rEPOCH : [{epoch}/{Config.epochs}] | LOSS : {loss.item() / Config.batch_size} | EPOCH LOSS AVG : {(loss_avg / (i + 1)) / Config.batch_size} | ITER : {i + 1} | DEVICE : {Config.device} | EPOCH TIME {time.time() - st}',
+                f'\rEPOCH : [{epoch}/{Config.epochs}] | LOSS : {loss.item() / Config.batch_size} | EPOCH LOSS AVG : {(loss_avg / (i + 1)) / Config.batch_size} | ITER : {i + 1}/{mxl} | DEVICE : {Config.device} | EPOCH TIME {time.time() - st}',
                 end='')
 
         print()

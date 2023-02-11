@@ -253,14 +253,14 @@ class PTTGenerative(nn.Module):
             idx = idx[:, -self.chunk:]
             pred, _ = self.forward(src, idx, target=trg)
             pred = pred[:, -1, :] / temp
-            # print('TRG CHUNK : ', idx)
+
             pred = F.softmax(pred, dim=-1)
             next_index = torch.multinomial(pred, 1)
-            # idx = torch.cat([idx, torch.zeros(1, 1, device=idx.device, dtype=torch.long)], 1)
+
             index = (i + 1) % self.chunk
-            # print(index)
+
             idx[:, index] = next_index
-            # print('TRG WORD : ', idx)
+
             if next_index == self.eos:
                 break
         return idx
@@ -315,9 +315,6 @@ class PGT(nn.Module):
         token_embeddings = self.wte(inputs)
         pos_embeddings = self.wpe(torch.arange(0, inputs.size(-1), dtype=inputs.dtype, device=inputs.device))
         hidden = self.drop(token_embeddings + pos_embeddings)
-        # if attention_mask is None:
-        #     attention_mask = self.make_attention_mask(inputs)
-        # print(f'hidden Shape : {hidden.shape}')
         for m in self.h:
             hidden = m(hidden, attention_mask=attention_mask, heads_mask=heads_mask)
         hidden = self.fc(self.ln_f(hidden))
@@ -336,4 +333,16 @@ class PGT(nn.Module):
             idx = torch.cat([idx, next_index], 1)
             if next_index == eos:
                 break
+        return idx
+
+    @torch.no_grad()
+    def generate_ca(self, idx, temp=1, attention_mask=None):
+        if len(idx.shape) == 1:
+            idx = idx.unsqueeze(0)
+        idx = idx[:, -self.max_position_embeddings:]
+        pred = self.forward(idx, attention_mask=attention_mask)
+        pred = pred[:, -1, :] / temp
+        pred = F.softmax(pred, dim=-1)
+        next_index = torch.multinomial(pred, 1)
+        idx = torch.cat([idx, next_index], 1)
         return idx
