@@ -269,10 +269,11 @@ def get_config_by_name(name: str = 'PGT-s', vocab_size: int = 5000,
             name,
             num_embedding=512,
             num_heads=8,
-            num_layers=6,
+            num_layers=10,
             device=device,
             vocab_size=vocab_size,
-            chunk=64,
+            chunk=128,
+            lr=3e-4,
             use_mask=True
         )
     elif name == 'PGT-s':

@@ -1,502 +1,602 @@
-[CLS]hi, how are you doing?[SEP][CLS]i'm fine. how about yourself?
-[SEP][CLS]i'm fine. how about yourself?[SEP][CLS]i'm pretty good. thanks for asking.
-[SEP][CLS]i'm pretty good. thanks for asking.[SEP][CLS]no problem. so how have you been?
-[SEP][CLS]no problem. so how have you been?[SEP][CLS]i've been great. what about you?
-[SEP][CLS]i've been great. what about you?[SEP][CLS]i've been good. i'm in school right now.
-[SEP][CLS]i've been good. i'm in school right now.[SEP][CLS]what school do you go to?
-[SEP][CLS]what school do you go to?[SEP][CLS]i go to pcc.
-[SEP][CLS]i go to pcc.[SEP][CLS]do you like it there?
-[SEP][CLS]do you like it there?[SEP][CLS]it's okay. it's a really big campus.
-[SEP][CLS]it's okay. it's a really big campus.[SEP][CLS]good luck with school.
-[SEP][CLS]good luck with school.[SEP][CLS]thank you very much.
-[SEP][CLS]how's it going?[SEP][CLS]i'm doing well. how about you?
-[SEP][CLS]i'm doing well. how about you?[SEP][CLS]never better, thanks.
-[SEP][CLS]never better, thanks.[SEP][CLS]so how have you been lately?
-[SEP][CLS]so how have you been lately?[SEP][CLS]i've actually been pretty good. you?
-[SEP][CLS]i've actually been pretty good. you?[SEP][CLS]i'm actually in school right now.
-[SEP][CLS]i'm actually in school right now.[SEP][CLS]which school do you attend?
-[SEP][CLS]which school do you attend?[SEP][CLS]i'm attending pcc right now.
-[SEP][CLS]i'm attending pcc right now.[SEP][CLS]are you enjoying it there?
-[SEP][CLS]are you enjoying it there?[SEP][CLS]it's not bad. there are a lot of people there.
-[SEP][CLS]it's not bad. there are a lot of people there.[SEP][CLS]good luck with that.
-[SEP][CLS]good luck with that.[SEP][CLS]thanks.
-[SEP][CLS]how are you doing today?[SEP][CLS]i'm doing great. what about you?
-[SEP][CLS]i'm doing great. what about you?[SEP][CLS]i'm absolutely lovely, thank you.
-[SEP][CLS]i'm absolutely lovely, thank you.[SEP][CLS]everything's been good with you?
-[SEP][CLS]everything's been good with you?[SEP][CLS]i haven't been better. how about yourself?
-[SEP][CLS]i haven't been better. how about yourself?[SEP][CLS]i started school recently.
-[SEP][CLS]i started school recently.[SEP][CLS]where are you going to school?
-[SEP][CLS]where are you going to school?[SEP][CLS]i'm going to pcc.
-[SEP][CLS]i'm going to pcc.[SEP][CLS]how do you like it so far?
-[SEP][CLS]how do you like it so far?[SEP][CLS]i like it so far. my classes are pretty good right now.
-[SEP][CLS]i like it so far. my classes are pretty good right now.[SEP][CLS]i wish you luck.
-[SEP][CLS]it's an ugly day today.[SEP][CLS]i know. i think it may rain.
-[SEP][CLS]i know. i think it may rain.[SEP][CLS]it's the middle of summer, it shouldn't rain today.
-[SEP][CLS]it's the middle of summer, it shouldn't rain today.[SEP][CLS]that would be weird.
-[SEP][CLS]that would be weird.[SEP][CLS]yeah, especially since it's ninety degrees outside.
-[SEP][CLS]yeah, especially since it's ninety degrees outside.[SEP][CLS]i know, it would be horrible if it rained and it was hot outside.
-[SEP][CLS]i know, it would be horrible if it rained and it was hot outside.[SEP][CLS]yes, it would be.
-[SEP][CLS]yes, it would be. [SEP][CLS]i really wish it wasn't so hot every day.
-[SEP][CLS]i really wish it wasn't so hot every day. [SEP][CLS]me too. i can't wait until winter.
-[SEP][CLS]me too. i can't wait until winter.[SEP][CLS]i like winter too, but sometimes it gets too cold.
-[SEP][CLS]i like winter too, but sometimes it gets too cold.[SEP][CLS]i'd rather be cold than hot.
-[SEP][CLS]i'd rather be cold than hot.[SEP][CLS]me too.
-[SEP][CLS]it doesn't look very nice outside today.[SEP][CLS]you're right. i think it's going to rain later.
-[SEP][CLS]you're right. i think it's going to rain later.[SEP][CLS]in the middle of the summer, it shouldn't be raining.
-[SEP][CLS]in the middle of the summer, it shouldn't be raining.[SEP][CLS]that wouldn't seem right.
-[SEP][CLS]that wouldn't seem right.[SEP][CLS]considering that it's over ninety degrees outside, that would be weird.
-[SEP][CLS]considering that it's over ninety degrees outside, that would be weird.[SEP][CLS]exactly, it wouldn't be nice if it started raining. it's too hot.
-[SEP][CLS]exactly, it wouldn't be nice if it started raining. it's too hot.[SEP][CLS]i know, you're absolutely right.
-[SEP][CLS]i know, you're absolutely right.[SEP][CLS]i wish it would cool off one day.
-[SEP][CLS]i wish it would cool off one day.[SEP][CLS]that's how i feel, i want winter to come soon.
-[SEP][CLS]that's how i feel, i want winter to come soon.[SEP][CLS]i enjoy the winter, but it gets really cold sometimes.
-[SEP][CLS]i enjoy the winter, but it gets really cold sometimes.[SEP][CLS]i know what you mean, but i'd rather be cold than hot.
-[SEP][CLS]i know what you mean, but i'd rather be cold than hot.[SEP][CLS]that's exactly how i feel.
-[SEP][CLS]i wish it was a nicer day today.[SEP][CLS]that is true. i hope it doesn't rain.
-[SEP][CLS]that is true. i hope it doesn't rain.[SEP][CLS]it wouldn't rain in the middle of the summer.
-[SEP][CLS]it wouldn't rain in the middle of the summer.[SEP][CLS]it wouldn't seem right if it started raining right now.
-[SEP][CLS]it wouldn't seem right if it started raining right now.[SEP][CLS]it would be weird if it started raining in ninety degree weather.
-[SEP][CLS]it would be weird if it started raining in ninety degree weather.[SEP][CLS]any rain right now would be pointless.
-[SEP][CLS]any rain right now would be pointless.[SEP][CLS]that's right, it really would be.
-[SEP][CLS]that's right, it really would be.[SEP][CLS]i want it to cool down some.
-[SEP][CLS]i want it to cool down some.[SEP][CLS]i know what you mean, i can't wait until it's winter.
-[SEP][CLS]i know what you mean, i can't wait until it's winter.[SEP][CLS]winter is great. i wish it didn't get so cold sometimes though.
-[SEP][CLS]winter is great. i wish it didn't get so cold sometimes though.[SEP][CLS]i would rather deal with the winter than the summer.
-[SEP][CLS]it's such a nice day.[SEP][CLS]yes, it is.
-[SEP][CLS]yes, it is.[SEP][CLS]it looks like it may rain soon.
-[SEP][CLS]it looks like it may rain soon.[SEP][CLS]yes, and i hope that it does.
-[SEP][CLS]yes, and i hope that it does.[SEP][CLS]why is that?
-[SEP][CLS]why is that?[SEP][CLS]i really love how rain clears the air.
-[SEP][CLS]i really love how rain clears the air.[SEP][CLS]me too. it always smells so fresh after it rains.
-[SEP][CLS]me too. it always smells so fresh after it rains.[SEP][CLS]yes, but i love the night air after it rains.
-[SEP][CLS]yes, but i love the night air after it rains.[SEP][CLS]really? why is it?
-[SEP][CLS]really? why is it?[SEP][CLS]because you can see the stars perfectly.
-[SEP][CLS]because you can see the stars perfectly.[SEP][CLS]i really hope it rains today.
-[SEP][CLS]i really hope it rains today.[SEP][CLS]yeah, me too.
-[SEP][CLS]isn't it a nice day?[SEP][CLS]it really is.
-[SEP][CLS]it really is.[SEP][CLS]it seems that it may rain today.
-[SEP][CLS]it seems that it may rain today.[SEP][CLS]hopefully it will.
-[SEP][CLS]hopefully it will.[SEP][CLS]how come?
-[SEP][CLS]how come?[SEP][CLS]i like how clear the sky gets after it rains.
-[SEP][CLS]i like how clear the sky gets after it rains.[SEP][CLS]i feel the same way. it smells so good after it rains.
-[SEP][CLS]i feel the same way. it smells so good after it rains.[SEP][CLS]i especially love the night air when it rains.
-[SEP][CLS]i especially love the night air when it rains.[SEP][CLS]really? why?
-[SEP][CLS]really? why?[SEP][CLS]the stars look so much closer after it rains.
-[SEP][CLS]the stars look so much closer after it rains.[SEP][CLS]i really want it to rain today.
-[SEP][CLS]i really want it to rain today.[SEP][CLS]yeah, so do i.
-[SEP][CLS]don't you think it's nice out?[SEP][CLS]yes, i think so too.
-[SEP][CLS]yes, i think so too.[SEP][CLS]i think that it's going to rain.
-[SEP][CLS]i think that it's going to rain.[SEP][CLS]i hope that it does rain.
-[SEP][CLS]i hope that it does rain.[SEP][CLS]you like the rain?
-[SEP][CLS]you like the rain?[SEP][CLS]the sky looks so clean after it rains. i love it.
-[SEP][CLS]the sky looks so clean after it rains. i love it.[SEP][CLS]i understand. rain does make it smell cleaner.
-[SEP][CLS]i understand. rain does make it smell cleaner.[SEP][CLS]i love most how it is at night after it rains.
-[SEP][CLS]i love most how it is at night after it rains.[SEP][CLS]how come?
-[SEP][CLS]how come?[SEP][CLS]you can see the stars so much more clearly after it rains.
-[SEP][CLS]you can see the stars so much more clearly after it rains.[SEP][CLS]i would love for it to rain today.
-[SEP][CLS]i really want to go to the beach this weekend.[SEP][CLS]that sounds like fun. what's the weather going to be like?
-[SEP][CLS]that sounds like fun. what's the weather going to be like?[SEP][CLS]i heard that it's going to be warm this weekend.
-[SEP][CLS]i heard that it's going to be warm this weekend.[SEP][CLS]is it going to be perfect beach weather?
-[SEP][CLS]is it going to be perfect beach weather?[SEP][CLS]i believe so.
-[SEP][CLS]i believe so.[SEP][CLS]good. i hope it doesn't cool off this weekend.
-[SEP][CLS]good. i hope it doesn't cool off this weekend.[SEP][CLS]i know. i really want to go to the beach.
-[SEP][CLS]i know. i really want to go to the beach.[SEP][CLS]but you know that california weather is really unpredictable.
-[SEP][CLS]but you know that california weather is really unpredictable.[SEP][CLS]you're right. one minute it's hot, and then the next minute it's cold.
-[SEP][CLS]you're right. one minute it's hot, and then the next minute it's cold.[SEP][CLS]i really wish the weather would just stay the same.
-[SEP][CLS]i really wish the weather would just stay the same.[SEP][CLS]i do too. that way we can have our activities planned ahead of time.
-[SEP][CLS]i do too. that way we can have our activities planned ahead of time.[SEP][CLS]yeah, that would make things a lot easier.
-[SEP][CLS]i would like to take a trip to the beach this weekend.[SEP][CLS]a trip to the beach would be fun. how is the weather going to be?
-[SEP][CLS]a trip to the beach would be fun. how is the weather going to be?[SEP][CLS]the forecast says that it will be warm on the weekend.
-[SEP][CLS]the forecast says that it will be warm on the weekend.[SEP][CLS]so do you think it'll be perfect weather for the beach?
-[SEP][CLS]so do you think it'll be perfect weather for the beach?[SEP][CLS]it sounds like it will be.
-[SEP][CLS]it sounds like it will be.[SEP][CLS]i really hope it doesn't get cold.
-[SEP][CLS]i really hope it doesn't get cold.[SEP][CLS]that would ruin things, i want to go so badly.
-[SEP][CLS]that would ruin things, i want to go so badly.[SEP][CLS]the weather in california is unpredictable, so you never know.
-[SEP][CLS]the weather in california is unpredictable, so you never know.[SEP][CLS]that is true. the weather is constantly changing.
-[SEP][CLS]that is true. the weather is constantly changing.[SEP][CLS]it would be nice if the weather would never change.
-[SEP][CLS]it would be nice if the weather would never change.[SEP][CLS]that would be great, then we could plan things sooner.
-[SEP][CLS]that would be great, then we could plan things sooner.[SEP][CLS]true. predictable weather would make life easier.
-[SEP][CLS]it would be nice to go to the beach sometime this weekend.[SEP][CLS]what's the weather going to be like? i may want to go too.
-[SEP][CLS]what's the weather going to be like? i may want to go too.[SEP][CLS]the weather this weekend is supposed to be warm.
-[SEP][CLS]the weather this weekend is supposed to be warm.[SEP][CLS]will it be good beach weather?
-[SEP][CLS]will it be good beach weather?[SEP][CLS]i think it will be.
-[SEP][CLS]i think it will be.[SEP][CLS]it wouldn't be good if it got cold this weekend.
-[SEP][CLS]it wouldn't be good if it got cold this weekend.[SEP][CLS]i want this trip to be perfect, i hope it stays warm.
-[SEP][CLS]i want this trip to be perfect, i hope it stays warm.[SEP][CLS]this california weather is so uncertain, it's impossible to know what'll happen.
-[SEP][CLS]this california weather is so uncertain, it's impossible to know what'll happen.[SEP][CLS]i know. every day the weather seems different.
-[SEP][CLS]i know. every day the weather seems different.[SEP][CLS]i would love it if it wasn't always so unpredictable.
-[SEP][CLS]i would love it if it wasn't always so unpredictable.[SEP][CLS]that would make it easier for us to make plans.
-[SEP][CLS]hello, may i speak to alice please?[SEP][CLS]this is she. how's it going?
-[SEP][CLS]this is she. how's it going?[SEP][CLS]i've been trying to call you all day.
-[SEP][CLS]i've been trying to call you all day.[SEP][CLS]sorry about that. i was cleaning up.
-[SEP][CLS]sorry about that. i was cleaning up.[SEP][CLS]it's okay.
-[SEP][CLS]it's okay.[SEP][CLS]so what were you calling me about?
-[SEP][CLS]so what were you calling me about?[SEP][CLS]oh, i just wanted to see if you wanted to hang out tomorrow.
-[SEP][CLS]oh, i just wanted to see if you wanted to hang out tomorrow.[SEP][CLS]sure, what did you want to do?
-[SEP][CLS]sure, what did you want to do?[SEP][CLS]maybe we can go see a movie or something.
-[SEP][CLS]maybe we can go see a movie or something.[SEP][CLS]that sounds like fun. let's do it.
-[SEP][CLS]that sounds like fun. let's do it.[SEP][CLS]i'll see you tomorrow then.
-[SEP][CLS]i'll see you tomorrow then.[SEP][CLS]see you then. goodbye.
-[SEP][CLS]hi, how are you. is alice there?[SEP][CLS]speaking. what's up?
-[SEP][CLS]speaking. what's up?[SEP][CLS]why haven't you answered the phone?
-[SEP][CLS]why haven't you answered the phone?[SEP][CLS]my bad, i had chores to do.
-[SEP][CLS]my bad, i had chores to do.[SEP][CLS]that's all right.
-[SEP][CLS]that's all right.[SEP][CLS]what was the reason for your call?
-[SEP][CLS]what was the reason for your call?[SEP][CLS]i want to do something tomorrow with you.
-[SEP][CLS]i want to do something tomorrow with you.[SEP][CLS]sounds good. what did you have in mind?
-[SEP][CLS]sounds good. what did you have in mind?[SEP][CLS]i was thinking about seeing a movie.
-[SEP][CLS]i was thinking about seeing a movie.[SEP][CLS]okay, let's go see a movie.
-[SEP][CLS]okay, let's go see a movie.[SEP][CLS]until then.
-[SEP][CLS]until then.[SEP][CLS]talk to you later.
-[SEP][CLS]is alice available?[SEP][CLS]you're talking to her.
-[SEP][CLS]you're talking to her.[SEP][CLS]i've called you a hundred times today.
-[SEP][CLS]i've called you a hundred times today.[SEP][CLS]i was busy doing something. i apologize.
-[SEP][CLS]i was busy doing something. i apologize.[SEP][CLS]no problem.
-[SEP][CLS]no problem.[SEP][CLS]did you need something?
-[SEP][CLS]did you need something?[SEP][CLS]do you want to do something tomorrow?
-[SEP][CLS]do you want to do something tomorrow?[SEP][CLS]is there somewhere special you wanted to go?
-[SEP][CLS]is there somewhere special you wanted to go?[SEP][CLS]how about a movie?
-[SEP][CLS]how about a movie?[SEP][CLS]a movie sounds good.
-[SEP][CLS]a movie sounds good.[SEP][CLS]call me tomorrow then.
-[SEP][CLS]have you seen the new girl in school?[SEP][CLS]no, i haven't.
-[SEP][CLS]no, i haven't.[SEP][CLS]she's really pretty.
-[SEP][CLS]she's really pretty.[SEP][CLS]describe her to me.
-[SEP][CLS]describe her to me.[SEP][CLS]she's not too tall.
-[SEP][CLS]she's not too tall.[SEP][CLS]well, how tall is she?
-[SEP][CLS]well, how tall is she?[SEP][CLS]she's about five feet even.
-[SEP][CLS]she's about five feet even.[SEP][CLS]what does she look like, though?
-[SEP][CLS]what does she look like, though?[SEP][CLS]she has pretty light brown eyes.
-[SEP][CLS]she has pretty light brown eyes.[SEP][CLS]i may know which girl you're talking about.
-[SEP][CLS]i may know which girl you're talking about.[SEP][CLS]so you have seen her around?
-[SEP][CLS]so you have seen her around?[SEP][CLS]yes, i have.
-[SEP][CLS]there's a new girl in school, have you seen her yet?[SEP][CLS]i haven't seen her yet.
-[SEP][CLS]i haven't seen her yet.[SEP][CLS]i think that she is very pretty.
-[SEP][CLS]i think that she is very pretty.[SEP][CLS]tell me how she looks.
-[SEP][CLS]tell me how she looks.[SEP][CLS]she's kind of short.
-[SEP][CLS]she's kind of short.[SEP][CLS]what height is she?
-[SEP][CLS]what height is she?[SEP][CLS]she's probably about five feet.
-[SEP][CLS]she's probably about five feet.[SEP][CLS]that's nice, but tell me what she looks like.
-[SEP][CLS]that's nice, but tell me what she looks like.[SEP][CLS]the first thing i noticed was her beautiful brown eyes.
-[SEP][CLS]the first thing i noticed was her beautiful brown eyes.[SEP][CLS]i think i might've bumped into her before.
-[SEP][CLS]i think i might've bumped into her before.[SEP][CLS]are you telling me that you've seen her before?
-[SEP][CLS]are you telling me that you've seen her before?[SEP][CLS]i believe so.
-[SEP][CLS]have you met the new girl?[SEP][CLS]no. have you?
-[SEP][CLS]no. have you?[SEP][CLS]she's one of the prettiest girls at the school.
-[SEP][CLS]she's one of the prettiest girls at the school.[SEP][CLS]what does she look like?
-[SEP][CLS]what does she look like?[SEP][CLS]well, she's quite short.
-[SEP][CLS]well, she's quite short.[SEP][CLS]how tall would you say that she is?
-[SEP][CLS]how tall would you say that she is?[SEP][CLS]i would say she's only five feet.
-[SEP][CLS]i would say she's only five feet.[SEP][CLS]what about her facial features?
-[SEP][CLS]what about her facial features?[SEP][CLS]she has light brown eyes, absolutely beautiful.
-[SEP][CLS]she has light brown eyes, absolutely beautiful.[SEP][CLS]i think i know who you're talking about.
-[SEP][CLS]i think i know who you're talking about.[SEP][CLS]have you seen her?
-[SEP][CLS]why weren't you at school yesterday?[SEP][CLS]i wasn't really feeling well.
-[SEP][CLS]i wasn't really feeling well.[SEP][CLS]what was wrong with you?
-[SEP][CLS]what was wrong with you?[SEP][CLS]my stomach was upset.
-[SEP][CLS]my stomach was upset.[SEP][CLS]do you feel better now?
-[SEP][CLS]do you feel better now?[SEP][CLS]i don't really feel too well yet.
-[SEP][CLS]i don't really feel too well yet.[SEP][CLS]do you want anything to make you feel better?
-[SEP][CLS]do you want anything to make you feel better?[SEP][CLS]no, thanks. i already took some medicine.
-[SEP][CLS]no, thanks. i already took some medicine.[SEP][CLS]i hope you feel better.
-[SEP][CLS]i hope you feel better.[SEP][CLS]thank you.
-[SEP][CLS]what reason do you have for missing school?[SEP][CLS]i was sick.
-[SEP][CLS]i was sick.[SEP][CLS]how were you sick?
-[SEP][CLS]how were you sick?[SEP][CLS]i had a stomachache.
-[SEP][CLS]i had a stomachache.[SEP][CLS]did it get any better?
-[SEP][CLS]did it get any better?[SEP][CLS]i'm still feeling under the weather.
-[SEP][CLS]i'm still feeling under the weather.[SEP][CLS]would you like anything for your stomach?
-[SEP][CLS]would you like anything for your stomach?[SEP][CLS]i took something earlier.
-[SEP][CLS]i took something earlier.[SEP][CLS]get better.
-[SEP][CLS]get better.[SEP][CLS]thanks a lot.
-[SEP][CLS]why didn't you go to school yesterday?[SEP][CLS]i stayed home because i wasn't feeling well.
-[SEP][CLS]i stayed home because i wasn't feeling well.[SEP][CLS]what was your problem?
-[SEP][CLS]what was your problem?[SEP][CLS]my stomach was bothering me.
-[SEP][CLS]my stomach was bothering me.[SEP][CLS]are you feeling any better?
-[SEP][CLS]are you feeling any better?[SEP][CLS]i'm still feeling a little sick.
-[SEP][CLS]i'm still feeling a little sick.[SEP][CLS]i'm going to the store, would you like any pepto bismol?
-[SEP][CLS]i'm going to the store, would you like any pepto bismol?[SEP][CLS]that's okay.
-[SEP][CLS]that's okay.[SEP][CLS]i hope you feel better.
-[SEP][CLS]did you hear the good news?[SEP][CLS]no, i haven't.
-[SEP][CLS]no, i haven't.[SEP][CLS]i got a promotion at my job.
-[SEP][CLS]i got a promotion at my job.[SEP][CLS]did you really?
-[SEP][CLS]did you really?[SEP][CLS]seriously, i am so excited.
-[SEP][CLS]seriously, i am so excited.[SEP][CLS]well, congratulations.
-[SEP][CLS]well, congratulations.[SEP][CLS]thank you.
-[SEP][CLS]thank you.[SEP][CLS]i'm so happy for you.
-[SEP][CLS]i'm so happy for you.[SEP][CLS]really?
-[SEP][CLS]really?[SEP][CLS]yes. you really deserved this.
-[SEP][CLS]yes. you really deserved this.[SEP][CLS]you think so?
-[SEP][CLS]you think so?[SEP][CLS]yes. good for you.
-[SEP][CLS]have you heard my good news?[SEP][CLS]you haven't told me anything yet.
-[SEP][CLS]you haven't told me anything yet.[SEP][CLS]i got a promotion at work earlier this week.
-[SEP][CLS]i got a promotion at work earlier this week.[SEP][CLS]is that right?
-[SEP][CLS]is that right?[SEP][CLS]it's the truth. i am really happy.
-[SEP][CLS]it's the truth. i am really happy.[SEP][CLS]congratulations on your promotion.
-[SEP][CLS]congratulations on your promotion.[SEP][CLS]thank you very much.
-[SEP][CLS]thank you very much.[SEP][CLS]i am really excited for you.
-[SEP][CLS]i am really excited for you.[SEP][CLS]are you really?
-[SEP][CLS]are you really?[SEP][CLS]i'm serious. you deserved this promotion.
-[SEP][CLS]i'm serious. you deserved this promotion.[SEP][CLS]is that what you really think?
-[SEP][CLS]is that what you really think?[SEP][CLS]yes, i do.
-[SEP][CLS]i haven't told you what happened yet, have i?[SEP][CLS]i haven't heard anything.
-[SEP][CLS]i haven't heard anything.[SEP][CLS]my boss offered me a promotion, and i took it.
-[SEP][CLS]my boss offered me a promotion, and i took it.[SEP][CLS]are you serious?
-[SEP][CLS]are you serious?[SEP][CLS]yes, i am really excited.
-[SEP][CLS]yes, i am really excited.[SEP][CLS]that's great. congratulations.
-[SEP][CLS]that's great. congratulations.[SEP][CLS]i appreciate that.
-[SEP][CLS]i appreciate that.[SEP][CLS]you have no idea how happy i am for you.
-[SEP][CLS]you have no idea how happy i am for you.[SEP][CLS]for real?
-[SEP][CLS]you look really nice today. [SEP][CLS]thank you. i just got this outfit the other day.
-[SEP][CLS]thank you. i just got this outfit the other day.[SEP][CLS]really, where did you get it?
-[SEP][CLS]really, where did you get it?[SEP][CLS]i got it from macy's.
-[SEP][CLS]i got it from macy's.[SEP][CLS]it's really nice.
-[SEP][CLS]it's really nice.[SEP][CLS]thanks again. you look nice today, too.
-[SEP][CLS]thanks again. you look nice today, too.[SEP][CLS]thank you. i just got these shoes today.
-[SEP][CLS]thank you. i just got these shoes today.[SEP][CLS]really? what kind of shoes are they?
-[SEP][CLS]really? what kind of shoes are they?[SEP][CLS]these are called all star chuck taylors.
-[SEP][CLS]these are called all star chuck taylors.[SEP][CLS]i really like those. how much did they cost?
-[SEP][CLS]i really like those. how much did they cost?[SEP][CLS]they were about forty dollars.
-[SEP][CLS]they were about forty dollars.[SEP][CLS]i think i'm going to go buy myself a pair.
-[SEP][CLS]i absolutely love what you're wearing today.[SEP][CLS]you do? i just bought this outfit a couple days ago.
-[SEP][CLS]you do? i just bought this outfit a couple days ago.[SEP][CLS]seriously, it looks really nice on you. where did you buy it from?
-[SEP][CLS]seriously, it looks really nice on you. where did you buy it from?[SEP][CLS]i bought it from the macy's at the santa anita mall.
-[SEP][CLS]i bought it from the macy's at the santa anita mall.[SEP][CLS]i really like that outfit.
-[SEP][CLS]i really like that outfit.[SEP][CLS]thanks. i think you look nice today, too.
-[SEP][CLS]thanks. i think you look nice today, too.[SEP][CLS]thank you. i just bought these new shoes earlier today.
-[SEP][CLS]thank you. i just bought these new shoes earlier today.[SEP][CLS]those are nice. what are they?
-[SEP][CLS]those are nice. what are they?[SEP][CLS]these are some chucks.
-[SEP][CLS]these are some chucks.[SEP][CLS]those are great. how much were they?
-[SEP][CLS]those are great. how much were they?[SEP][CLS]i got them for forty.
-[SEP][CLS]i got them for forty.[SEP][CLS]i think i might go and find me my own pair of chucks.
-[SEP][CLS]i think that you look very cute today.[SEP][CLS]is that right? this is a brand new outfit.
-[SEP][CLS]is that right? this is a brand new outfit.[SEP][CLS]what store did you get it from?
-[SEP][CLS]what store did you get it from?[SEP][CLS]i went to macy's and picked it out.
-[SEP][CLS]i went to macy's and picked it out.[SEP][CLS]i love your outfit right now.
-[SEP][CLS]i love your outfit right now.[SEP][CLS]well, i think you look nice today too.
-[SEP][CLS]well, i think you look nice today too.[SEP][CLS]thanks. i found these new shoes earlier at the store.
-[SEP][CLS]thanks. i found these new shoes earlier at the store.[SEP][CLS]i think that those are some really nice shoes. what kind are they?
-[SEP][CLS]i think that those are some really nice shoes. what kind are they?[SEP][CLS]these are chucks.
-[SEP][CLS]these are chucks.[SEP][CLS]your shoes look really nice. how much did you get them for?
-[SEP][CLS]your shoes look really nice. how much did you get them for?[SEP][CLS]they only cost me about forty dollars.
-[SEP][CLS]tell me, what do you enjoy doing in your spare time?[SEP][CLS]i enjoy drawing and painting.
-[SEP][CLS]i enjoy drawing and painting.[SEP][CLS]you know how to draw and paint?
-[SEP][CLS]you know how to draw and paint?[SEP][CLS]yes, i do.
-[SEP][CLS]yes, i do.[SEP][CLS]when did you learn how to do that?
-[SEP][CLS]when did you learn how to do that?[SEP][CLS]i learned back in high school.
-[SEP][CLS]i learned back in high school.[SEP][CLS]oh, so you took an art class?
-[SEP][CLS]oh, so you took an art class?[SEP][CLS]yeah, i loved that class.
-[SEP][CLS]yeah, i loved that class.[SEP][CLS]i see that you're pretty talented.
-[SEP][CLS]i see that you're pretty talented.[SEP][CLS]thank you very much.
-[SEP][CLS]thank you very much.[SEP][CLS]i wish i had a talent like that.
-[SEP][CLS]i wish i had a talent like that.[SEP][CLS]i'm sure you have a talent. it's just hidden.
-[SEP][CLS]what kinds of things do you like to do?[SEP][CLS]i've always liked to draw and paint.
-[SEP][CLS]i've always liked to draw and paint.[SEP][CLS]i didn't know you knew how to draw and paint.
-[SEP][CLS]i didn't know you knew how to draw and paint.[SEP][CLS]i do it every once in a while.
-[SEP][CLS]i do it every once in a while.[SEP][CLS]how long have you known how to do that?
-[SEP][CLS]how long have you known how to do that?[SEP][CLS]i first learned how to do it in high school.
-[SEP][CLS]i first learned how to do it in high school.[SEP][CLS]did you take some sort of art class or something?
-[SEP][CLS]did you take some sort of art class or something?[SEP][CLS]that was my favorite class.
-[SEP][CLS]that was my favorite class.[SEP][CLS]you have got to be talented.
-[SEP][CLS]you have got to be talented.[SEP][CLS]thanks.
-[SEP][CLS]thanks.[SEP][CLS]if only i was talented.
-[SEP][CLS]if only i was talented.[SEP][CLS]you have a talent. you just don't know what it is yet.
-[SEP][CLS]are there any hobbies you do?[SEP][CLS]when i have time, i sometimes draw and paint.
-[SEP][CLS]when i have time, i sometimes draw and paint.[SEP][CLS]oh, you actually do that?
-[SEP][CLS]oh, you actually do that?[SEP][CLS]every so often, i do.
-[SEP][CLS]every so often, i do.[SEP][CLS]did you always know how to draw and paint?
-[SEP][CLS]did you always know how to draw and paint?[SEP][CLS]i was taught in high school how to draw and paint.
-[SEP][CLS]i was taught in high school how to draw and paint.[SEP][CLS]you had an art class?
-[SEP][CLS]you had an art class?[SEP][CLS]exactly, it was my favorite class.
-[SEP][CLS]exactly, it was my favorite class.[SEP][CLS]well, it's good that you're so talented.
-[SEP][CLS]well, it's good that you're so talented.[SEP][CLS]i appreciate that.
-[SEP][CLS]i appreciate that.[SEP][CLS]talent is a great thing, i wish i had one.
-[SEP][CLS]what's your favorite movie?[SEP][CLS]my favorite movie is superbad.
-[SEP][CLS]my favorite movie is superbad.[SEP][CLS]oh, why is that?
-[SEP][CLS]oh, why is that?[SEP][CLS]it's the funniest movie that i've ever seen.
-[SEP][CLS]it's the funniest movie that i've ever seen.[SEP][CLS]that's true. it is a very funny movie.
-[SEP][CLS]that's true. it is a very funny movie.[SEP][CLS]you've seen it before?
-[SEP][CLS]you've seen it before? [SEP][CLS]yes, i saw that movie the first day it came out in theaters.
-[SEP][CLS]yes, i saw that movie the first day it came out in theaters.[SEP][CLS]didn't you laugh through the whole movie? i did.
-[SEP][CLS]didn't you laugh through the whole movie? i did.[SEP][CLS]me too. that movie brought tears to my eyes.
-[SEP][CLS]me too. that movie brought tears to my eyes.[SEP][CLS]mine too.
-[SEP][CLS]mine too.[SEP][CLS]i have it on dvd at my house if you want to come over and watch it.
-[SEP][CLS]i have it on dvd at my house if you want to come over and watch it.[SEP][CLS]sure, let's go.
-[SEP][CLS]which movie is your favorite to watch?[SEP][CLS]i have to say, my favorite movie is superbad.
-[SEP][CLS]i have to say, my favorite movie is superbad.[SEP][CLS]is that right? why?
-[SEP][CLS]is that right? why?[SEP][CLS]honestly, it is one of the funniest movies i've seen in a long time.
-[SEP][CLS]honestly, it is one of the funniest movies i've seen in a long time.[SEP][CLS]you're right. that movie is hilarious.
-[SEP][CLS]you're right. that movie is hilarious.[SEP][CLS]i didn't think you saw that movie.
-[SEP][CLS]i didn't think you saw that movie.[SEP][CLS]i went to see it the day it came out.
-[SEP][CLS]i went to see it the day it came out.[SEP][CLS]i was laughing through the whole movie.
-[SEP][CLS]i was laughing through the whole movie.[SEP][CLS]i couldn't help laughing, either.
-[SEP][CLS]i couldn't help laughing, either. [SEP][CLS]same here.
-[SEP][CLS]same here.[SEP][CLS]i bought the movie. would you like to come to my house and watch it?
-[SEP][CLS]i bought the movie. would you like to come to my house and watch it?[SEP][CLS]of course.
-[SEP][CLS]out of every movie that you've seen, which one is your favorite?[SEP][CLS]i'm going to have to say that superbad is the best movie ever.
-[SEP][CLS]i'm going to have to say that superbad is the best movie ever.[SEP][CLS]you think so, how come?
-[SEP][CLS]you think so, how come?[SEP][CLS]well, superbad is super funny.
-[SEP][CLS]well, superbad is super funny.[SEP][CLS]you're not lying, i found that movie absolutely hilarious.
-[SEP][CLS]you're not lying, i found that movie absolutely hilarious.[SEP][CLS]i didn't know that you saw superbad before.
-[SEP][CLS]i didn't know that you saw superbad before.[SEP][CLS]i made sure to be in line to see it the first day it came out.
-[SEP][CLS]i made sure to be in line to see it the first day it came out.[SEP][CLS]i couldn't keep from laughing throughout the whole movie.
-[SEP][CLS]i couldn't keep from laughing throughout the whole movie.[SEP][CLS]i was laughing hysterically the whole time; my stomach muscles hurt afterwards.
-[SEP][CLS]i was laughing hysterically the whole time; my stomach muscles hurt afterwards.[SEP][CLS]that's exactly how i felt.
-[SEP][CLS]that's exactly how i felt.[SEP][CLS]i got the movie when it came out on dvd, do you want to come over?
-[SEP][CLS]what type of music do you like to listen to?[SEP][CLS]i like listening to different kinds of music.
-[SEP][CLS]i like listening to different kinds of music.[SEP][CLS]like what, for instance?
-[SEP][CLS]like what, for instance?[SEP][CLS]i enjoy rock and r&b.
-[SEP][CLS]i enjoy rock and r&b.[SEP][CLS]why is that?
-[SEP][CLS]why is that?[SEP][CLS]i like the different instruments that they use.
-[SEP][CLS]i like the different instruments that they use.[SEP][CLS]that's a good reason to like something.
-[SEP][CLS]that's a good reason to like something.[SEP][CLS]yeah, i think so too.
-[SEP][CLS]what kind of music do you enjoy listening to?[SEP][CLS]i enjoy listening to all kinds of music.
-[SEP][CLS]i enjoy listening to all kinds of music.[SEP][CLS]what kind?
-[SEP][CLS]what kind?[SEP][CLS]i like to listen to rock and r&b.
-[SEP][CLS]i like to listen to rock and r&b.[SEP][CLS]why do you like that type of music?
-[SEP][CLS]why do you like that type of music?[SEP][CLS]i like the kinds of instruments that they use.
-[SEP][CLS]i like the kinds of instruments that they use.[SEP][CLS]i think that's an excellent reason to like something.
-[SEP][CLS]i think that's an excellent reason to like something.[SEP][CLS]thanks, i feel the same way.
-[SEP][CLS]what is your favorite kind of music?[SEP][CLS]i listen to various types of music.
-[SEP][CLS]i listen to various types of music.[SEP][CLS]what genres?
-[SEP][CLS]what genres?[SEP][CLS]i enjoy listening to both rock and r&b.
-[SEP][CLS]i enjoy listening to both rock and r&b.[SEP][CLS]what interests you in that type of music?
-[SEP][CLS]what interests you in that type of music?[SEP][CLS]i enjoy the different types of instruments that they use.
-[SEP][CLS]i enjoy the different types of instruments that they use.[SEP][CLS]that is a perfect reason to like a certain kind of music.
-[SEP][CLS]did you go to the basketball game on friday?[SEP][CLS]no, i couldn't make it.
-[SEP][CLS]no, i couldn't make it.[SEP][CLS]you missed a really good game.
-[SEP][CLS]you missed a really good game.[SEP][CLS]oh, really? who won?
-[SEP][CLS]oh, really? who won?[SEP][CLS]our school did. they played really well.
-[SEP][CLS]our school did. they played really well.[SEP][CLS]too bad i was busy. i really wanted to go.
-[SEP][CLS]too bad i was busy. i really wanted to go.[SEP][CLS]yeah, you should have. it was really exciting.
-[SEP][CLS]yeah, you should have. it was really exciting.[SEP][CLS]so what was the score?
-[SEP][CLS]so what was the score?[SEP][CLS]the score was 101-98.
-[SEP][CLS]the score was 101-98.[SEP][CLS]man, that was a really close game.
-[SEP][CLS]man, that was a really close game.[SEP][CLS]that's what made it so great.
-[SEP][CLS]that's what made it so great.[SEP][CLS]i'll make sure and make it to the next one.
-[SEP][CLS]were you able to attend friday night's basketball game?[SEP][CLS]i was unable to make it.
-[SEP][CLS]i was unable to make it.[SEP][CLS]you should have been there. it was intense.
-[SEP][CLS]you should have been there. it was intense.[SEP][CLS]is that right. who ended up winning?
-[SEP][CLS]is that right. who ended up winning?[SEP][CLS]our team was victorious.
-[SEP][CLS]our team was victorious.[SEP][CLS]i wish i was free that night. i'm kind of mad that i didn't go.
-[SEP][CLS]i wish i was free that night. i'm kind of mad that i didn't go.[SEP][CLS]it was a great game.
-[SEP][CLS]it was a great game.[SEP][CLS]what was the score at the end of the game?
-[SEP][CLS]what was the score at the end of the game?[SEP][CLS]our team won 101-98.
-[SEP][CLS]our team won 101-98.[SEP][CLS]sounds like it was a close game.
-[SEP][CLS]sounds like it was a close game.[SEP][CLS]that's the reason it was such a great game.
-[SEP][CLS]that's the reason it was such a great game.[SEP][CLS]the next game, i will definitely be there.
-[SEP][CLS]i was meaning to ask you if you saw the basketball game on friday.[SEP][CLS]i wanted to go, but i couldn't.
-[SEP][CLS]i wanted to go, but i couldn't.[SEP][CLS]it was a great game.
-[SEP][CLS]it was a great game.[SEP][CLS]it's too bad that i couldn't make it. who won?
-[SEP][CLS]it's too bad that i couldn't make it. who won?[SEP][CLS]our team played hard and won.
-[SEP][CLS]our team played hard and won.[SEP][CLS]i really wish i went to the game.
-[SEP][CLS]i really wish i went to the game.[SEP][CLS]it was the best game ever.
-[SEP][CLS]it was the best game ever.[SEP][CLS]so tell me the final score.
-[SEP][CLS]so tell me the final score.[SEP][CLS]the other team lost by three points, 101-98.
-[SEP][CLS]the other team lost by three points, 101-98. [SEP][CLS]it must've been a close game.
-[SEP][CLS]it must've been a close game.[SEP][CLS]it really was. you should've gone.
-[SEP][CLS]what are you doing this weekend?[SEP][CLS]i'm going to the movies with a friend. how about you?
-[SEP][CLS]i'm going to the movies with a friend. how about you?[SEP][CLS]i'm not sure yet.
-[SEP][CLS]i'm not sure yet.[SEP][CLS]well, did you want to go see a movie with me?
-[SEP][CLS]well, did you want to go see a movie with me?[SEP][CLS]what movie are you going to see?
-[SEP][CLS]what movie are you going to see?[SEP][CLS]i'm not sure yet. is there something you want to see?
-[SEP][CLS]i'm not sure yet. is there something you want to see?[SEP][CLS]there's nothing i can think of.
-[SEP][CLS]there's nothing i can think of.[SEP][CLS]so, did you want to go?
-[SEP][CLS]so, did you want to go?[SEP][CLS]no, thanks, maybe another time.
-[SEP][CLS]no, thanks, maybe another time.[SEP][CLS]okay, sounds good.
-[SEP][CLS]do you know what you're going to do this weekend?[SEP][CLS]i am going to see a movie with a friend of mine. what about you?
-[SEP][CLS]i am going to see a movie with a friend of mine. what about you?[SEP][CLS]i don't know.
-[SEP][CLS]i don't know.[SEP][CLS]would you like to see a movie with me and my friend?
-[SEP][CLS]would you like to see a movie with me and my friend?[SEP][CLS]do you know what movie you're going to watch?
-[SEP][CLS]do you know what movie you're going to watch?[SEP][CLS]i don't know, but was there a certain movie you wanted to see?
-[SEP][CLS]i don't know, but was there a certain movie you wanted to see?[SEP][CLS]none that i can think of.
-[SEP][CLS]none that i can think of.[SEP][CLS]well, would you like to go?
-[SEP][CLS]well, would you like to go?[SEP][CLS]thank you for inviting me, but i think i'll pass.
-[SEP][CLS]thank you for inviting me, but i think i'll pass.[SEP][CLS]all right. another time then.
-[SEP][CLS]you have any ideas as to what you want to do this weekend?[SEP][CLS]i'm going to the movie theater with my friend. what are you going to do?
-[SEP][CLS]i'm going to the movie theater with my friend. what are you going to do?[SEP][CLS]i'm not quite sure yet.
-[SEP][CLS]i'm not quite sure yet.[SEP][CLS]how about you see a movie with me and my friend?
-[SEP][CLS]how about you see a movie with me and my friend?[SEP][CLS]what movie are you and your friend planning on watching?
-[SEP][CLS]what movie are you and your friend planning on watching?[SEP][CLS]not sure. is there a movie out that catches your eye?
-[SEP][CLS]not sure. is there a movie out that catches your eye?[SEP][CLS]no good movies come to mind.
-[SEP][CLS]no good movies come to mind.[SEP][CLS]have you decided whether or not you would like to go?
-[SEP][CLS]have you decided whether or not you would like to go?[SEP][CLS]no, thanks. maybe another time.
-[SEP][CLS]did you go to school today?[SEP][CLS]yeah, i went to school today. were you there?
-[SEP][CLS]yeah, i went to school today. were you there?[SEP][CLS]no, i didn't go, i've been sick.
-[SEP][CLS]no, i didn't go, i've been sick.[SEP][CLS]that sucks. did you want the assignments from english class?
-[SEP][CLS]that sucks. did you want the assignments from english class?[SEP][CLS]that would be nice, thank you.
-[SEP][CLS]that would be nice, thank you.[SEP][CLS]no problem, you're welcome.
-[SEP][CLS]no problem, you're welcome.[SEP][CLS]i will be glad to do the same for you when you're sick.
-[SEP][CLS]i will be glad to do the same for you when you're sick.[SEP][CLS]well, thank you. i hope to see you at school tomorrow.
-[SEP][CLS]have you attended school today?[SEP][CLS]i attended school today. did you?
-[SEP][CLS]i attended school today. did you?[SEP][CLS]i wasn't able to attend school because i was feeling ill.
-[SEP][CLS]i wasn't able to attend school because i was feeling ill.[SEP][CLS]i'm sorry to hear that. would you like the assignments from english class?
-[SEP][CLS]i'm sorry to hear that. would you like the assignments from english class?[SEP][CLS]i would really appreciate that, thanks.
-[SEP][CLS]i would really appreciate that, thanks.[SEP][CLS]it's no trouble at all.
-[SEP][CLS]it's no trouble at all.[SEP][CLS]if you get sick, i'll return the favor.
-[SEP][CLS]if you get sick, i'll return the favor.[SEP][CLS]thanks. see you at school tomorrow if you feel better.
-[SEP][CLS]have you gone to school today?[SEP][CLS]i went to school today. did you go to school?
-[SEP][CLS]i went to school today. did you go to school?[SEP][CLS]i couldn't go to school today, i was sick.
-[SEP][CLS]i couldn't go to school today, i was sick.[SEP][CLS]that's horrible. i'd be happy to give you the assignments from english class.
-[SEP][CLS]that's horrible. i'd be happy to give you the assignments from english class.[SEP][CLS]thank you very much, that's kind of you.
-[SEP][CLS]thank you very much, that's kind of you.[SEP][CLS]don't mention it.
-[SEP][CLS]don't mention it.[SEP][CLS]when you miss a day of school, i'll be happy to give you the english assignments.
-[SEP][CLS]did you hear the news?[SEP][CLS]what happened?
-[SEP][CLS]what happened?[SEP][CLS]our cousin went into labor and had her baby last week.
-[SEP][CLS]our cousin went into labor and had her baby last week.[SEP][CLS]she did? why didn't anyone tell me?
-[SEP][CLS]she did? why didn't anyone tell me?[SEP][CLS]i would've thought that somebody would have told you.
-[SEP][CLS]i would've thought that somebody would have told you.[SEP][CLS]no, i had no idea.
-[SEP][CLS]no, i had no idea.[SEP][CLS]well, she did, her baby was 8 pounds 6 ounces.
-[SEP][CLS]well, she did, her baby was 8 pounds 6 ounces.[SEP][CLS]oh my god, that's great!
-[SEP][CLS]oh my god, that's great![SEP][CLS]are you going to go and visit her and the baby?
-[SEP][CLS]are you going to go and visit her and the baby?[SEP][CLS]i think that i might.
-[SEP][CLS]i think that i might.[SEP][CLS]good! i just thought i'd let you know.
-[SEP][CLS]good! i just thought i'd let you know.[SEP][CLS]thanks for telling me.
-[SEP][CLS]have you heard what happened?[SEP][CLS]heard what?
-[SEP][CLS]heard what?[SEP][CLS]debrah already had her baby.
-[SEP][CLS]debrah already had her baby.[SEP][CLS]i didn't know that.
-[SEP][CLS]i didn't know that.[SEP][CLS]i thought you knew.
-[SEP][CLS]i thought you knew.[SEP][CLS]i honestly didn't know.
-[SEP][CLS]i honestly didn't know.[SEP][CLS]the baby was 8 pounds 6 ounces.
-[SEP][CLS]the baby was 8 pounds 6 ounces.[SEP][CLS]that's good to hear.
-[SEP][CLS]that's good to hear.[SEP][CLS]will you go and visit them?
-[SEP][CLS]will you go and visit them?[SEP][CLS]of course i will.
-[SEP][CLS]of course i will.[SEP][CLS]i just wanted to give you the good news.
-[SEP][CLS]i just wanted to give you the good news.[SEP][CLS]thanks for letting me know.
-[SEP][CLS]have you heard the news?[SEP][CLS]i haven't heard anything.
-[SEP][CLS]i haven't heard anything.[SEP][CLS]debrah had her baby last week.
-[SEP][CLS]debrah had her baby last week.[SEP][CLS]nobody told me.
-[SEP][CLS]nobody told me.[SEP][CLS]i thought you heard.
-[SEP][CLS]i thought you heard.[SEP][CLS]i really wasn't told anything.
-[SEP][CLS]i really wasn't told anything.[SEP][CLS]she was a cute 8 pounds 6 ounces.
-[SEP][CLS]she was a cute 8 pounds 6 ounces.[SEP][CLS]wow, how exciting.
-[SEP][CLS]wow, how exciting.[SEP][CLS]i know, you should really go and see her and the baby.
-[SEP][CLS]i know, you should really go and see her and the baby.[SEP][CLS]of course i will.
-[SEP][CLS]of course i will.[SEP][CLS]i just wanted to let you know what happened.
-[SEP][CLS]did you go to school today?[SEP][CLS]of course. did you?
-[SEP][CLS]of course. did you?[SEP][CLS]i didn't want to, so i didn't.
-[SEP][CLS]i didn't want to, so i didn't.[SEP][CLS]that's sad, but have you gone to the movies recently?
-[SEP][CLS]that's sad, but have you gone to the movies recently?[SEP][CLS]that's a switch.
-[SEP][CLS]that's a switch.[SEP][CLS]i'm serious, have you?
-[SEP][CLS]i'm serious, have you?[SEP][CLS]no, i haven't. why?
-[SEP][CLS]no, i haven't. why?[SEP][CLS]i really want to go to the movies this weekend.
-[SEP][CLS]i really want to go to the movies this weekend.[SEP][CLS]so go then.
-[SEP][CLS]so go then.[SEP][CLS]i really don't want to go by myself.
-[SEP][CLS]i really don't want to go by myself.[SEP][CLS]well anyway, do you plan on going to school tomorrow?
-[SEP][CLS]well anyway, do you plan on going to school tomorrow?[SEP][CLS]no, i think i'm going to go to the movies.
-[SEP][CLS]did you make it to school today?[SEP][CLS]i always do. did you go to school today?
-[SEP][CLS]i always do. did you go to school today?[SEP][CLS]no, i didn't.
-[SEP][CLS]no, i didn't.[SEP][CLS]you should have, but have you seen any movies lately?
-[SEP][CLS]you should have, but have you seen any movies lately?[SEP][CLS]that was an odd change of subject.
-[SEP][CLS]that was an odd change of subject.[SEP][CLS]maybe it was, but answer the question.
-[SEP][CLS]maybe it was, but answer the question.[SEP][CLS]no, not recently.
-[SEP][CLS]no, not recently.[SEP][CLS]i want to go to see a movie this weekend.
-[SEP][CLS]i want to go to see a movie this weekend.[SEP][CLS]what's stopping you then?
-[SEP][CLS]what's stopping you then?[SEP][CLS]i don't want to go alone.
-[SEP][CLS]i don't want to go alone.[SEP][CLS]so, will you be at school tomorrow?
-[SEP][CLS]so, will you be at school tomorrow?[SEP][CLS]no, i want to go to the movies instead.
-[SEP][CLS]did you even bother to go to school today?[SEP][CLS]yeah, i went. did you go?
-[SEP][CLS]yeah, i went. did you go?[SEP][CLS]no, i didn't feel like it.
-[SEP][CLS]no, i didn't feel like it.[SEP][CLS]that's nice, have you been to the movies lately?
-[SEP][CLS]that's nice, have you been to the movies lately?[SEP][CLS]no, but that was a random change of subject.
-[SEP][CLS]no, but that was a random change of subject.[SEP][CLS]it may have been random, but have you?
+hi, how are you doing?[SEP]i'm fine. how about yourself?
+[SEP]i'm fine. how about yourself?[SEP]i'm pretty good. thanks for asking.
+[SEP]i'm pretty good. thanks for asking.[SEP]no problem. so how have you been?
+[SEP]no problem. so how have you been?[SEP]i've been great. what about you?
+[SEP]i've been great. what about you?[SEP]i've been good. i'm in school right now.
+[SEP]i've been good. i'm in school right now.[SEP]what school do you go to?
+[SEP]what school do you go to?[SEP]i go to pcc.
+[SEP]i go to pcc.[SEP]do you like it there?
+[SEP]do you like it there?[SEP]it's okay. it's a really big campus.
+[SEP]it's okay. it's a really big campus.[SEP]good luck with school.
+[SEP]good luck with school.[SEP]thank you very much.
+[SEP]how's it going?[SEP]i'm doing well. how about you?
+[SEP]i'm doing well. how about you?[SEP]never better, thanks.
+[SEP]never better, thanks.[SEP]so how have you been lately?
+[SEP]so how have you been lately?[SEP]i've actually been pretty good. you?
+[SEP]i've actually been pretty good. you?[SEP]i'm actually in school right now.
+[SEP]i'm actually in school right now.[SEP]which school do you attend?
+[SEP]which school do you attend?[SEP]i'm attending pcc right now.
+[SEP]i'm attending pcc right now.[SEP]are you enjoying it there?
+[SEP]are you enjoying it there?[SEP]it's not bad. there are a lot of people there.
+[SEP]it's not bad. there are a lot of people there.[SEP]good luck with that.
+[SEP]good luck with that.[SEP]thanks.
+[SEP]how are you doing today?[SEP]i'm doing great. what about you?
+[SEP]i'm doing great. what about you?[SEP]i'm absolutely lovely, thank you.
+[SEP]i'm absolutely lovely, thank you.[SEP]everything's been good with you?
+[SEP]everything's been good with you?[SEP]i haven't been better. how about yourself?
+[SEP]i haven't been better. how about yourself?[SEP]i started school recently.
+[SEP]i started school recently.[SEP]where are you going to school?
+[SEP]where are you going to school?[SEP]i'm going to pcc.
+[SEP]i'm going to pcc.[SEP]how do you like it so far?
+[SEP]how do you like it so far?[SEP]i like it so far. my classes are pretty good right now.
+[SEP]i like it so far. my classes are pretty good right now.[SEP]i wish you luck.
+[SEP]it's an ugly day today.[SEP]i know. i think it may rain.
+[SEP]i know. i think it may rain.[SEP]it's the middle of summer, it shouldn't rain today.
+[SEP]it's the middle of summer, it shouldn't rain today.[SEP]that would be weird.
+[SEP]that would be weird.[SEP]yeah, especially since it's ninety degrees outside.
+[SEP]yeah, especially since it's ninety degrees outside.[SEP]i know, it would be horrible if it rained and it was hot outside.
+[SEP]i know, it would be horrible if it rained and it was hot outside.[SEP]yes, it would be.
+[SEP]yes, it would be. [SEP]i really wish it wasn't so hot every day.
+[SEP]i really wish it wasn't so hot every day. [SEP]me too. i can't wait until winter.
+[SEP]me too. i can't wait until winter.[SEP]i like winter too, but sometimes it gets too cold.
+[SEP]i like winter too, but sometimes it gets too cold.[SEP]i'd rather be cold than hot.
+[SEP]i'd rather be cold than hot.[SEP]me too.
+[SEP]it doesn't look very nice outside today.[SEP]you're right. i think it's going to rain later.
+[SEP]you're right. i think it's going to rain later.[SEP]in the middle of the summer, it shouldn't be raining.
+[SEP]in the middle of the summer, it shouldn't be raining.[SEP]that wouldn't seem right.
+[SEP]that wouldn't seem right.[SEP]considering that it's over ninety degrees outside, that would be weird.
+[SEP]considering that it's over ninety degrees outside, that would be weird.[SEP]exactly, it wouldn't be nice if it started raining. it's too hot.
+[SEP]exactly, it wouldn't be nice if it started raining. it's too hot.[SEP]i know, you're absolutely right.
+[SEP]i know, you're absolutely right.[SEP]i wish it would cool off one day.
+[SEP]i wish it would cool off one day.[SEP]that's how i feel, i want winter to come soon.
+[SEP]that's how i feel, i want winter to come soon.[SEP]i enjoy the winter, but it gets really cold sometimes.
+[SEP]i enjoy the winter, but it gets really cold sometimes.[SEP]i know what you mean, but i'd rather be cold than hot.
+[SEP]i know what you mean, but i'd rather be cold than hot.[SEP]that's exactly how i feel.
+[SEP]i wish it was a nicer day today.[SEP]that is true. i hope it doesn't rain.
+[SEP]that is true. i hope it doesn't rain.[SEP]it wouldn't rain in the middle of the summer.
+[SEP]it wouldn't rain in the middle of the summer.[SEP]it wouldn't seem right if it started raining right now.
+[SEP]it wouldn't seem right if it started raining right now.[SEP]it would be weird if it started raining in ninety degree weather.
+[SEP]it would be weird if it started raining in ninety degree weather.[SEP]any rain right now would be pointless.
+[SEP]any rain right now would be pointless.[SEP]that's right, it really would be.
+[SEP]that's right, it really would be.[SEP]i want it to cool down some.
+[SEP]i want it to cool down some.[SEP]i know what you mean, i can't wait until it's winter.
+[SEP]i know what you mean, i can't wait until it's winter.[SEP]winter is great. i wish it didn't get so cold sometimes though.
+[SEP]winter is great. i wish it didn't get so cold sometimes though.[SEP]i would rather deal with the winter than the summer.
+[SEP]it's such a nice day.[SEP]yes, it is.
+[SEP]yes, it is.[SEP]it looks like it may rain soon.
+[SEP]it looks like it may rain soon.[SEP]yes, and i hope that it does.
+[SEP]yes, and i hope that it does.[SEP]why is that?
+[SEP]why is that?[SEP]i really love how rain clears the air.
+[SEP]i really love how rain clears the air.[SEP]me too. it always smells so fresh after it rains.
+[SEP]me too. it always smells so fresh after it rains.[SEP]yes, but i love the night air after it rains.
+[SEP]yes, but i love the night air after it rains.[SEP]really? why is it?
+[SEP]really? why is it?[SEP]because you can see the stars perfectly.
+[SEP]because you can see the stars perfectly.[SEP]i really hope it rains today.
+[SEP]i really hope it rains today.[SEP]yeah, me too.
+[SEP]isn't it a nice day?[SEP]it really is.
+[SEP]it really is.[SEP]it seems that it may rain today.
+[SEP]it seems that it may rain today.[SEP]hopefully it will.
+[SEP]hopefully it will.[SEP]how come?
+[SEP]how come?[SEP]i like how clear the sky gets after it rains.
+[SEP]i like how clear the sky gets after it rains.[SEP]i feel the same way. it smells so good after it rains.
+[SEP]i feel the same way. it smells so good after it rains.[SEP]i especially love the night air when it rains.
+[SEP]i especially love the night air when it rains.[SEP]really? why?
+[SEP]really? why?[SEP]the stars look so much closer after it rains.
+[SEP]the stars look so much closer after it rains.[SEP]i really want it to rain today.
+[SEP]i really want it to rain today.[SEP]yeah, so do i.
+[SEP]don't you think it's nice out?[SEP]yes, i think so too.
+[SEP]yes, i think so too.[SEP]i think that it's going to rain.
+[SEP]i think that it's going to rain.[SEP]i hope that it does rain.
+[SEP]i hope that it does rain.[SEP]you like the rain?
+[SEP]you like the rain?[SEP]the sky looks so clean after it rains. i love it.
+[SEP]the sky looks so clean after it rains. i love it.[SEP]i understand. rain does make it smell cleaner.
+[SEP]i understand. rain does make it smell cleaner.[SEP]i love most how it is at night after it rains.
+[SEP]i love most how it is at night after it rains.[SEP]how come?
+[SEP]how come?[SEP]you can see the stars so much more clearly after it rains.
+[SEP]you can see the stars so much more clearly after it rains.[SEP]i would love for it to rain today.
+[SEP]i really want to go to the beach this weekend.[SEP]that sounds like fun. what's the weather going to be like?
+[SEP]that sounds like fun. what's the weather going to be like?[SEP]i heard that it's going to be warm this weekend.
+[SEP]i heard that it's going to be warm this weekend.[SEP]is it going to be perfect beach weather?
+[SEP]is it going to be perfect beach weather?[SEP]i believe so.
+[SEP]i believe so.[SEP]good. i hope it doesn't cool off this weekend.
+[SEP]good. i hope it doesn't cool off this weekend.[SEP]i know. i really want to go to the beach.
+[SEP]i know. i really want to go to the beach.[SEP]but you know that california weather is really unpredictable.
+[SEP]but you know that california weather is really unpredictable.[SEP]you're right. one minute it's hot, and then the next minute it's cold.
+[SEP]you're right. one minute it's hot, and then the next minute it's cold.[SEP]i really wish the weather would just stay the same.
+[SEP]i really wish the weather would just stay the same.[SEP]i do too. that way we can have our activities planned ahead of time.
+[SEP]i do too. that way we can have our activities planned ahead of time.[SEP]yeah, that would make things a lot easier.
+[SEP]i would like to take a trip to the beach this weekend.[SEP]a trip to the beach would be fun. how is the weather going to be?
+[SEP]a trip to the beach would be fun. how is the weather going to be?[SEP]the forecast says that it will be warm on the weekend.
+[SEP]the forecast says that it will be warm on the weekend.[SEP]so do you think it'll be perfect weather for the beach?
+[SEP]so do you think it'll be perfect weather for the beach?[SEP]it sounds like it will be.
+[SEP]it sounds like it will be.[SEP]i really hope it doesn't get cold.
+[SEP]i really hope it doesn't get cold.[SEP]that would ruin things, i want to go so badly.
+[SEP]that would ruin things, i want to go so badly.[SEP]the weather in california is unpredictable, so you never know.
+[SEP]the weather in california is unpredictable, so you never know.[SEP]that is true. the weather is constantly changing.
+[SEP]that is true. the weather is constantly changing.[SEP]it would be nice if the weather would never change.
+[SEP]it would be nice if the weather would never change.[SEP]that would be great, then we could plan things sooner.
+[SEP]that would be great, then we could plan things sooner.[SEP]true. predictable weather would make life easier.
+[SEP]it would be nice to go to the beach sometime this weekend.[SEP]what's the weather going to be like? i may want to go too.
+[SEP]what's the weather going to be like? i may want to go too.[SEP]the weather this weekend is supposed to be warm.
+[SEP]the weather this weekend is supposed to be warm.[SEP]will it be good beach weather?
+[SEP]will it be good beach weather?[SEP]i think it will be.
+[SEP]i think it will be.[SEP]it wouldn't be good if it got cold this weekend.
+[SEP]it wouldn't be good if it got cold this weekend.[SEP]i want this trip to be perfect, i hope it stays warm.
+[SEP]i want this trip to be perfect, i hope it stays warm.[SEP]this california weather is so uncertain, it's impossible to know what'll happen.
+[SEP]this california weather is so uncertain, it's impossible to know what'll happen.[SEP]i know. every day the weather seems different.
+[SEP]i know. every day the weather seems different.[SEP]i would love it if it wasn't always so unpredictable.
+[SEP]i would love it if it wasn't always so unpredictable.[SEP]that would make it easier for us to make plans.
+[SEP]hello, may i speak to alice please?[SEP]this is she. how's it going?
+[SEP]this is she. how's it going?[SEP]i've been trying to call you all day.
+[SEP]i've been trying to call you all day.[SEP]sorry about that. i was cleaning up.
+[SEP]sorry about that. i was cleaning up.[SEP]it's okay.
+[SEP]it's okay.[SEP]so what were you calling me about?
+[SEP]so what were you calling me about?[SEP]oh, i just wanted to see if you wanted to hang out tomorrow.
+[SEP]oh, i just wanted to see if you wanted to hang out tomorrow.[SEP]sure, what did you want to do?
+[SEP]sure, what did you want to do?[SEP]maybe we can go see a movie or something.
+[SEP]maybe we can go see a movie or something.[SEP]that sounds like fun. let's do it.
+[SEP]that sounds like fun. let's do it.[SEP]i'll see you tomorrow then.
+[SEP]i'll see you tomorrow then.[SEP]see you then. goodbye.
+[SEP]hi, how are you. is alice there?[SEP]speaking. what's up?
+[SEP]speaking. what's up?[SEP]why haven't you answered the phone?
+[SEP]why haven't you answered the phone?[SEP]my bad, i had chores to do.
+[SEP]my bad, i had chores to do.[SEP]that's all right.
+[SEP]that's all right.[SEP]what was the reason for your call?
+[SEP]what was the reason for your call?[SEP]i want to do something tomorrow with you.
+[SEP]i want to do something tomorrow with you.[SEP]sounds good. what did you have in mind?
+[SEP]sounds good. what did you have in mind?[SEP]i was thinking about seeing a movie.
+[SEP]i was thinking about seeing a movie.[SEP]okay, let's go see a movie.
+[SEP]okay, let's go see a movie.[SEP]until then.
+[SEP]until then.[SEP]talk to you later.
+[SEP]is alice available?[SEP]you're talking to her.
+[SEP]you're talking to her.[SEP]i've called you a hundred times today.
+[SEP]i've called you a hundred times today.[SEP]i was busy doing something. i apologize.
+[SEP]i was busy doing something. i apologize.[SEP]no problem.
+[SEP]no problem.[SEP]did you need something?
+[SEP]did you need something?[SEP]do you want to do something tomorrow?
+[SEP]do you want to do something tomorrow?[SEP]is there somewhere special you wanted to go?
+[SEP]is there somewhere special you wanted to go?[SEP]how about a movie?
+[SEP]how about a movie?[SEP]a movie sounds good.
+[SEP]a movie sounds good.[SEP]call me tomorrow then.
+[SEP]have you seen the new girl in school?[SEP]no, i haven't.
+[SEP]no, i haven't.[SEP]she's really pretty.
+[SEP]she's really pretty.[SEP]describe her to me.
+[SEP]describe her to me.[SEP]she's not too tall.
+[SEP]she's not too tall.[SEP]well, how tall is she?
+[SEP]well, how tall is she?[SEP]she's about five feet even.
+[SEP]she's about five feet even.[SEP]what does she look like, though?
+[SEP]what does she look like, though?[SEP]she has pretty light brown eyes.
+[SEP]she has pretty light brown eyes.[SEP]i may know which girl you're talking about.
+[SEP]i may know which girl you're talking about.[SEP]so you have seen her around?
+[SEP]so you have seen her around?[SEP]yes, i have.
+[SEP]there's a new girl in school, have you seen her yet?[SEP]i haven't seen her yet.
+[SEP]i haven't seen her yet.[SEP]i think that she is very pretty.
+[SEP]i think that she is very pretty.[SEP]tell me how she looks.
+[SEP]tell me how she looks.[SEP]she's kind of short.
+[SEP]she's kind of short.[SEP]what height is she?
+[SEP]what height is she?[SEP]she's probably about five feet.
+[SEP]she's probably about five feet.[SEP]that's nice, but tell me what she looks like.
+[SEP]that's nice, but tell me what she looks like.[SEP]the first thing i noticed was her beautiful brown eyes.
+[SEP]the first thing i noticed was her beautiful brown eyes.[SEP]i think i might've bumped into her before.
+[SEP]i think i might've bumped into her before.[SEP]are you telling me that you've seen her before?
+[SEP]are you telling me that you've seen her before?[SEP]i believe so.
+[SEP]have you met the new girl?[SEP]no. have you?
+[SEP]no. have you?[SEP]she's one of the prettiest girls at the school.
+[SEP]she's one of the prettiest girls at the school.[SEP]what does she look like?
+[SEP]what does she look like?[SEP]well, she's quite short.
+[SEP]well, she's quite short.[SEP]how tall would you say that she is?
+[SEP]how tall would you say that she is?[SEP]i would say she's only five feet.
+[SEP]i would say she's only five feet.[SEP]what about her facial features?
+[SEP]what about her facial features?[SEP]she has light brown eyes, absolutely beautiful.
+[SEP]she has light brown eyes, absolutely beautiful.[SEP]i think i know who you're talking about.
+[SEP]i think i know who you're talking about.[SEP]have you seen her?
+[SEP]why weren't you at school yesterday?[SEP]i wasn't really feeling well.
+[SEP]i wasn't really feeling well.[SEP]what was wrong with you?
+[SEP]what was wrong with you?[SEP]my stomach was upset.
+[SEP]my stomach was upset.[SEP]do you feel better now?
+[SEP]do you feel better now?[SEP]i don't really feel too well yet.
+[SEP]i don't really feel too well yet.[SEP]do you want anything to make you feel better?
+[SEP]do you want anything to make you feel better?[SEP]no, thanks. i already took some medicine.
+[SEP]no, thanks. i already took some medicine.[SEP]i hope you feel better.
+[SEP]i hope you feel better.[SEP]thank you.
+[SEP]what reason do you have for missing school?[SEP]i was sick.
+[SEP]i was sick.[SEP]how were you sick?
+[SEP]how were you sick?[SEP]i had a stomachache.
+[SEP]i had a stomachache.[SEP]did it get any better?
+[SEP]did it get any better?[SEP]i'm still feeling under the weather.
+[SEP]i'm still feeling under the weather.[SEP]would you like anything for your stomach?
+[SEP]would you like anything for your stomach?[SEP]i took something earlier.
+[SEP]i took something earlier.[SEP]get better.
+[SEP]get better.[SEP]thanks a lot.
+[SEP]why didn't you go to school yesterday?[SEP]i stayed home because i wasn't feeling well.
+[SEP]i stayed home because i wasn't feeling well.[SEP]what was your problem?
+[SEP]what was your problem?[SEP]my stomach was bothering me.
+[SEP]my stomach was bothering me.[SEP]are you feeling any better?
+[SEP]are you feeling any better?[SEP]i'm still feeling a little sick.
+[SEP]i'm still feeling a little sick.[SEP]i'm going to the store, would you like any pepto bismol?
+[SEP]i'm going to the store, would you like any pepto bismol?[SEP]that's okay.
+[SEP]that's okay.[SEP]i hope you feel better.
+[SEP]did you hear the good news?[SEP]no, i haven't.
+[SEP]no, i haven't.[SEP]i got a promotion at my job.
+[SEP]i got a promotion at my job.[SEP]did you really?
+[SEP]did you really?[SEP]seriously, i am so excited.
+[SEP]seriously, i am so excited.[SEP]well, congratulations.
+[SEP]well, congratulations.[SEP]thank you.
+[SEP]thank you.[SEP]i'm so happy for you.
+[SEP]i'm so happy for you.[SEP]really?
+[SEP]really?[SEP]yes. you really deserved this.
+[SEP]yes. you really deserved this.[SEP]you think so?
+[SEP]you think so?[SEP]yes. good for you.
+[SEP]have you heard my good news?[SEP]you haven't told me anything yet.
+[SEP]you haven't told me anything yet.[SEP]i got a promotion at work earlier this week.
+[SEP]i got a promotion at work earlier this week.[SEP]is that right?
+[SEP]is that right?[SEP]it's the truth. i am really happy.
+[SEP]it's the truth. i am really happy.[SEP]congratulations on your promotion.
+[SEP]congratulations on your promotion.[SEP]thank you very much.
+[SEP]thank you very much.[SEP]i am really excited for you.
+[SEP]i am really excited for you.[SEP]are you really?
+[SEP]are you really?[SEP]i'm serious. you deserved this promotion.
+[SEP]i'm serious. you deserved this promotion.[SEP]is that what you really think?
+[SEP]is that what you really think?[SEP]yes, i do.
+[SEP]i haven't told you what happened yet, have i?[SEP]i haven't heard anything.
+[SEP]i haven't heard anything.[SEP]my boss offered me a promotion, and i took it.
+[SEP]my boss offered me a promotion, and i took it.[SEP]are you serious?
+[SEP]are you serious?[SEP]yes, i am really excited.
+[SEP]yes, i am really excited.[SEP]that's great. congratulations.
+[SEP]that's great. congratulations.[SEP]i appreciate that.
+[SEP]i appreciate that.[SEP]you have no idea how happy i am for you.
+[SEP]you have no idea how happy i am for you.[SEP]for real?
+[SEP]you look really nice today. [SEP]thank you. i just got this outfit the other day.
+[SEP]thank you. i just got this outfit the other day.[SEP]really, where did you get it?
+[SEP]really, where did you get it?[SEP]i got it from macy's.
+[SEP]i got it from macy's.[SEP]it's really nice.
+[SEP]it's really nice.[SEP]thanks again. you look nice today, too.
+[SEP]thanks again. you look nice today, too.[SEP]thank you. i just got these shoes today.
+[SEP]thank you. i just got these shoes today.[SEP]really? what kind of shoes are they?
+[SEP]really? what kind of shoes are they?[SEP]these are called all star chuck taylors.
+[SEP]these are called all star chuck taylors.[SEP]i really like those. how much did they cost?
+[SEP]i really like those. how much did they cost?[SEP]they were about forty dollars.
+[SEP]they were about forty dollars.[SEP]i think i'm going to go buy myself a pair.
+[SEP]i absolutely love what you're wearing today.[SEP]you do? i just bought this outfit a couple days ago.
+[SEP]you do? i just bought this outfit a couple days ago.[SEP]seriously, it looks really nice on you. where did you buy it from?
+[SEP]seriously, it looks really nice on you. where did you buy it from?[SEP]i bought it from the macy's at the santa anita mall.
+[SEP]i bought it from the macy's at the santa anita mall.[SEP]i really like that outfit.
+[SEP]i really like that outfit.[SEP]thanks. i think you look nice today, too.
+[SEP]thanks. i think you look nice today, too.[SEP]thank you. i just bought these new shoes earlier today.
+[SEP]thank you. i just bought these new shoes earlier today.[SEP]those are nice. what are they?
+[SEP]those are nice. what are they?[SEP]these are some chucks.
+[SEP]these are some chucks.[SEP]those are great. how much were they?
+[SEP]those are great. how much were they?[SEP]i got them for forty.
+[SEP]i got them for forty.[SEP]i think i might go and find me my own pair of chucks.
+[SEP]i think that you look very cute today.[SEP]is that right? this is a brand new outfit.
+[SEP]is that right? this is a brand new outfit.[SEP]what store did you get it from?
+[SEP]what store did you get it from?[SEP]i went to macy's and picked it out.
+[SEP]i went to macy's and picked it out.[SEP]i love your outfit right now.
+[SEP]i love your outfit right now.[SEP]well, i think you look nice today too.
+[SEP]well, i think you look nice today too.[SEP]thanks. i found these new shoes earlier at the store.
+[SEP]thanks. i found these new shoes earlier at the store.[SEP]i think that those are some really nice shoes. what kind are they?
+[SEP]i think that those are some really nice shoes. what kind are they?[SEP]these are chucks.
+[SEP]these are chucks.[SEP]your shoes look really nice. how much did you get them for?
+[SEP]your shoes look really nice. how much did you get them for?[SEP]they only cost me about forty dollars.
+[SEP]tell me, what do you enjoy doing in your spare time?[SEP]i enjoy drawing and painting.
+[SEP]i enjoy drawing and painting.[SEP]you know how to draw and paint?
+[SEP]you know how to draw and paint?[SEP]yes, i do.
+[SEP]yes, i do.[SEP]when did you learn how to do that?
+[SEP]when did you learn how to do that?[SEP]i learned back in high school.
+[SEP]i learned back in high school.[SEP]oh, so you took an art class?
+[SEP]oh, so you took an art class?[SEP]yeah, i loved that class.
+[SEP]yeah, i loved that class.[SEP]i see that you're pretty talented.
+[SEP]i see that you're pretty talented.[SEP]thank you very much.
+[SEP]thank you very much.[SEP]i wish i had a talent like that.
+[SEP]i wish i had a talent like that.[SEP]i'm sure you have a talent. it's just hidden.
+[SEP]what kinds of things do you like to do?[SEP]i've always liked to draw and paint.
+[SEP]i've always liked to draw and paint.[SEP]i didn't know you knew how to draw and paint.
+[SEP]i didn't know you knew how to draw and paint.[SEP]i do it every once in a while.
+[SEP]i do it every once in a while.[SEP]how long have you known how to do that?
+[SEP]how long have you known how to do that?[SEP]i first learned how to do it in high school.
+[SEP]i first learned how to do it in high school.[SEP]did you take some sort of art class or something?
+[SEP]did you take some sort of art class or something?[SEP]that was my favorite class.
+[SEP]that was my favorite class.[SEP]you have got to be talented.
+[SEP]you have got to be talented.[SEP]thanks.
+[SEP]thanks.[SEP]if only i was talented.
+[SEP]if only i was talented.[SEP]you have a talent. you just don't know what it is yet.
+[SEP]are there any hobbies you do?[SEP]when i have time, i sometimes draw and paint.
+[SEP]when i have time, i sometimes draw and paint.[SEP]oh, you actually do that?
+[SEP]oh, you actually do that?[SEP]every so often, i do.
+[SEP]every so often, i do.[SEP]did you always know how to draw and paint?
+[SEP]did you always know how to draw and paint?[SEP]i was taught in high school how to draw and paint.
+[SEP]i was taught in high school how to draw and paint.[SEP]you had an art class?
+[SEP]you had an art class?[SEP]exactly, it was my favorite class.
+[SEP]exactly, it was my favorite class.[SEP]well, it's good that you're so talented.
+[SEP]well, it's good that you're so talented.[SEP]i appreciate that.
+[SEP]i appreciate that.[SEP]talent is a great thing, i wish i had one.
+[SEP]what's your favorite movie?[SEP]my favorite movie is superbad.
+[SEP]my favorite movie is superbad.[SEP]oh, why is that?
+[SEP]oh, why is that?[SEP]it's the funniest movie that i've ever seen.
+[SEP]it's the funniest movie that i've ever seen.[SEP]that's true. it is a very funny movie.
+[SEP]that's true. it is a very funny movie.[SEP]you've seen it before?
+[SEP]you've seen it before? [SEP]yes, i saw that movie the first day it came out in theaters.
+[SEP]yes, i saw that movie the first day it came out in theaters.[SEP]didn't you laugh through the whole movie? i did.
+[SEP]didn't you laugh through the whole movie? i did.[SEP]me too. that movie brought tears to my eyes.
+[SEP]me too. that movie brought tears to my eyes.[SEP]mine too.
+[SEP]mine too.[SEP]i have it on dvd at my house if you want to come over and watch it.
+[SEP]i have it on dvd at my house if you want to come over and watch it.[SEP]sure, let's go.
+[SEP]which movie is your favorite to watch?[SEP]i have to say, my favorite movie is superbad.
+[SEP]i have to say, my favorite movie is superbad.[SEP]is that right? why?
+[SEP]is that right? why?[SEP]honestly, it is one of the funniest movies i've seen in a long time.
+[SEP]honestly, it is one of the funniest movies i've seen in a long time.[SEP]you're right. that movie is hilarious.
+[SEP]you're right. that movie is hilarious.[SEP]i didn't think you saw that movie.
+[SEP]i didn't think you saw that movie.[SEP]i went to see it the day it came out.
+[SEP]i went to see it the day it came out.[SEP]i was laughing through the whole movie.
+[SEP]i was laughing through the whole movie.[SEP]i couldn't help laughing, either.
+[SEP]i couldn't help laughing, either. [SEP]same here.
+[SEP]same here.[SEP]i bought the movie. would you like to come to my house and watch it?
+[SEP]i bought the movie. would you like to come to my house and watch it?[SEP]of course.
+[SEP]out of every movie that you've seen, which one is your favorite?[SEP]i'm going to have to say that superbad is the best movie ever.
+[SEP]i'm going to have to say that superbad is the best movie ever.[SEP]you think so, how come?
+[SEP]you think so, how come?[SEP]well, superbad is super funny.
+[SEP]well, superbad is super funny.[SEP]you're not lying, i found that movie absolutely hilarious.
+[SEP]you're not lying, i found that movie absolutely hilarious.[SEP]i didn't know that you saw superbad before.
+[SEP]i didn't know that you saw superbad before.[SEP]i made sure to be in line to see it the first day it came out.
+[SEP]i made sure to be in line to see it the first day it came out.[SEP]i couldn't keep from laughing throughout the whole movie.
+[SEP]i couldn't keep from laughing throughout the whole movie.[SEP]i was laughing hysterically the whole time; my stomach muscles hurt afterwards.
+[SEP]i was laughing hysterically the whole time; my stomach muscles hurt afterwards.[SEP]that's exactly how i felt.
+[SEP]that's exactly how i felt.[SEP]i got the movie when it came out on dvd, do you want to come over?
+[SEP]what type of music do you like to listen to?[SEP]i like listening to different kinds of music.
+[SEP]i like listening to different kinds of music.[SEP]like what, for instance?
+[SEP]like what, for instance?[SEP]i enjoy rock and r&b.
+[SEP]i enjoy rock and r&b.[SEP]why is that?
+[SEP]why is that?[SEP]i like the different instruments that they use.
+[SEP]i like the different instruments that they use.[SEP]that's a good reason to like something.
+[SEP]that's a good reason to like something.[SEP]yeah, i think so too.
+[SEP]what kind of music do you enjoy listening to?[SEP]i enjoy listening to all kinds of music.
+[SEP]i enjoy listening to all kinds of music.[SEP]what kind?
+[SEP]what kind?[SEP]i like to listen to rock and r&b.
+[SEP]i like to listen to rock and r&b.[SEP]why do you like that type of music?
+[SEP]why do you like that type of music?[SEP]i like the kinds of instruments that they use.
+[SEP]i like the kinds of instruments that they use.[SEP]i think that's an excellent reason to like something.
+[SEP]i think that's an excellent reason to like something.[SEP]thanks, i feel the same way.
+[SEP]what is your favorite kind of music?[SEP]i listen to various types of music.
+[SEP]i listen to various types of music.[SEP]what genres?
+[SEP]what genres?[SEP]i enjoy listening to both rock and r&b.
+[SEP]i enjoy listening to both rock and r&b.[SEP]what interests you in that type of music?
+[SEP]what interests you in that type of music?[SEP]i enjoy the different types of instruments that they use.
+[SEP]i enjoy the different types of instruments that they use.[SEP]that is a perfect reason to like a certain kind of music.
+[SEP]did you go to the basketball game on friday?[SEP]no, i couldn't make it.
+[SEP]no, i couldn't make it.[SEP]you missed a really good game.
+[SEP]you missed a really good game.[SEP]oh, really? who won?
+[SEP]oh, really? who won?[SEP]our school did. they played really well.
+[SEP]our school did. they played really well.[SEP]too bad i was busy. i really wanted to go.
+[SEP]too bad i was busy. i really wanted to go.[SEP]yeah, you should have. it was really exciting.
+[SEP]yeah, you should have. it was really exciting.[SEP]so what was the score?
+[SEP]so what was the score?[SEP]the score was 101-98.
+[SEP]the score was 101-98.[SEP]man, that was a really close game.
+[SEP]man, that was a really close game.[SEP]that's what made it so great.
+[SEP]that's what made it so great.[SEP]i'll make sure and make it to the next one.
+[SEP]were you able to attend friday night's basketball game?[SEP]i was unable to make it.
+[SEP]i was unable to make it.[SEP]you should have been there. it was intense.
+[SEP]you should have been there. it was intense.[SEP]is that right. who ended up winning?
+[SEP]is that right. who ended up winning?[SEP]our team was victorious.
+[SEP]our team was victorious.[SEP]i wish i was free that night. i'm kind of mad that i didn't go.
+[SEP]i wish i was free that night. i'm kind of mad that i didn't go.[SEP]it was a great game.
+[SEP]it was a great game.[SEP]what was the score at the end of the game?
+[SEP]what was the score at the end of the game?[SEP]our team won 101-98.
+[SEP]our team won 101-98.[SEP]sounds like it was a close game.
+[SEP]sounds like it was a close game.[SEP]that's the reason it was such a great game.
+[SEP]that's the reason it was such a great game.[SEP]the next game, i will definitely be there.
+[SEP]i was meaning to ask you if you saw the basketball game on friday.[SEP]i wanted to go, but i couldn't.
+[SEP]i wanted to go, but i couldn't.[SEP]it was a great game.
+[SEP]it was a great game.[SEP]it's too bad that i couldn't make it. who won?
+[SEP]it's too bad that i couldn't make it. who won?[SEP]our team played hard and won.
+[SEP]our team played hard and won.[SEP]i really wish i went to the game.
+[SEP]i really wish i went to the game.[SEP]it was the best game ever.
+[SEP]it was the best game ever.[SEP]so tell me the final score.
+[SEP]so tell me the final score.[SEP]the other team lost by three points, 101-98.
+[SEP]the other team lost by three points, 101-98. [SEP]it must've been a close game.
+[SEP]it must've been a close game.[SEP]it really was. you should've gone.
+[SEP]what are you doing this weekend?[SEP]i'm going to the movies with a friend. how about you?
+[SEP]i'm going to the movies with a friend. how about you?[SEP]i'm not sure yet.
+[SEP]i'm not sure yet.[SEP]well, did you want to go see a movie with me?
+[SEP]well, did you want to go see a movie with me?[SEP]what movie are you going to see?
+[SEP]what movie are you going to see?[SEP]i'm not sure yet. is there something you want to see?
+[SEP]i'm not sure yet. is there something you want to see?[SEP]there's nothing i can think of.
+[SEP]there's nothing i can think of.[SEP]so, did you want to go?
+[SEP]so, did you want to go?[SEP]no, thanks, maybe another time.
+[SEP]no, thanks, maybe another time.[SEP]okay, sounds good.
+[SEP]do you know what you're going to do this weekend?[SEP]i am going to see a movie with a friend of mine. what about you?
+[SEP]i am going to see a movie with a friend of mine. what about you?[SEP]i don't know.
+[SEP]i don't know.[SEP]would you like to see a movie with me and my friend?
+[SEP]would you like to see a movie with me and my friend?[SEP]do you know what movie you're going to watch?
+[SEP]do you know what movie you're going to watch?[SEP]i don't know, but was there a certain movie you wanted to see?
+[SEP]i don't know, but was there a certain movie you wanted to see?[SEP]none that i can think of.
+[SEP]none that i can think of.[SEP]well, would you like to go?
+[SEP]well, would you like to go?[SEP]thank you for inviting me, but i think i'll pass.
+[SEP]thank you for inviting me, but i think i'll pass.[SEP]all right. another time then.
+[SEP]you have any ideas as to what you want to do this weekend?[SEP]i'm going to the movie theater with my friend. what are you going to do?
+[SEP]i'm going to the movie theater with my friend. what are you going to do?[SEP]i'm not quite sure yet.
+[SEP]i'm not quite sure yet.[SEP]how about you see a movie with me and my friend?
+[SEP]how about you see a movie with me and my friend?[SEP]what movie are you and your friend planning on watching?
+[SEP]what movie are you and your friend planning on watching?[SEP]not sure. is there a movie out that catches your eye?
+[SEP]not sure. is there a movie out that catches your eye?[SEP]no good movies come to mind.
+[SEP]no good movies come to mind.[SEP]have you decided whether or not you would like to go?
+[SEP]have you decided whether or not you would like to go?[SEP]no, thanks. maybe another time.
+[SEP]did you go to school today?[SEP]yeah, i went to school today. were you there?
+[SEP]yeah, i went to school today. were you there?[SEP]no, i didn't go, i've been sick.
+[SEP]no, i didn't go, i've been sick.[SEP]that sucks. did you want the assignments from english class?
+[SEP]that sucks. did you want the assignments from english class?[SEP]that would be nice, thank you.
+[SEP]that would be nice, thank you.[SEP]no problem, you're welcome.
+[SEP]no problem, you're welcome.[SEP]i will be glad to do the same for you when you're sick.
+[SEP]i will be glad to do the same for you when you're sick.[SEP]well, thank you. i hope to see you at school tomorrow.
+[SEP]have you attended school today?[SEP]i attended school today. did you?
+[SEP]i attended school today. did you?[SEP]i wasn't able to attend school because i was feeling ill.
+[SEP]i wasn't able to attend school because i was feeling ill.[SEP]i'm sorry to hear that. would you like the assignments from english class?
+[SEP]i'm sorry to hear that. would you like the assignments from english class?[SEP]i would really appreciate that, thanks.
+[SEP]i would really appreciate that, thanks.[SEP]it's no trouble at all.
+[SEP]it's no trouble at all.[SEP]if you get sick, i'll return the favor.
+[SEP]if you get sick, i'll return the favor.[SEP]thanks. see you at school tomorrow if you feel better.
+[SEP]have you gone to school today?[SEP]i went to school today. did you go to school?
+[SEP]i went to school today. did you go to school?[SEP]i couldn't go to school today, i was sick.
+[SEP]i couldn't go to school today, i was sick.[SEP]that's horrible. i'd be happy to give you the assignments from english class.
+[SEP]that's horrible. i'd be happy to give you the assignments from english class.[SEP]thank you very much, that's kind of you.
+[SEP]thank you very much, that's kind of you.[SEP]don't mention it.
+[SEP]don't mention it.[SEP]when you miss a day of school, i'll be happy to give you the english assignments.
+[SEP]did you hear the news?[SEP]what happened?
+[SEP]what happened?[SEP]our cousin went into labor and had her baby last week.
+[SEP]our cousin went into labor and had her baby last week.[SEP]she did? why didn't anyone tell me?
+[SEP]she did? why didn't anyone tell me?[SEP]i would've thought that somebody would have told you.
+[SEP]i would've thought that somebody would have told you.[SEP]no, i had no idea.
+[SEP]no, i had no idea.[SEP]well, she did, her baby was 8 pounds 6 ounces.
+[SEP]well, she did, her baby was 8 pounds 6 ounces.[SEP]oh my god, that's great!
+[SEP]oh my god, that's great![SEP]are you going to go and visit her and the baby?
+[SEP]are you going to go and visit her and the baby?[SEP]i think that i might.
+[SEP]i think that i might.[SEP]good! i just thought i'd let you know.
+[SEP]good! i just thought i'd let you know.[SEP]thanks for telling me.
+[SEP]have you heard what happened?[SEP]heard what?
+[SEP]heard what?[SEP]debrah already had her baby.
+[SEP]debrah already had her baby.[SEP]i didn't know that.
+[SEP]i didn't know that.[SEP]i thought you knew.
+[SEP]i thought you knew.[SEP]i honestly didn't know.
+[SEP]i honestly didn't know.[SEP]the baby was 8 pounds 6 ounces.
+[SEP]the baby was 8 pounds 6 ounces.[SEP]that's good to hear.
+[SEP]that's good to hear.[SEP]will you go and visit them?
+[SEP]will you go and visit them?[SEP]of course i will.
+[SEP]of course i will.[SEP]i just wanted to give you the good news.
+[SEP]i just wanted to give you the good news.[SEP]thanks for letting me know.
+[SEP]have you heard the news?[SEP]i haven't heard anything.
+[SEP]i haven't heard anything.[SEP]debrah had her baby last week.
+[SEP]debrah had her baby last week.[SEP]nobody told me.
+[SEP]nobody told me.[SEP]i thought you heard.
+[SEP]i thought you heard.[SEP]i really wasn't told anything.
+[SEP]i really wasn't told anything.[SEP]she was a cute 8 pounds 6 ounces.
+[SEP]she was a cute 8 pounds 6 ounces.[SEP]wow, how exciting.
+[SEP]wow, how exciting.[SEP]i know, you should really go and see her and the baby.
+[SEP]i know, you should really go and see her and the baby.[SEP]of course i will.
+[SEP]of course i will.[SEP]i just wanted to let you know what happened.
+[SEP]did you go to school today?[SEP]of course. did you?
+[SEP]of course. did you?[SEP]i didn't want to, so i didn't.
+[SEP]i didn't want to, so i didn't.[SEP]that's sad, but have you gone to the movies recently?
+[SEP]that's sad, but have you gone to the movies recently?[SEP]that's a switch.
+[SEP]that's a switch.[SEP]i'm serious, have you?
+[SEP]i'm serious, have you?[SEP]no, i haven't. why?
+[SEP]no, i haven't. why?[SEP]i really want to go to the movies this weekend.
+[SEP]i really want to go to the movies this weekend.[SEP]so go then.
+[SEP]so go then.[SEP]i really don't want to go by myself.
+[SEP]i really don't want to go by myself.[SEP]well anyway, do you plan on going to school tomorrow?
+[SEP]well anyway, do you plan on going to school tomorrow?[SEP]no, i think i'm going to go to the movies.
+[SEP]did you make it to school today?[SEP]i always do. did you go to school today?
+[SEP]i always do. did you go to school today?[SEP]no, i didn't.
+[SEP]no, i didn't.[SEP]you should have, but have you seen any movies lately?
+[SEP]you should have, but have you seen any movies lately?[SEP]that was an odd change of subject.
+[SEP]that was an odd change of subject.[SEP]maybe it was, but answer the question.
+[SEP]maybe it was, but answer the question.[SEP]no, not recently.
+[SEP]no, not recently.[SEP]i want to go to see a movie this weekend.
+[SEP]i want to go to see a movie this weekend.[SEP]what's stopping you then?
+[SEP]what's stopping you then?[SEP]i don't want to go alone.
+[SEP]i don't want to go alone.[SEP]so, will you be at school tomorrow?
+[SEP]so, will you be at school tomorrow?[SEP]no, i want to go to the movies instead.
+[SEP]did you even bother to go to school today?[SEP]yeah, i went. did you go?
+[SEP]yeah, i went. did you go?[SEP]no, i didn't feel like it.
+[SEP]no, i didn't feel like it.[SEP]that's nice, have you been to the movies lately?
+[SEP]that's nice, have you been to the movies lately?[SEP]no, but that was a random change of subject.
+[SEP]no, but that was a random change of subject.[SEP]it may have been random, but have you?
+[SEP]it may have been random, but have you?[SEP]i haven't lately.
+[SEP]i haven't lately.[SEP]i would love to catch a movie this weekend.
+[SEP]i would love to catch a movie this weekend.[SEP]so then, why don't you just go?
+[SEP]so then, why don't you just go?[SEP]i don't want to see a movie by myself.
+[SEP]i don't want to see a movie by myself.[SEP]okay, so are you going to school tomorrow?
+[SEP]thanks for coming to see me today.[SEP]it's no problem. i was really missing you anyway.
+[SEP]it's no problem. i was really missing you anyway.[SEP]i missed you too.
+[SEP]i missed you too.[SEP]why haven't you tried to come see me then?
+[SEP]why haven't you tried to come see me then?[SEP]i've been really busy.
+[SEP]i've been really busy.[SEP]doing what?
+[SEP]doing what?[SEP]working.
+[SEP]working.[SEP]i would've come to see you sooner, but i've been busy too.
+[SEP]i would've come to see you sooner, but i've been busy too.[SEP]what have you been doing?
+[SEP]what have you been doing?[SEP]i've been working too.
+[SEP]i've been working too.[SEP]well regardless, i'm very happy that you came to see me.
+[SEP]well regardless, i'm very happy that you came to see me.[SEP]i am too.
+[SEP]i'm really glad that you came to see me.[SEP]i had to. i was missing you a lot.
+[SEP]i had to. i was missing you a lot.[SEP]i was missing you too.
+[SEP]i was missing you too.[SEP]so, why haven't you visited me?
+[SEP]so, why haven't you visited me?[SEP]i've actually been busy lately.
+[SEP]i've actually been busy lately.[SEP]what have you been doing?
+[SEP]what have you been doing?[SEP]i've just been working really hard.
+[SEP]i've just been working really hard.[SEP]i've also been busy.
+[SEP]i've also been busy.[SEP]tell me what you've been doing.
+[SEP]tell me what you've been doing.[SEP]basically, i've been working too.
+[SEP]basically, i've been working too.[SEP]well whatever, i'm glad you came.
+[SEP]well whatever, i'm glad you came.[SEP]so am i.
+[SEP]i'm really happy that you came to visit me.[SEP]i really missed you a lot.
+[SEP]i really missed you a lot.[SEP]i've been missing you like crazy.
+[SEP]i've been missing you like crazy.[SEP]i don't understand why you haven't come to visit me.
+[SEP]i don't understand why you haven't come to visit me.[SEP]lately, i've been quite busy.
+[SEP]lately, i've been quite busy.[SEP]tell me what you've been up to.
+[SEP]tell me what you've been up to.[SEP]i've really been working a lot lately.
+[SEP]i've really been working a lot lately.[SEP]i've been pretty busy myself.
+[SEP]i've been pretty busy myself.[SEP]so what have you been up to?
+[SEP]so what have you been up to?[SEP]i've just been working a lot.
+[SEP]i've just been working a lot.[SEP]whatever the reason may be, i'm glad you visited me.
+[SEP]hey, did you hear about jessica's party this weekend?[SEP]yeah, but i'm still waiting for my invitation.
+[SEP]yeah, but i'm still waiting for my invitation.[SEP]oh really? she gave me mine earlier today.
+[SEP]oh really? she gave me mine earlier today.[SEP]well, she'll probably just give me my invitation later on today.
+[SEP]well, she'll probably just give me my invitation later on today.[SEP]yeah, so are you planning on going?
+[SEP]yeah, so are you planning on going?[SEP]i think so. it sounds like it's going to be a lot of fun.
+[SEP]i think so. it sounds like it's going to be a lot of fun.[SEP]it really does, i can't wait.
+[SEP]it really does, i can't wait.[SEP]what time does the party start?
+[SEP]what time does the party start?[SEP]it starts at 8 o'clock.
+[SEP]it starts at 8 o'clock.[SEP]oh, well, how many people has she given invites to so far?
+[SEP]oh, well, how many people has she given invites to so far?[SEP]i'm not sure, but i don't think she's given out that many.
+[SEP]i'm not sure, but i don't think she's given out that many.[SEP]well, hopefully she'll give me my invite later on today.
+[SEP]have you heard about jessica's party on saturday?[SEP]i've heard about it, but i'm still waiting for my invitation.
+[SEP]i've heard about it, but i'm still waiting for my invitation.[SEP]really? i got mine from her this morning.
+[SEP]really? i got mine from her this morning.[SEP]i'm guessing that she's going to give me my invite today or tomorrow.
+[SEP]i'm guessing that she's going to give me my invite today or tomorrow.[SEP]you're probably right, do you intend on going to the party?
+[SEP]you're probably right, do you intend on going to the party?[SEP]i want to. i heard it's going to be really fun.
+[SEP]i want to. i heard it's going to be really fun.[SEP]i know, it does sound pretty awesome.
+[SEP]i know, it does sound pretty awesome.[SEP]well, when does the party start?
+[SEP]well, when does the party start?[SEP]it's supposed to start at about eight.
+[SEP]it's supposed to start at about eight.[SEP]how many invitations has she given out?
+[SEP]how many invitations has she given out?[SEP]i really don't know, but i don't think she gave out that many yet.
+[SEP]i really don't know, but i don't think she gave out that many yet.[SEP]i really want to go, so i hope that she gives me my invite soon.
+[SEP]has anyone told you about jessica's party coming up?[SEP]i was told about it already. i'm just waiting for my invitation.
+[SEP]i was told about it already. i'm just waiting for my invitation.[SEP]is that right? i already got my invitation from her earlier.
+[SEP]is that right? i already got my invitation from her earlier.[SEP]i believe that she will give me the invitation today.
+[SEP]i believe that she will give me the invitation today.[SEP]are you even going to go?
+[SEP]are you even going to go?[SEP]yeah, it sounds like it's going to be the best party of the year.
+[SEP]yeah, it sounds like it's going to be the best party of the year.[SEP]exactly, it seems like it's going to be loads of fun.
+[SEP]exactly, it seems like it's going to be loads of fun.[SEP]when exactly does the party start?
+[SEP]when exactly does the party start?[SEP]the invitation says it starts at 8:00 p.m.
+[SEP]the invitation says it starts at 8:00 p.m.[SEP]has she given out a lot of invitations yet?
+[SEP]has she given out a lot of invitations yet?[SEP]i have no idea, she hasn't given out many though.
+[SEP]hey, what's up?[SEP]nothing really.
+[SEP]nothing really.[SEP]i'm throwing a party on friday.
+[SEP]i'm throwing a party on friday.[SEP]i didn't realize that.
+[SEP]i didn't realize that.[SEP]you didn't?
+[SEP]you didn't?[SEP]nobody has told me anything about your party.
+[SEP]nobody has told me anything about your party.[SEP]did you want to go?
+[SEP]did you want to go?[SEP]when does it start?
+[SEP]when does it start?[SEP]at 8:00 p.m.
+[SEP]at 8:00 p.m.[SEP]i'll be there.
+[SEP]i'll be there.[SEP]i'd better see you there.
+[SEP]i'd better see you there.[SEP]of course.
+[SEP]what's going on with you?[SEP]fine. what's going on with you?
+[SEP]fine. what's going on with you?[SEP]i'm having a party this friday.
+[SEP]i'm having a party this friday.[SEP]i had no idea.
+[SEP]i had no idea.[SEP]is that right?
+[SEP]is that right?[SEP]i didn't hear anything about it.
+[SEP]i didn't hear anything about it.[SEP]can you go?
+[SEP]can you go?[SEP]what time?
+[SEP]what time?[SEP]it starts at 8 o'clock.
+[SEP]it starts at 8 o'clock.[SEP]i'll go.
+[SEP]i'll go.[SEP]i hope that i'll see you there.
+[SEP]i hope that i'll see you there.[SEP]no doubt.
+[SEP]what's going on?[SEP]not much.
+[SEP]not much.[SEP]this friday, i'm throwing a party.
+[SEP]this friday, i'm throwing a party.[SEP]oh really? i didn't know that.
+[SEP]oh really? i didn't know that.[SEP]are you serious?
+[SEP]are you serious?[SEP]i haven't heard anything about it.
+[SEP]i haven't heard anything about it.[SEP]can you make it?
+[SEP]can you make it?[SEP]what time does it start?
+[SEP]what time does it start?[SEP]the party starts at 8.
+[SEP]the party starts at 8.[SEP]yeah, i think i'll go.
 [SEP]
