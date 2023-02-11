@@ -395,7 +395,9 @@ class Conv1D(nn.Module):
 
     def forward(self, x):
         new_shape = x.size()[:-1] + (self.c2,)
+        # print(f'income : {x.shape}')
         x = torch.addmm(self.bias, x.view(-1, x.size(-1)), self.weight).view(new_shape)
+        # print(f'output : {x.shape}')
         return x
 
 
@@ -425,6 +427,7 @@ class MultiCNNAttention(nn.Module):
 
     def _split_heads(self, tensor: torch.Tensor):
         new_shape = tensor.size()[:-1] + (self.num_heads, self.num_div)
+        # print(f'Shape : {new_shape}')
         tensor = tensor.view(new_shape).permute(0, 2, 1, 3)
         return tensor
 
@@ -458,7 +461,7 @@ class MultiCNNAttention(nn.Module):
         return attn_weight
 
     def forward(self, hidden_state: Optional[torch.Tensor], attention_mask=None, head_mask=None):
-        query, key, value = self.c_attn(hidden_state).split(self.embedding, dim=2)
+        query, key, value = self.c_attn(hidden_state).split(self.embedding, dim=len(hidden_state.shape) - 1)
         query = self._split_heads(query)
         key = self._split_heads(key)
         value = self._split_heads(value)

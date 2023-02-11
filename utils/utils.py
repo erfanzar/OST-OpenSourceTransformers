@@ -280,7 +280,7 @@ def get_config_by_name(name: str = 'PGT-s', vocab_size: int = 5000,
         return create_config(
             name,
             num_embedding=256,
-            num_heads=6,
+            num_heads=8,
             num_layers=4,
             device=device,
             vocab_size=vocab_size,

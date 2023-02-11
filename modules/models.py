@@ -317,6 +317,7 @@ class PGT(nn.Module):
         hidden = self.drop(token_embeddings + pos_embeddings)
         # if attention_mask is None:
         #     attention_mask = self.make_attention_mask(inputs)
+        # print(f'hidden Shape : {hidden.shape}')
         for m in self.h:
             hidden = m(hidden, attention_mask=attention_mask, heads_mask=heads_mask)
         hidden = self.fc(self.ln_f(hidden))
