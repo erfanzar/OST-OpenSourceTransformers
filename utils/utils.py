@@ -2,7 +2,6 @@ import dataclasses
 
 import torch
 from torch.utils.data import Dataset
-
 from transformers import BertTokenizer
 
 
@@ -229,6 +228,7 @@ def create_config(
         epochs: int = 500,
         lr: float = 4e-4,
         device: str = 'cuda' if torch.cuda.is_available() else 'cpu',
+        weight_decay: float = 0.01,
         **kwargs
 
 ):
@@ -239,7 +239,7 @@ def create_config(
     ttl = ['max_position_embeddings', 'hidden_size',
            'intermediate_size', 'device', 'lr', 'chunk',
            'embd_pdrop', 'activation', 'epochs',
-           'residual_dropout', 'attn_dropout',
+           'residual_dropout', 'attn_dropout', 'weight_decay',
            'use_mask', 'scale_attn_by_layer_idx',
            'num_layers', 'vocab_size',
            'max_len', 'num_heads', 'num_embedding']
@@ -268,16 +268,17 @@ def get_config_by_name(name: str = 'PGT-s', vocab_size: int = 5000,
     :return: Config
     """
 
-    if name == 'PGT-ss':
+    if name == 'PGT-As':
         return create_config(
             name,
-            num_embedding=512,
-            num_heads=8,
-            num_layers=8,
+            num_embedding=768,
+            num_heads=12,
+            epochs=1000,
+            num_layers=10,
             device=device,
             vocab_size=vocab_size,
             chunk=128,
-            lr=3e-4,
+            lr=4e-4,
             use_mask=True
         )
     elif name == 'PGT-s':

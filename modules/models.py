@@ -311,6 +311,37 @@ class PGT(nn.Module):
     def set_input_embeddings(self, new_embeddings):
         self.wte = new_embeddings
 
+    def configure_optimizer(self, Config):
+        decay = set()
+        no_decay = set()
+        whitelist_weight_modules = (torch.nn.Linear, Conv1D)
+        blacklist_weight_modules = (torch.nn.LayerNorm, torch.nn.Embedding)
+        for nm1, p1 in self.named_modules():
+            for nm2, p2 in p1.named_parameters():
+                fpn = '%s.%s' % (nm1, nm2) if nm1 else nm2
+
+                if nm2.endswith('bias'):
+                    no_decay.add(fpn)
+                elif nm2.endswith('weight') and isinstance(p1, whitelist_weight_modules):
+                    decay.add(fpn)
+                elif nm2.endswith('weight') and isinstance(p1, blacklist_weight_modules):
+                    no_decay.add(fpn)
+
+        param_dict = {pn: p for pn, p in self.named_parameters()}
+        inter_params = decay & no_decay
+        union_params = decay | no_decay
+        assert len(inter_params) == 0, "parameters %s made it into both decay/no_decay sets!" % (str(inter_params),)
+        assert len(
+            param_dict.keys() - union_params) == 0, "parameters %s were not separated into either decay/no_decay set!" \
+                                                    % (str(param_dict.keys() - union_params),)
+
+        optim_groups = [
+            {"params": [param_dict[pn] for pn in sorted(list(decay))], "weight_decay": Config.weight_decay},
+            {"params": [param_dict[pn] for pn in sorted(list(no_decay))], "weight_decay": 0.0},
+        ]
+        optimizer = torch.optim.AdamW(optim_groups, lr=Config.lr)
+        return optimizer
+
     def forward(self, inputs: typing.Optional[torch.LongTensor], attention_mask=None, heads_mask=None):
         token_embeddings = self.wte(inputs)
         pos_embeddings = self.wpe(torch.arange(0, inputs.size(-1), dtype=inputs.dtype, device=inputs.device))

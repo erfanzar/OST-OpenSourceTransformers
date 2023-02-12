@@ -1,30 +1,29 @@
-import torch.utils.data
-from erutils.utils import read_yaml, read_json
-from modules.models import PGT
-from utils.utils import create_config
-from erutils.utils import read_json
-from erutils.command_line_interface import fprint
-import time
 import math
+import time
+
+import torch.utils.data
+from erutils.command_line_interface import fprint
+
+from modules.models import PGT
 from utils.utils import DatasetPGT, make2d, save_model, get_config_by_name
 
 if __name__ == "__main__":
-    batch = 4
+    batch = 8
     prp = torch.cuda.get_device_properties("cuda")
     fprint(
         f'DEVICES : {torch.cuda.get_device_name()} | {prp.name} |'
         f' {prp.total_memory / 1e9} GB Memory')
 
-    data_path = 'data/q&a_cleaned.txt'
+    data_path = 'data/data.txt'
     dataset = DatasetPGT(batch_size=batch)
 
-    Config = get_config_by_name('PGT-ss', dataset.vocab_size)
+    Config = get_config_by_name('PGT-As', dataset.vocab_size)
     Config.load = False
 
     Config.data_path = data_path
     dataset.chunk = Config.chunk
 
-    data = open(Config.data_path, 'r').read()
+    data = open(Config.data_path, 'r', encoding="utf8").read()
     dataset.src = data
 
     Config.batch_size = batch
@@ -38,17 +37,19 @@ if __name__ == "__main__":
         model = model.to(Config.device)
         fprint(f'Model Loaded With {sum(p.numel() for p in model.parameters()) / 1e6} Million Parameters')
         criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
-        optimizer = torch.optim.AdamW(model.parameters(), Config.lr)
+        optimizer = model.configure_optimizer(Config)
         optimizer.load_state_dict(loaded['optimizer'])
     else:
         fprint('Creating Model ...')
         model = PGT(config=Config).to('cpu').to(Config.device)
         fprint(f'Model Created With {sum(p.numel() for p in model.parameters()) / 1e6} Million Parameters')
         criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
-        optimizer = torch.optim.AdamW(model.parameters(), Config.lr)
+        # optimizer = torch.optim.AdamW(model.parameters(), Config.lr)
+        optimizer = model.configure_optimizer(Config)
+
 
     total_iterations = dataset.__len__() // Config.batch_size
-    question = dataset.encode('hello how are you ?').to(Config.device)
+    question = dataset.encode('what do you know about dubai').to(Config.device)
     question = question['input_ids'].to(Config.device)
     mxl = math.ceil(dataset.__len__() / Config.batch_size)
     for epoch in range(Config.epochs):
@@ -80,8 +81,8 @@ if __name__ == "__main__":
                        name='model.pt')
             fprint('==> MODEL SAVED SUCCESSFULLY')
             predictions = model.generate(idx=question, eos=dataset.tokenizer.eos_token_id,
+                                         generate=256
                                          # attention_mask=question_mask
                                          )
             fprint(f'QUESTION : {dataset.decode(question)}')
-            fprint(f'ANSWER   : {"Thank IM Doing Fine"}')
             fprint(f'PREDICTION : {dataset.decode(predictions)}')
