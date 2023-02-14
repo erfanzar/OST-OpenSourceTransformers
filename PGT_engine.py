@@ -9,7 +9,7 @@ from utils.utils import DatasetPGT, make2d, save_model, get_config_by_name
 
 if __name__ == "__main__":
     batch = 8
-    percentage = 0.60
+    percentage = 0.3
 
     prp = torch.cuda.get_device_properties("cuda")
     fprint(
@@ -32,9 +32,10 @@ if __name__ == "__main__":
     print(f'SELECTED DATA : {int(use_tvl)}')
     selected_data = data[:int(use_tvl)]
     dataset.src = selected_data
-    dataset.init()
     with open('selected.txt', 'w', encoding='utf8') as wr:
         wr.write(selected_data)
+    dataset.init()
+
     Config.batch_size = batch
     dataloader = torch.utils.data.DataLoader(dataset=dataset, batch_size=Config.batch_size, num_workers=4,
                                              pin_memory=True)
@@ -71,6 +72,8 @@ if __name__ == "__main__":
             loss_avg = 0
             st = time.time()
             for i, (inp, label) in enumerate(dataloader):
+                inp = inp.type(torch.long)
+                label = label.type(torch.long)
                 inp = make2d(inp).to(Config.device)
                 label = make2d(label).to(Config.device)
                 predict = model(inputs=inp)
@@ -88,7 +91,7 @@ if __name__ == "__main__":
                 print()
                 save_model(model=model.state_dict(), optimizer=optimizer.state_dict(), epochs=Config.epochs,
                            epoch=epoch + 1,
-                           name='model.pt')
+                           name='modified_model.pt')
                 fprint('==> MODEL SAVED SUCCESSFULLY')
                 predictions = model.generate(idx=question, eos=dataset.tokenizer.eos_token_id,
                                              generate=256

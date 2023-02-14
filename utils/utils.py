@@ -1,7 +1,7 @@
 import dataclasses
 
-import numba
 import torch
+import tqdm
 from torch.utils.data import Dataset
 from transformers import BertTokenizer
 
@@ -156,7 +156,7 @@ class DatasetPGT(Dataset):
         self.vocab_size = self.tokenizer.vocab_size
         self.src = src
         self.batch_size = batch_size
-        self.data = []
+        self.data = None
         if call_init:
             self.init()
 
@@ -174,12 +174,13 @@ class DatasetPGT(Dataset):
         )
         return enc_trg
 
-    def threading(self, num_threads: int = 4):
-        ...
+    def init(self):
+        start_from: int = 0
+        data_list = torch.tensor([])
+        total = (len(self.src) // self.chunk) - (self.batch_size * 2)
+        loop = tqdm.tqdm(iterable=range(start_from, total))
 
-    @numba.jit(fastmath=True, nopython=False)
-    def init(self, start_from: int = 0, total=(len(self.src) // self.chunk) - (self.batch_size * 2)):
-        for ipa in range(start_from, total):
+        for ipa in loop:
             data = self.tokenizer.encode_plus(
                 text=self.src[self.chunk * (ipa + 1):],
                 add_special_tokens=False,
@@ -188,17 +189,16 @@ class DatasetPGT(Dataset):
                 padding='longest',
                 max_length=self.chunk,
                 truncation=True
-            )
-            data = data['input_ids']
-            x = data[:, 0:-2].type(torch.long)
-            y = data[:, 1:-1].type(torch.long)
-            self.data.append([x, y])
-            print(f'\r\033[1;32m Loading Data [{ipa}/{total}]', end='')
-        print()
+            )['input_ids']
+
+            data_list = torch.cat([data_list, torch.cat([data[:, 0:-2], data[:, 1:-1]], dim=-2).unsqueeze(0)], dim=-3)
+            # print(f'\r\033[1;32m Loading Data [{ipa}/{total}]', end='')
+
+        self.data = data_list
 
     def __getitem__(self, item):
         x, y = self.data[item]
-        return x, y
+        return x.unsqueeze(0), y.unsqueeze(0)
 
     def decode(self, text):
         text = self.tokenizer.decode(text[0], skip_special_tokens=True)
