@@ -3,9 +3,12 @@ import time
 
 import torch.utils.data
 from erutils.command_line_interface import fprint
+import torch
 
 from modules.models import PGT
 from utils.utils import DatasetPGT, make2d, save_model, get_config_by_name
+
+torch.backends.cudnn.benchmark = True
 
 if __name__ == "__main__":
     batch = 8

@@ -284,7 +284,8 @@ class PGT(nn.Module):
         self.model_parallel = False
         self.device_map = None
         self.gradient_checkpointing = False
-        self.pad_token_idx = 0
+        self.config = config
+        self.pad_token_idx = config.pad_token_id
         self.apply(self._init_weights)
 
     def _init_weights(self, module):
@@ -343,6 +344,8 @@ class PGT(nn.Module):
         return optimizer
 
     def forward(self, inputs: typing.Optional[torch.LongTensor], attention_mask=None, heads_mask=None):
+        if self.config.create_attention_mask:
+            attention_mask = self.make_attention_mask(inputs)
         token_embeddings = self.wte(inputs)
         pos_embeddings = self.wpe(torch.arange(0, inputs.size(-1), dtype=inputs.dtype, device=inputs.device))
         hidden = self.drop(token_embeddings + pos_embeddings)
@@ -362,7 +365,7 @@ class PGT(nn.Module):
             pred = F.softmax(pred, dim=-1)
             next_index = torch.multinomial(pred, 1)
             idx = torch.cat([idx, next_index], 1)
-            if next_index == eos:
+            if next_index[0] == eos:
                 break
         return idx
 

@@ -234,6 +234,8 @@ def create_config(
         embd_pdrop: float = 0.1,
         epochs: int = 500,
         lr: float = 4e-4,
+        pad_token_id: int = 0,
+        create_attention_mask: bool = True,
         device: str = 'cuda' if torch.cuda.is_available() else 'cpu',
         weight_decay: float = 2e-1,
         **kwargs
@@ -245,7 +247,8 @@ def create_config(
     max_position_embeddings = max_len
     ttl = ['max_position_embeddings', 'hidden_size',
            'intermediate_size', 'device', 'lr', 'chunk',
-           'embd_pdrop', 'activation', 'epochs',
+           'embd_pdrop', 'activation', 'epochs', 'pad_token_id',
+           'create_attention_mask',
            'residual_dropout', 'attn_dropout', 'weight_decay',
            'use_mask', 'scale_attn_by_layer_idx',
            'num_layers', 'vocab_size',
@@ -274,7 +277,19 @@ def get_config_by_name(name: str = 'PGT-s', vocab_size: int = 5000,
     [chooses] = ['PGT-ss']['PGT-s']['PGT-m']['PGT-x']['PGT-l']['PGT-A']
     :return: Config
     """
-
+    if name == 'PGT-Cs':
+        return create_config(
+            name,
+            num_embedding=256,
+            num_heads=8,
+            epochs=1000,
+            num_layers=6,
+            device=device,
+            vocab_size=vocab_size,
+            chunk=256,
+            lr=4e-4,
+            use_mask=True
+        )
     if name == 'PGT-As':
         return create_config(
             name,
