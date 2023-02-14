@@ -311,7 +311,7 @@ class PGT(nn.Module):
     def set_input_embeddings(self, new_embeddings):
         self.wte = new_embeddings
 
-    def configure_optimizer(self, Config):
+    def configure_optimizer(self, config):
         decay = set()
         no_decay = set()
         whitelist_weight_modules = (torch.nn.Linear, Conv1D)
@@ -336,10 +336,10 @@ class PGT(nn.Module):
                                                     % (str(param_dict.keys() - union_params),)
 
         optim_groups = [
-            {"params": [param_dict[pn] for pn in sorted(list(decay))], "weight_decay": Config.weight_decay},
+            {"params": [param_dict[pn] for pn in sorted(list(decay))], "weight_decay": config.weight_decay},
             {"params": [param_dict[pn] for pn in sorted(list(no_decay))], "weight_decay": 0.0},
         ]
-        optimizer = torch.optim.AdamW(optim_groups, lr=Config.lr)
+        optimizer = torch.optim.AdamW(optim_groups, lr=config.lr)
         return optimizer
 
     def forward(self, inputs: typing.Optional[torch.LongTensor], attention_mask=None, heads_mask=None):

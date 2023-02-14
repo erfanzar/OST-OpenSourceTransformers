@@ -1,5 +1,6 @@
 import dataclasses
 
+import numba
 import torch
 from torch.utils.data import Dataset
 from transformers import BertTokenizer
@@ -148,13 +149,16 @@ class DatasetQA(Dataset):
 
 class DatasetPGT(Dataset):
     def __init__(self, src=None, batch_size: int = 4,
-                 mode: str = "bert-base-uncased", chunk: int = 128):
+                 mode: str = "bert-base-uncased", chunk: int = 128, call_init: bool = False):
         super().__init__()
         self.tokenizer = BertTokenizer.from_pretrained(mode)
         self.chunk = chunk + 2
         self.vocab_size = self.tokenizer.vocab_size
         self.src = src
         self.batch_size = batch_size
+        self.data = []
+        if call_init:
+            self.init()
 
     def __len__(self):
         return (len(self.src) // self.chunk) - (self.batch_size * 2) if self.src is not None else 1
@@ -170,27 +174,30 @@ class DatasetPGT(Dataset):
         )
         return enc_trg
 
+    def threading(self, num_threads: int = 4):
+        ...
+
+    @numba.jit(fastmath=True, nopython=False)
+    def init(self, start_from: int = 0, total=(len(self.src) // self.chunk) - (self.batch_size * 2)):
+        for ipa in range(start_from, total):
+            data = self.tokenizer.encode_plus(
+                text=self.src[self.chunk * (ipa + 1):],
+                add_special_tokens=False,
+                return_attention_mask=True,
+                return_tensors='pt',
+                padding='longest',
+                max_length=self.chunk,
+                truncation=True
+            )
+            data = data['input_ids']
+            x = data[:, 0:-2].type(torch.long)
+            y = data[:, 1:-1].type(torch.long)
+            self.data.append([x, y])
+            print(f'\r\033[1;32m Loading Data [{ipa}/{total}]', end='')
+        print()
+
     def __getitem__(self, item):
-        data = self.tokenizer.encode_plus(
-            text=self.src[self.chunk * (item + 1):],
-            add_special_tokens=False,
-            return_attention_mask=True,
-            return_tensors='pt',
-            padding='longest',
-            max_length=self.chunk,
-            truncation=True
-        )
-        # mask = data['attention_mask']
-        data = data['input_ids']
-
-        x = data[:, 0:-2]
-        # mask = mask[:, 0:-2]
-        y = data[:, 1:-1]
-        x = x.type(torch.long)
-        y = y.type(torch.long)
-
-        # print(
-        #     f'shape x collected : {x.shape} un collected : {data[:, 0:-2].shape} | shape y collected : {y.shape} un collected : {data[:, 1:-1].shape}')
+        x, y = self.data[item]
         return x, y
 
     def decode(self, text):
@@ -228,7 +235,7 @@ def create_config(
         epochs: int = 500,
         lr: float = 4e-4,
         device: str = 'cuda' if torch.cuda.is_available() else 'cpu',
-        weight_decay: float = 0.01,
+        weight_decay: float = 2e-1,
         **kwargs
 
 ):
@@ -271,7 +278,7 @@ def get_config_by_name(name: str = 'PGT-s', vocab_size: int = 5000,
     if name == 'PGT-As':
         return create_config(
             name,
-            num_embedding=768,
+            num_embedding=624,
             num_heads=12,
             epochs=1000,
             num_layers=10,
