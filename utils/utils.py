@@ -150,7 +150,7 @@ class DatasetQA(Dataset):
 
 class DatasetPGT(Dataset):
     def __init__(self, src=None, batch_size: int = 4,
-                 mode: str = "bert-base-uncased", chunk: int = 128, call_init: bool = False,
+                 mode: str = "bert-base-uncased", chunk: int = 128, call_init: bool = True,
                  pt_data: bool = True):
         super().__init__()
         self.tokenizer = BertTokenizer.from_pretrained(mode)
@@ -161,10 +161,14 @@ class DatasetPGT(Dataset):
         self.pt_data = pt_data
         self.data = None
         if call_init:
-            self.init()
+            if pt_data:
+                self.init_pt(self.src)
+            else:
+                self.init()
 
     def __len__(self):
-        return (len(self.src) // self.chunk) - (self.batch_size * 2) if self.src is not None else 1
+        return ((len(self.src) // self.chunk) - (
+                    self.batch_size * 2) if self.src is not None else 1) if not self.pt_data else self.data.shape[0]
 
     @staticmethod
     def load_pt(path: [str, os.PathLike]):

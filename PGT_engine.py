@@ -17,7 +17,7 @@ if __name__ == "__main__":
         f' {prp.total_memory / 1e9} GB Memory')
 
     data_path = ['data/Data-part-1.pt', 'data/Data-part-2.pt']
-    dataset = DatasetPGT(batch_size=batch, pt_data=True)
+    dataset = DatasetPGT(batch_size=batch, pt_data=True, src=data_path)
 
     Config = get_config_by_name('PGT-As', dataset.vocab_size)
     Config.load = False
@@ -38,8 +38,6 @@ if __name__ == "__main__":
         fprint(f'Model Loaded With {sum(p.numel() for p in model.parameters()) / 1e6} Million Parameters')
         criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         optimizer = model.configure_optimizer(Config)
-        # optimizer = torch.optim.AdamW(model.parameters(), Config.lr)
-        # optimizer = model.configure_optimizer(Config)
         optimizer.load_state_dict(loaded['optimizer'])
     else:
         fprint('Creating Model ...')
@@ -47,11 +45,11 @@ if __name__ == "__main__":
         fprint(f'Model Created With {sum(p.numel() for p in model.parameters()) / 1e6} Million Parameters')
         criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         optimizer = model.configure_optimizer(Config)
-        # optimizer = torch.optim.AdamW(model.parameters(), Config.lr)
+
     model = torch.compile(model)
 
     total_iterations = dataset.__len__() // Config.batch_size
-    question = dataset.encode('what do you know about dubai').to(Config.device)
+    question = dataset.encode('did see watch the show last night ?').to(Config.device)
     question = question['input_ids'].to(Config.device)
     mxl = math.ceil(dataset.__len__() / Config.batch_size)
     print('TRAINING IS ABOUT TO START')
@@ -93,6 +91,8 @@ if __name__ == "__main__":
                 loss_avg = 0
                 st = time.time()
                 for i, (inp, label) in enumerate(dataloader):
+                    inp = inp.type(torch.long)
+                    label = label.type(torch.long)
                     inp = make2d(inp).to(Config.device)
                     label = make2d(label).to(Config.device)
                     predict = model(inputs=inp)

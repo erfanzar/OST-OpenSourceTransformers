@@ -403,14 +403,14 @@ class Conv1D(nn.Module):
 
 
 class MultiCNNAttention(nn.Module):
-    def __init__(self, config, layer_idx=None):
+    def __init__(self, config, layer_idx=None, use_mask: bool = None):
         super(MultiCNNAttention, self).__init__()
         self.layer_idx = layer_idx
         self.embedding = config.hidden_size
         self.num_heads = config.num_heads
         self.num_div = self.embedding // self.num_heads
         self.scale_attn_by_layer_idx = config.scale_attn_by_layer_idx
-        self.use_mask = config.use_mask
+        self.use_mask = config.use_mask if use_mask is None else use_mask
         if self.num_heads // self.embedding != 0:
             raise ValueError(
                 f'hidden_size must be dividable to num_heads {self.num_heads} // {self.embedding} = {self.num_heads // self.embedding}'
@@ -494,7 +494,7 @@ class PGTBlock(nn.Module):
         self.ln2 = nn.LayerNorm(config.hidden_size)
         self.ln3 = nn.LayerNorm(config.hidden_size)
         self.h_1 = MultiCNNAttention(config=config, layer_idx=layer_idx_1)
-        self.h_2 = MultiCNNAttention(config=config, layer_idx=layer_idx_2)
+        self.h_2 = MultiCNNAttention(config=config, layer_idx=layer_idx_2, use_mask=False)
         self.mlp = PGTMLP(config)
 
     def forward(self, hidden_state, attention_mask=None, heads_mask=None):
