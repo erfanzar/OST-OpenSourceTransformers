@@ -1,4 +1,5 @@
 import dataclasses
+import os
 
 import torch
 import tqdm
@@ -149,19 +150,30 @@ class DatasetQA(Dataset):
 
 class DatasetPGT(Dataset):
     def __init__(self, src=None, batch_size: int = 4,
-                 mode: str = "bert-base-uncased", chunk: int = 128, call_init: bool = False):
+                 mode: str = "bert-base-uncased", chunk: int = 128, call_init: bool = False,
+                 pt_data: bool = True):
         super().__init__()
         self.tokenizer = BertTokenizer.from_pretrained(mode)
         self.chunk = chunk + 2
         self.vocab_size = self.tokenizer.vocab_size
         self.src = src
         self.batch_size = batch_size
+        self.pt_data = pt_data
         self.data = None
         if call_init:
             self.init()
 
     def __len__(self):
         return (len(self.src) // self.chunk) - (self.batch_size * 2) if self.src is not None else 1
+
+    @staticmethod
+    def load_pt(path: [str, os.PathLike]):
+        data = torch.load(path)
+        return data
+
+    def init_pt(self, path: list[[str, os.PathLike]]):
+        data = torch.cat([torch.load(p) for p in path], dim=0)
+        self.data = data
 
     def encode(self, text):
         enc_trg = self.tokenizer.encode_plus(
@@ -175,26 +187,30 @@ class DatasetPGT(Dataset):
         return enc_trg
 
     def init(self):
-        start_from: int = 0
-        data_list = torch.tensor([])
-        total = (len(self.src) // self.chunk) - (self.batch_size * 2)
-        loop = tqdm.tqdm(iterable=range(start_from, total))
+        if not self.pt_data:
+            start_from: int = 0
+            data_list = torch.tensor([])
+            total = (len(self.src) // self.chunk) - (self.batch_size * 2)
+            loop = tqdm.tqdm(iterable=range(start_from, total))
 
-        for ipa in loop:
-            data = self.tokenizer.encode_plus(
-                text=self.src[self.chunk * (ipa + 1):],
-                add_special_tokens=False,
-                return_attention_mask=True,
-                return_tensors='pt',
-                padding='longest',
-                max_length=self.chunk,
-                truncation=True
-            )['input_ids']
+            for ipa in loop:
+                data = self.tokenizer.encode_plus(
+                    text=self.src[self.chunk * (ipa + 1):],
+                    add_special_tokens=False,
+                    return_attention_mask=True,
+                    return_tensors='pt',
+                    padding='longest',
+                    max_length=self.chunk,
+                    truncation=True
+                )['input_ids']
 
-            data_list = torch.cat([data_list, torch.cat([data[:, 0:-2], data[:, 1:-1]], dim=-2).unsqueeze(0)], dim=-3)
-            # print(f'\r\033[1;32m Loading Data [{ipa}/{total}]', end='')
+                data_list = torch.cat([data_list, torch.cat([data[:, 0:-2], data[:, 1:-1]], dim=-2).unsqueeze(0)],
+                                      dim=-3)
+                # print(f'\r\033[1;32m Loading Data [{ipa}/{total}]', end='')
 
-        self.data = data_list
+            self.data = data_list
+        else:
+            raise ValueError('You can\'t use init model when your data type is pt')
 
     def __getitem__(self, item):
         x, y = self.data[item]
