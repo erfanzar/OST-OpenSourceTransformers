@@ -28,7 +28,7 @@ def txt_2_pt(percentage: float = 0.5, data_path: typing.Union[os.PathLike, str] 
     with open('selected.txt', 'w', encoding='utf8') as wr:
         wr.write(selected_data)
     dataset.init()
-    torch.save(dataset.data, 'Data-part-2.pt')
+    torch.save(dataset.data, '../data/Data-part-2.pt')
     print('Saved Successfully')
 
 
