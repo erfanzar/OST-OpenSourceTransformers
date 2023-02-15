@@ -2,7 +2,7 @@ import os
 import typing
 
 import torch
-from erutils.command_line_interface import fprint
+from erutils.loggers import fprint
 
 from utils import DatasetPGT, get_config_by_name
 

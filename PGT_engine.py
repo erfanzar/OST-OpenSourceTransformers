@@ -2,7 +2,7 @@ import math
 import time
 
 import torch.utils.data
-from erutils.command_line_interface import fprint
+from erutils.loggers import fprint
 
 from modules.models import PGT
 from utils.utils import DatasetPGT, make2d, save_model, get_config_by_name
@@ -10,7 +10,7 @@ from utils.utils import DatasetPGT, make2d, save_model, get_config_by_name
 torch.backends.cudnn.benchmark = True
 
 if __name__ == "__main__":
-    batch = 8
+    batch = 2
     prp = torch.cuda.get_device_properties("cuda")
     fprint(
         f'DEVICES : {torch.cuda.get_device_name()} | {prp.name} |'
@@ -118,5 +118,3 @@ if __name__ == "__main__":
                                                  )
                     fprint(f'QUESTION : {dataset.decode(question)}')
                     fprint(f'PREDICTION : {dataset.decode(predictions)}')
-
-

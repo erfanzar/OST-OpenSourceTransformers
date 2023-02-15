@@ -3,7 +3,7 @@ import typing
 
 import torch
 from erutils.utils import read_yaml
-from erutils.command_line_interface import fprint
+from erutils.loggers import fprint
 import os
 from modules.models import PTTMultiHeadAttention
 

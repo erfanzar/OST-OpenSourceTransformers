@@ -2,7 +2,7 @@ import os
 import typing
 
 import torch
-from erutils.command_line_interface import fprint
+from erutils.loggers import fprint
 from erutils.utils import read_yaml
 
 from utils.utils import save_model,GB

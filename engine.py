@@ -3,7 +3,7 @@ import torch.cuda
 from core.train import train
 
 try:
-    from erutils.command_line_interface import fprint
+    from erutils.loggers import fprint
 except:
     print('Downloading Missing Module [Erutils]')
     import subprocess
@@ -11,7 +11,7 @@ except:
 
     path = sys.executable
     subprocess.run(f'{path} -m pip install erutils')
-    from erutils.command_line_interface import fprint
+    from erutils.loggers import fprint
 import argparse
 
 pars = argparse.ArgumentParser()
