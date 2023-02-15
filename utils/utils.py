@@ -362,4 +362,4 @@ def get_config_by_name(name: str = 'PGT-s', vocab_size: int = 5000,
         )
     else:
         raise NameError(
-            f"Valid Names for Model are ['PGT-s']['PGT-m']['PGT-x']['PGT-l']['PGT-A'] | [ERROR : Unknown {name} type]")
+            f"Valid Names for Model are ['PGT-Cs']['PGT-As']['PGT-s']['PGT-m']['PGT-x']['PGT-l']['PGT-A'] | [ERROR : Unknown {name} type]")
