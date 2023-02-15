@@ -490,23 +490,35 @@ class PGTMLP(nn.Module):
 class PGTBlock(nn.Module):
     def __init__(self, config, layer_idx_1=None, layer_idx_2=None):
         super(PGTBlock, self).__init__()
+        # self.ln1 = nn.LayerNorm(config.hidden_size)
+        # self.ln2 = nn.LayerNorm(config.hidden_size)
+        # self.ln3 = nn.LayerNorm(config.hidden_size)
+        # self.h_1 = MultiCNNAttention(config=config, layer_idx=layer_idx_1)
+        # self.h_2 = MultiCNNAttention(config=config, layer_idx=layer_idx_2, use_mask=False)
+        # self.mlp = PGTMLP(config)
         self.ln1 = nn.LayerNorm(config.hidden_size)
         self.ln2 = nn.LayerNorm(config.hidden_size)
-        self.ln3 = nn.LayerNorm(config.hidden_size)
         self.h_1 = MultiCNNAttention(config=config, layer_idx=layer_idx_1)
-        self.h_2 = MultiCNNAttention(config=config, layer_idx=layer_idx_2, use_mask=False)
         self.mlp = PGTMLP(config)
 
     def forward(self, hidden_state, attention_mask=None, heads_mask=None):
+        # residual = hidden_state
+        # hidden_state = self.ln1(hidden_state)
+        # hidden_state = self.h_1(hidden_state, attention_mask, heads_mask) + residual
+        #
+        # residual = hidden_state
+        # hidden_state = self.ln2(hidden_state)
+        # hidden_state = self.h_2(hidden_state, attention_mask, heads_mask) + residual
+        #
+        # residual = hidden_state
+        # hidden_state = self.ln3(hidden_state)
+        # hidden_state = self.mlp(hidden_state) + residual
+        # return hidden_state
         residual = hidden_state
         hidden_state = self.ln1(hidden_state)
         hidden_state = self.h_1(hidden_state, attention_mask, heads_mask) + residual
 
         residual = hidden_state
         hidden_state = self.ln2(hidden_state)
-        hidden_state = self.h_2(hidden_state, attention_mask, heads_mask) + residual
-
-        residual = hidden_state
-        hidden_state = self.ln3(hidden_state)
         hidden_state = self.mlp(hidden_state) + residual
         return hidden_state

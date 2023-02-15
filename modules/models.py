@@ -276,8 +276,10 @@ class PGT(nn.Module):
         self.wpe = nn.Embedding(config.max_position_embeddings, self.embed_dim)
         self.max_position_embeddings = config.max_position_embeddings
         self.drop = nn.Dropout(config.embd_pdrop)
+        # self.h = nn.ModuleList(
+        #     [PGTBlock(config, layer_idx_1=i, layer_idx_2=i + 1) for i in range(0, config.num_layers * 2, 2)])
         self.h = nn.ModuleList(
-            [PGTBlock(config, layer_idx_1=i, layer_idx_2=i + 1) for i in range(0, config.num_layers * 2, 2)])
+            [PGTBlock(config, layer_idx_1=i) for i in range(config.num_layers)])
         self.ln_f = nn.LayerNorm(self.embed_dim)
         # self.fc = Conv1D(self.embed_dim, config.vocab_size)
         self.fc = nn.Linear(self.embed_dim, config.vocab_size)

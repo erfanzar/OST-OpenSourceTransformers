@@ -168,7 +168,7 @@ class DatasetPGT(Dataset):
 
     def __len__(self):
         return ((len(self.src) // self.chunk) - (
-                    self.batch_size * 2) if self.src is not None else 1) if not self.pt_data else self.data.shape[0]
+                self.batch_size * 2) if self.src is not None else 1) if not self.pt_data else self.data.shape[0]
 
     @staticmethod
     def load_pt(path: [str, os.PathLike]):
@@ -288,7 +288,7 @@ def make2d(tensor):
     return tensor.view(-1, tensor.size(-1))
 
 
-def get_config_by_name(name: str = 'PGT-s', vocab_size: int = 5000,
+def get_config_by_name(name: str, vocab_size: int = 5000,
                        device: str = 'cuda' if torch.cuda.is_available() else 'cpu') -> create_config:
     """
     :param device: device for model
@@ -300,13 +300,13 @@ def get_config_by_name(name: str = 'PGT-s', vocab_size: int = 5000,
     if name == 'PGT-Cs':
         return create_config(
             name,
-            num_embedding=256,
-            num_heads=8,
+            num_embedding=360,
+            num_heads=10,
             epochs=1000,
-            num_layers=6,
+            num_layers=14,
             device=device,
             vocab_size=vocab_size,
-            chunk=256,
+            chunk=128,
             lr=4e-4,
             use_mask=True
         )
@@ -357,14 +357,17 @@ def get_config_by_name(name: str = 'PGT-s', vocab_size: int = 5000,
             use_mask=True
         )
     elif name == 'PGT-l':
+
         return create_config(
             name,
             num_embedding=728,
             num_heads=14,
             num_layers=20,
+            epochs=1000,
             device=device,
             vocab_size=vocab_size,
-            chunk=512,
+            chunk=128,
+            lr=4e-4,
             use_mask=True
         )
     elif name == 'PGT-A':
@@ -374,10 +377,12 @@ def get_config_by_name(name: str = 'PGT-s', vocab_size: int = 5000,
             name,
             num_embedding=1024,
             num_heads=32,
-            num_layers=42,
+            num_layers=48,
+            epochs=1000,
             device=device,
             vocab_size=vocab_size,
-            chunk=728,
+            chunk=128,
+            lr=4e-4,
             use_mask=True
         )
     else:
