@@ -255,7 +255,7 @@ def create_config(
         epochs: int = 500,
         lr: float = 4e-4,
         pad_token_id: int = 0,
-        create_attention_mask: bool = True,
+        create_attention_mask: bool = False,
         device: str = 'cuda' if torch.cuda.is_available() else 'cpu',
         weight_decay: float = 2e-1,
         **kwargs
@@ -303,11 +303,11 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             num_embedding=360,
             num_heads=10,
             epochs=1000,
-            num_layers=14,
+            num_layers=8,
             device=device,
             vocab_size=vocab_size,
             chunk=128,
-            lr=4e-4,
+            lr=3e-4,
             use_mask=True
         )
     if name == 'PGT-As':

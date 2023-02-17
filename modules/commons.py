@@ -23,7 +23,7 @@ except:
 import math
 
 __all__ = ['MultiHeadBlock', 'MultiHeadAttention', 'Head', 'FeedForward', 'Decoder', 'Encoder', 'CasualBlock',
-           'PGTBlock', 'Conv1D']
+           'PGTBlock', 'Conv1D', 'CC_PGT_Block']
 
 
 @torch.jit.script  # good to enable when not using torch.compile, disable when using (our default)
@@ -396,9 +396,9 @@ class Conv1D(nn.Module):
 
     def forward(self, x):
         new_shape = x.size()[:-1] + (self.c2,)
-        # print(f'income : {x.shape}')
+
         x = torch.addmm(self.bias, x.view(-1, x.size(-1)), self.weight).view(new_shape)
-        # print(f'output : {x.shape}')
+
         return x
 
 
@@ -522,3 +522,16 @@ class PGTBlock(nn.Module):
         hidden_state = self.ln2(hidden_state)
         hidden_state = self.mlp(hidden_state) + residual
         return hidden_state
+
+
+class CC_PGT_Block(nn.Module):
+    def __init__(self, config, layer_idx: int = None):
+        super(CC_PGT_Block, self).__init__()
+        self.ln1 = nn.LayerNorm(config.hidden_size)
+        self.ln2 = nn.LayerNorm(config.hidden_size)
+        self.h = MultiCNNAttention(config=config, layer_idx=layer_idx)
+        self.mlp = PGTMLP(config=config)
+
+    def forward(self, hidden_state, attention_mask=None, heads_mask=None):
+        return self.mlp(self.ln2(hidden_state)) + self.h(
+            self.ln1(hidden_state), attention_mask=attention_mask)
