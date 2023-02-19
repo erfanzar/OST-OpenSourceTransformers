@@ -1,285 +1,83 @@
-import math
-from dataclasses import dataclass
-
 import torch
 import torch.nn as nn
-from torch.nn import functional as F
+from transformers import T5Model
 
-
-# from torch.
-
-
-class LayerNorm(nn.Module):
-    """ LayerNorm but with an optional bias. PyTorch doesn't support simply bias=False """
-
-    def __init__(self, ndim, bias=None):
-        super().__init__()
-        self.weight = nn.Parameter(torch.ones(ndim))
-        self.bias = nn.Parameter(torch.zeros(ndim)) if bias else None
-
-    def forward(self, input):
-        return F.layer_norm(input, self.weight.shape, self.weight, self.bias, 1e-5)
-
-
-@dataclass
-class Conf:
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    Dropout = 0.2
-
-
-class Embedding(nn.Module):
-    def __init__(self, vocab_size: int, embedded: int):
-        super(Embedding, self).__init__()
-        self.m = nn.Embedding(vocab_size, embedded)
+class Conv1D(nn.Module):
+    def __init__(self, c1, c2):
+        super(Conv1D, self).__init__()
+        w = torch.empty(c1, c2)
+        torch.nn.init.normal_(w, std=0.02)
+        self.c2 = c2
+        self.weight = nn.Parameter(w)
+        self.bias = nn.Parameter(torch.zeros(c2))
 
     def forward(self, x):
-        return self.m(x)
+        out_shape = x.size()[:-1] + (self.c2,)
+        return torch.addmm(self.bias, x.view(-1, x.size(-1)), self.weight).reshape(out_shape)
 
 
-class PositionalEncoding(nn.Module):
-    def __init__(self, max_length: int, embedded: int):
-        super(PositionalEncoding, self).__init__()
-        tensor = torch.zeros((max_length, embedded))
-        self.embedded = embedded
-        for pos in range(max_length):
-            for i in range(0, embedded, 2):
-                tensor[pos, i] = math.sin(pos / (10_000 ** ((2 * i) / embedded)))
-                tensor[pos, i + 1] = math.cos(pos / (10_000 ** ((2 * (i + 1)) / embedded)))
-        self.register_buffer('tensor', tensor)
+class Attention(nn.Module):
+    def __init__(self, config, layer_idx=None):
+        super(Attention, self).__init__()
+        self.hidden_size = config.hidden_size
+        self.layer_idx = layer_idx
+        self.scale_by_index = config.scale_attn_by_layer_idx
+        self.num_heads = config.num_heads
+        self.num_div = self.hidden_size // self.num_heads
+        assert self.hidden_size % config.num_heads == 0
+        self.c_attn = Conv1D(self.hidden_size, self.hidden_size * 3)
+        self.c_proj = Conv1D(self.hidden_size, self.hidden_size)
+        self.drop_out_attn = nn.Dropout(config.attn_dropout)
+        self.drop_out_residual = nn.Dropout(config.residual_dropout)
+        self.use_mask = config.use_mask
+        self.register_buffer('mask',
+                             torch.tril(
+                                 torch.ones(config.max_position_embeddings, config.max_position_embeddings))
+                             .view(1, 1,
+                                   config.max_position_embeddings,
+                                   config.max_position_embeddings))
 
-    def forward(self, x):
-        x = x * math.sqrt(self.embedded)
-        # print(x.shape)
-        # print(self.tensor.shape)
-        max_length = x.size(1)
-        x = x + torch.autograd.Variable(self.tensor[:max_length, :], requires_grad=False)
-        return x
+    def split_heads(self, tensor: torch.Tensor):
+        new_shape = tensor.size()[:-1] + (self.num_heads, self.num_div)
+        return tensor.reshape(new_shape).permute(0, 2, 1, 3)
 
+    def merge_heads(self, tensor: torch.Tensor):
+        tensor = tensor.permute(0, 2, 1, 3)
+        new_shape = tensor.size()[:-2] + (self.num_heads * self.num_div,)
+        return tensor.reshape(new_shape)
 
-class SelfAttention(nn.Module):
-    def __init__(self, embedded: int, number_of_heads: int):
-        super(SelfAttention, self).__init__()
-        c = embedded // number_of_heads
-        assert (c * number_of_heads == embedded)
-        self.c = c
-        self.embedded = embedded
-        self.number_of_heads = number_of_heads
-        self.key = nn.Linear(embedded, embedded, bias=False)
-        self.queries = nn.Linear(embedded, embedded, bias=False)
-        self.value = nn.Linear(embedded, embedded, bias=False)
-        self.fc = nn.Linear(embedded, embedded)
-        self.dp = nn.Dropout()
+    def attn(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, attention_mask=None, head_mask=None):
+        attn_weight = torch.matmul(query, key.transpose(-2, -1))
+        attn_weight = attn_weight / torch.full([], value.size(-1) ** 0.5, dtype=attn_weight.dtype,
+                                               device=attn_weight.device)
+        if self.scale_by_index:
+            attn_weight /= self.layer_idx
 
-    def forward(self, k, q, v, mask=None):
-        shape_s = k.shape
-        b = k.shape[0]
-        k = self.key(k)
-        q = self.queries(q)
-        v = self.value(v)
+        if self.use_mask:
+            key_len, query_len = key.size(-2), value.size(-2)
+            masked = self.mask[:, :, key_len - query_len:query_len, :key_len].to(attn_weight.device)
+            attn_weight = attn_weight.masked_fill(masked == 0, float('-inf'))
 
-        k = k.view(b, -1, self.number_of_heads, self.c).transpose(1, 2)
-        q = q.view(b, -1, self.number_of_heads, self.c).transpose(1, 2)
-        v = v.view(b, -1, self.number_of_heads, self.c).transpose(1, 2)
+        if attention_mask is not None:
+            if len(attention_mask.shape) == 2:
+                attention_mask = attention_mask[:, None, None, :]
+            attn_weight = attn_weight + attention_mask
 
-        attn = q @ k.transpose(-2, -1) * (math.sqrt(self.c))
+        attn_weight = nn.functional.softmax(attn_weight, dim=-1)
+        attn_weight = self.drop_out_attn(attn_weight)
+        attn_weight = attn_weight.type(value.dtype)
 
-        attn = attn.masked_fill(mask == 0, float('-inf'))
-        attn = F.softmax(attn, dim=-1)
+        if head_mask is not None:
+            attn_weight = attn_weight * head_mask
+        attn_weight = torch.matmul(attn_weight, value)
+        return attn_weight
 
-        attn = self.dp(attn)
-
-        attn = attn @ v
-
-        attn = attn.transpose(1, 2).contiguous().view(shape_s)
-        return self.fc(attn)
-
-
-class FeedForward(nn.Module):
-    def __init__(self, embedded: int):
-        super(FeedForward, self).__init__()
-        self.m = nn.Sequential(
-            nn.Linear(embedded, embedded * 4),
-            nn.ReLU(),
-            nn.Dropout(Conf.Dropout),
-            nn.Linear(4 * embedded, embedded)
-        )
-
-    def forward(self, x):
-        return self.m(x)
+    def forward(self, hidden_state, attention_mask=None, head_mask=None):
+        query, key, value = self.c_attn(hidden_state).split(self.hidden_size, 2)
+        query = self.split_heads(query)
+        key = self.split_heads(key)
+        value = self.split_heads(value)
+        attn = self.attn(query=query, key=key, value=value, attention_mask=attention_mask, head_mask=head_mask)
+        return self.drop_out_residual(self.c_proj(self.merge_heads(attn)))
 
 
-class EncoderLayer(nn.Module):
-    def __init__(self, embedded: int, number_of_heads: int):
-        super(EncoderLayer, self).__init__()
-        self.ln1 = LayerNorm(embedded)
-        self.attn = SelfAttention(embedded, number_of_heads)
-        self.ln2 = LayerNorm(embedded)
-        self.dp1 = nn.Dropout(Conf.Dropout)
-        self.dp2 = nn.Dropout(Conf.Dropout)
-        self.ff = FeedForward(embedded)
-
-    def forward(self, x, src_mask):
-        xl = self.ln1(x)
-        # print('-' * 15)
-        # print(f"SRC : {src_mask.shape}")
-        # print(f'ENCODER  : {xl.shape}')
-        # print('-' * 15)
-        ka = self.dp1(self.attn(xl, xl, xl, src_mask))
-        # print(f'KA DIM : {ka.shape}')
-        x = ka + x
-        xl = self.ln2(x)
-        x = self.dp2(self.ff(xl)) + x
-        return x
-
-
-class Encoder(nn.Module):
-    def __init__(self, vocab_size: int, max_length: int, embedded: int, number_of_heads: int, number_of_layers: int):
-        super(Encoder, self).__init__()
-        self.embedded = embedded
-        self.number_of_layers = number_of_layers
-        self.number_of_heads = number_of_heads
-
-        self.layers = nn.ModuleList([EncoderLayer(embedded, number_of_heads) for _ in range(number_of_layers)])
-
-        self.token = Embedding(vocab_size, embedded)
-        self.position = PositionalEncoding(max_length, embedded)
-        self.ln = LayerNorm(embedded)
-
-    def forward(self, x, src_mask):
-        # print('-' * 20)
-        # print(f'INPUT TO DECODER : {x.shape}')
-        x = self.position(self.token(x))
-        # print(f'TOKENS : {x.shape}')
-        # print('-' * 20)
-        for i, m in enumerate(self.layers):
-            # print(f'RUNNING ENCODER {i} : {x.shape}')
-            x = m(x, src_mask)
-        return self.ln(x)
-
-
-class DecoderLayer(nn.Module):
-    def __init__(self, embedded: int, number_of_heads: int):
-        super(DecoderLayer, self).__init__()
-        self.ln1 = LayerNorm(embedded)
-        self.ln2 = LayerNorm(embedded)
-        self.ln3 = LayerNorm(embedded)
-
-        self.attn1 = SelfAttention(embedded, number_of_heads)
-        self.attn2 = SelfAttention(embedded, number_of_heads)
-
-        self.dp1 = nn.Dropout(Conf.Dropout)
-        self.dp2 = nn.Dropout(Conf.Dropout)
-        self.dp3 = nn.Dropout(Conf.Dropout)
-        self.ff = FeedForward(embedded)
-
-    def forward(self, x, enc_out, src_mask, trg_mask):
-        lx = self.ln1(x)
-        # print(f"SRC : {src_mask.shape}")
-        # print(f'TRG : {trg_mask.shape}')
-        # print(f'LX  : {lx.shape}')
-        # print(f'ENC : {enc_out.shape}')
-        x = self.dp1(self.attn1(lx, lx, lx, src_mask)) + x
-        lx = self.ln2(x)
-        x = self.dp2(self.attn2(lx, enc_out, enc_out, trg_mask)) + x
-        lx = self.ln3(x)
-        x = self.dp3(self.ff(lx)) + x
-        return x
-
-
-class Decoder(nn.Module):
-    def __init__(self, vocab_size: int, max_length: int, embedded: int, number_of_heads: int, number_of_layers: int):
-        super(Decoder, self).__init__()
-        self.embedded = embedded
-        self.number_of_layers = number_of_layers
-        self.number_of_heads = number_of_heads
-
-        self.layers = nn.ModuleList([DecoderLayer(embedded, number_of_heads) for _ in range(number_of_layers)])
-
-        self.token = Embedding(vocab_size, embedded)
-        self.position = PositionalEncoding(max_length, embedded)
-        self.ln = LayerNorm(embedded)
-
-    def forward(self, x, enc_out, src_mask, trg_mask):
-        # print('-' * 20)
-        # print(f'INPUT TO ENCODER : {x.shape}')
-        x = self.position(self.token(x))
-        # print(f'TOKENS : {x.shape}')
-        for m in self.layers:
-            x = m(x, enc_out, src_mask, trg_mask)
-        return self.ln(x)
-
-
-class PTT(nn.Module):
-    def __init__(self, vocab_size: int, max_length: int, embedded: int, number_of_heads: int, number_of_layers: int,
-                 pad_index: int):
-        super(PTT, self).__init__()
-        self.enc = Encoder(vocab_size, max_length, embedded, number_of_heads, number_of_layers)
-        self.dec = Decoder(vocab_size, max_length, embedded, number_of_heads, number_of_layers)
-        self.fc = nn.Linear(embedded, vocab_size)
-        self.pad_index = pad_index
-
-    def forward_encoder(self, x, enc_out, src_mask, trg_mask):
-        return self.dec(x, enc_out, src_mask, trg_mask)
-
-    def forward_decoder(self, x, src_mask):
-        return self.enc(x, src_mask)
-
-    def make_mask_src(self, x):
-        c = (x != self.pad_index).unsqueeze(0)
-        c = c.float().masked_fill(c == 0, float('-inf')).masked_fill(c == 1, float(0.0))
-        return c.to(x.device)
-
-    def make_mask_trg(self, trg):
-        trg_pad_mask = (trg != self.pad_index).unsqueeze(1)
-
-        trg_len = trg.shape[1]
-
-        trg_sub_mask = torch.tril(torch.ones((trg_len, trg_len), device=trg.device)).bool()
-
-        trg_mask = trg_pad_mask & trg_sub_mask
-
-        return trg_mask.to(trg.device)
-
-    def forward(self, src, trg, src_mask=None, trg_mask=None):
-        if trg_mask is None:
-            trg_mask = self.make_mask_trg(trg)
-        if src_mask is None:
-            src_mask = self.make_mask_src(src)
-        # x, src_mask
-        # print(f'SRC : {src.shape}')
-        enc = self.enc(src, src_mask)
-        # x, enc_out, src_mask, trg_mask
-        dec = self.dec(trg, enc, src_mask, trg_mask)
-        pred = self.fc(dec)
-        return pred
-
-
-class PTTGenerative(nn.Module):
-    def __init__(self, vocab_size: int, max_length: int, embedded: int, number_of_heads: int, number_of_layers: int,
-                 pad_index: int):
-        super(PTTGenerative, self).__init__()
-        self.enc = Encoder(vocab_size, max_length, embedded, number_of_heads, number_of_layers)
-        # self.dec = Decoder(vocab_size, max_length, embedded, number_of_heads, number_of_layers)
-        self.fc = nn.Linear(embedded, vocab_size)
-        self.pad_index = pad_index
-
-    def forward_encoder(self, x, src_mask):
-        return self.dec(x, src_mask)
-
-    def make_mask(self, src):
-        src_pad_mask = (src != self.pad_index).unsqueeze(1).unsqueeze(2)
-
-        src_len = src.shape[1]
-
-        src_sub_mask = torch.tril(torch.ones((src_len, src_len), device=src.device)).bool()
-
-        src_mask = src_pad_mask & src_sub_mask
-
-        return src_mask.to(src.device)
-
-    def forward(self, src, src_mask=None):
-        if src_mask is None:
-            src_mask = self.make_mask_src(src)
-        enc = self.enc(src, src_mask)
-        pred = self.fc(enc)
-        return pred

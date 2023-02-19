@@ -19,7 +19,7 @@ if __name__ == "__main__":
     data_path = ['data/Data-part-1.pt', 'data/Data-part-2.pt']
     dataset = DatasetPGT(batch_size=batch, pt_data=True, src=data_path)
 
-    Config = get_config_by_name('PGT-Cs', dataset.vocab_size)
+    Config = get_config_by_name('PGT-As', dataset.vocab_size)
     Config.load = False
     Config.train = True
     Config.data_path = data_path
@@ -28,7 +28,12 @@ if __name__ == "__main__":
     Config.batch_size = batch
     dataloader = torch.utils.data.DataLoader(dataset=dataset, batch_size=Config.batch_size, num_workers=4,
                                              pin_memory=True)
-
+    fprint('Loaded Configs :: =>')
+    for d in Config.__dict__:
+        try:
+            print('{:<25} : {:>25}'.format(d, Config.__dict__[d]))
+        except:
+            pass
     if Config.load:
         fprint('Loading Model ...')
         model = PGT(config=Config).to('cpu')
