@@ -16,7 +16,7 @@ if __name__ == "__main__":
         f'DEVICES : {torch.cuda.get_device_name()} | {prp.name} |'
         f' {prp.total_memory / 1e9} GB Memory')
 
-    data_path = ['data/Data-part-1.pt', 'data/Data-part-2.pt']
+    data_path = ['data/Data_1.pt']
     dataset = DatasetPGT(batch_size=batch, pt_data=True, src=data_path)
 
     Config = get_config_by_name('PGT-As', dataset.vocab_size)

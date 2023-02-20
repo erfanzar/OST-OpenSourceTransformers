@@ -183,6 +183,7 @@ class DatasetPGT(Dataset):
         enc_trg = self.tokenizer.encode_plus(
             text=text,
             max_length=self.chunk,
+            padding='do_not_pad',
             add_special_tokens=True,
             return_attention_mask=True,
             return_tensors='pt',
@@ -306,7 +307,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             num_layers=8,
             device=device,
             vocab_size=vocab_size,
-            chunk=128,
+            chunk=184,
             lr=3e-4,
             use_mask=True
         )
@@ -319,7 +320,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             num_layers=10,
             device=device,
             vocab_size=vocab_size,
-            chunk=128,
+            chunk=184,
             lr=4e-4,
             use_mask=True
         )
@@ -342,7 +343,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             num_layers=8,
             device=device,
             vocab_size=vocab_size,
-            chunk=128,
+            chunk=184,
             use_mask=True
         )
     elif name == 'PGT-x':
@@ -366,7 +367,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             epochs=1000,
             device=device,
             vocab_size=vocab_size,
-            chunk=128,
+            chunk=184,
             lr=4e-4,
             use_mask=True
         )
@@ -381,7 +382,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             epochs=1000,
             device=device,
             vocab_size=vocab_size,
-            chunk=128,
+            chunk=184,
             lr=4e-4,
             use_mask=True
         )
