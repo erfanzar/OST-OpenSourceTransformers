@@ -4,7 +4,7 @@ import os
 import torch
 import tqdm
 from torch.utils.data import Dataset
-from transformers import BertTokenizer
+from transformers import BertTokenizer, GPT2Tokenizer
 
 
 class GB:
@@ -150,10 +150,10 @@ class DatasetQA(Dataset):
 
 class DatasetPGT(Dataset):
     def __init__(self, src=None, batch_size: int = 4,
-                 mode: str = "bert-base-uncased", chunk: int = 128, call_init: bool = True,
+                 mode: str = "gpt2", chunk: int = 184, call_init: bool = True,
                  pt_data: bool = True):
         super().__init__()
-        self.tokenizer = BertTokenizer.from_pretrained(mode)
+        self.tokenizer = GPT2Tokenizer.from_pretrained(mode)
         self.chunk = chunk + 2
         self.vocab_size = self.tokenizer.vocab_size
         self.src = src
@@ -200,14 +200,14 @@ class DatasetPGT(Dataset):
             for ipa in loop:
                 data = self.tokenizer.encode_plus(
                     text=self.src[self.chunk * (ipa + 1):],
-                    add_special_tokens=False,
+                    add_special_tokens=True,
                     return_attention_mask=True,
                     return_tensors='pt',
-                    padding='longest',
-                    max_length=self.chunk,
-                    truncation=True
+                    padding='do_not_pad',
+                    # max_length=self.chunk,
+                    truncation=False
                 )['input_ids']
-
+                print(data.shape)
                 data_list = torch.cat([data_list, torch.cat([data[:, 0:-2], data[:, 1:-1]], dim=-2).unsqueeze(0)],
                                       dim=-3)
                 # print(f'\r\033[1;32m Loading Data [{ipa}/{total}]', end='')
