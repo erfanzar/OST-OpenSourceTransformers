@@ -17,7 +17,7 @@ pars.add_argument('--batch', '--batch', type=int, default=16)
 pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--load', '--load', type=bool, default=False)
 pars.add_argument('--model', '--model', type=str, default='PGT-As')
-pars.add_argument('--data-src', '--data-src', type=typing.Union[str, list[str]], default=['data/Data-conversation.pth'])
+pars.add_argument('--data-src', '--data-src', type=str, nargs='+', default=['data/Data-conversation.pth'])
 
 options = pars.parse_args()
 
