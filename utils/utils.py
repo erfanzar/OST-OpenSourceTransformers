@@ -175,7 +175,9 @@ class DatasetPGT(Dataset):
         data = torch.load(path)
         return data
 
-    def init_pt(self, path: list[[str, os.PathLike]]):
+    def init_pt(self, path: list[str, os.PathLike]):
+        if isinstance(path, str):
+            path = [path]
         data = torch.cat([torch.load(p) for p in path], dim=0)
         self.data = data
 
