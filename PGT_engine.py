@@ -1,31 +1,42 @@
 import math
 import time
+import typing
 
 import torch.utils.data
 from erutils.loggers import fprint
 
 from modules.models import PGT
 from utils.utils import DatasetPGT, make2d, save_model, get_config_by_name
+import argparse
 
 torch.backends.cudnn.benchmark = True
 
-if __name__ == "__main__":
-    batch = 2
+pars = argparse.ArgumentParser()
+
+pars.add_argument('--batch', '--batch', type=int, default=16)
+pars.add_argument('--train', '--train', type=bool, default=True)
+pars.add_argument('--load', '--load', type=bool, default=False)
+pars.add_argument('--model', '--model', type=str, default='PGT-As')
+pars.add_argument('--data-src', '--data-src', type=typing.Union[str, list[str]], default=['data/Data-conversation.pth'])
+
+options = pars.parse_args()
+
+
+def main(opt):
     prp = torch.cuda.get_device_properties("cuda")
     fprint(
         f'DEVICES : {torch.cuda.get_device_name()} | {prp.name} |'
         f' {prp.total_memory / 1e9} GB Memory')
 
-    data_path = ['data/Data_1.pt']
-    dataset = DatasetPGT(batch_size=batch, pt_data=True, src=data_path)
+    dataset = DatasetPGT(batch_size=opt.batch, pt_data=True, src=opt.data_src)
 
-    Config = get_config_by_name('PGT-As', dataset.vocab_size)
-    Config.load = False
-    Config.train = True
-    Config.data_path = data_path
+    Config = get_config_by_name(opt.model, dataset.vocab_size)
+    Config.load = opt.load
+    Config.train = opt.train
+    Config.data_path = opt.data_src
     dataset.chunk = Config.chunk
 
-    Config.batch_size = batch
+    Config.batch_size = opt.batch
     dataloader = torch.utils.data.DataLoader(dataset=dataset, batch_size=Config.batch_size, num_workers=4,
                                              pin_memory=True)
     fprint('Loaded Configs :: =>')
@@ -54,7 +65,7 @@ if __name__ == "__main__":
     model = torch.compile(model)
 
     total_iterations = dataset.__len__() // Config.batch_size
-    question = dataset.encode('did see watch the show last night ?').to(Config.device)
+    question = dataset.encode('USER: hello how are you ?').to(Config.device)
     question = question['input_ids'].to(Config.device)
     mxl = math.ceil(dataset.__len__() / Config.batch_size)
     print('TRAINING IS ABOUT TO START')
@@ -123,3 +134,7 @@ if __name__ == "__main__":
                                                  )
                     fprint(f'QUESTION : {dataset.decode(question)}')
                     fprint(f'PREDICTION : {dataset.decode(predictions)}')
+
+
+if __name__ == "__main__":
+    main(options)
