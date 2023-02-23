@@ -62,7 +62,7 @@ def main(opt):
         criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
         optimizer = model.configure_optimizer(Config)
 
-    model = torch.compile(model)
+    # model = torch.compile(model)
 
     total_iterations = dataset.__len__() // Config.batch_size
     question = dataset.encode('USER: hello how are you ?').to(Config.device)
