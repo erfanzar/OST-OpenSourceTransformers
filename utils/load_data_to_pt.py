@@ -18,7 +18,6 @@ def txt_2_pt(data_path: typing.Union[os.PathLike, str] = '../data/PGT-DATA-V2.tx
         f' {prp.total_memory / 1e9} GB Memory')
     config = get_config_by_name('PGT-As')
     data = open(data_path, 'r', encoding="utf8").read()
-    pr = int(len(data) * 0.5)
 
     dataset = DatasetPGT(chunk=184, call_init=False, pt_data=False)
     selected_data = data
@@ -40,7 +39,7 @@ def txt_2_pt(data_path: typing.Union[os.PathLike, str] = '../data/PGT-DATA-V2.tx
         v = torch.cat([v, torch.cat([q, a], dim=-2).unsqueeze(0)],
                       dim=-3)
     print(f'VD : {v.shape}')
-    torch.save(v, '../data/Data_1.pt')
+    torch.save(v, '../data/Data-conversation.pth')
     print('Saved Successfully')
 
 
