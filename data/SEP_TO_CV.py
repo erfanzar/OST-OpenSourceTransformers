@@ -4,12 +4,9 @@ if __name__ == "__main__":
     vpp = 0
     string = ''
     use = False
-    for i, d in enumerate(dt):
+    for i, idx in enumerate(range(0, len(dt), 2)):
         try:
-            if use:
-                string += 'USER:' + d + 'PGT:' + dt[i + 1]
-            else:
-                use = True
+            string += ' USER:' + dt[idx] + ' PGT:' + dt[idx + 1]
         except:
             pass
     print(string)
