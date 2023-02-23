@@ -81,7 +81,7 @@ def main(opt):
                     label = make2d(label).to(Config.device)
                     predict = model(inputs=inp)
                     optimizer.zero_grad(set_to_none=True)
-                    loss = criterion(predict.permute(0, 2, 1), label.view(-1, label.size(-1)))
+                    loss = criterion(predict.permute(0, 2, 1), label.view(-1, label.size(-1))) * opt.batch
                     loss_avg += loss.item()
                     loss.backward()
                     optimizer.step()
@@ -113,7 +113,7 @@ def main(opt):
                     label = make2d(label).to(Config.device)
                     predict = model(inputs=inp)
                     optimizer.zero_grad(set_to_none=True)
-                    loss = criterion(predict.permute(0, 2, 1), label.view(-1, label.size(-1)))
+                    loss = criterion(predict.permute(0, 2, 1), label.view(-1, label.size(-1))) * opt.batch
                     loss_avg += loss.item()
                     loss.backward()
                     optimizer.step()
