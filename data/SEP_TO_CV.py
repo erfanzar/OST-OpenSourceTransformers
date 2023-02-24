@@ -1,5 +1,9 @@
-if __name__ == "__main__":
-    data = open('PGT-DATA.txt', 'r', encoding='utf8').read()
+import os
+import typing
+
+
+def pgt(path: typing.Union[os.PathLike, str] = 'PGT-DATA.txt'):
+    data = open(path, 'r', encoding='utf8').read()
     dt = data.split(sep='[SEP]')
     vpp = 0
     string = ''
@@ -11,3 +15,15 @@ if __name__ == "__main__":
             pass
     print(string)
     open('PGT-DATA-V2.txt', 'w', encoding='utf8').write(string)
+
+
+def pgt_j(path: typing.Union[os.PathLike, str] = 'PGT-DATA.txt'):
+    data = open(path, 'r', encoding='utf8').read()
+    dt = data.split(sep='[SEP]')
+    string = ' '.join(d for d in dt)
+    print(string)
+    open('PGT-J-DATA.txt', 'w', encoding='utf8').write(string)
+
+
+if __name__ == "__main__":
+    pgt_j()
