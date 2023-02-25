@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from utils.utils import HyperParameters
 from .commons import MultiHeadBlock, CasualBlock, Decoder, Encoder, PGTBlock, Conv1D, CC_PGT_Block
 
 __all__ = ['PTTDecoder', 'PTT', 'PTTGenerative', 'PGT']
@@ -267,22 +268,22 @@ class PTTGenerative(nn.Module):
 
 
 class PGT(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config: HyperParameters):
         super().__init__()
 
-        self.embed_dim = config.hidden_size
+        self.embed_dim = config.num_embedding
 
         self.wte = nn.Embedding(config.vocab_size, self.embed_dim)
-        self.wpe = nn.Embedding(config.max_position_embeddings, self.embed_dim)
-        self.max_position_embeddings = config.max_position_embeddings
-        self.drop = nn.Dropout(config.embd_pdrop)
+        self.wpe = nn.Embedding(config.chunk, self.embed_dim)
+        self.chunk = config.chunk
+        self.drop = nn.Dropout(config.embedded_dropout)
         # self.h = nn.ModuleList(
         #     [PGTBlock(config, layer_idx_1=i, layer_idx_2=i + 1) for i in range(0, config.num_layers * 2, 2)])
         self.h = nn.ModuleList(
             [PGTBlock(config, layer_idx_1=i) for i in range(config.num_layers)])
         self.ln_f = nn.LayerNorm(self.embed_dim)
-        # self.fc = Conv1D(self.embed_dim, config.vocab_size)
-        self.fc = nn.Linear(self.embed_dim, config.vocab_size)
+        self.fc = Conv1D(self.embed_dim, config.vocab_size)
+        # self.fc = nn.Linear(self.embed_dim, config.vocab_size)
         # Model parallel
         self.model_parallel = False
         self.device_map = None
@@ -363,7 +364,7 @@ class PGT(nn.Module):
         if len(idx.shape) == 1:
             idx = idx.unsqueeze(0)
         for _ in range(generate):
-            idx = idx[:, -self.max_position_embeddings:]
+            idx = idx[:, -self.chunk:]
             pred = self.forward(idx, attention_mask=attention_mask)
             pred = pred[:, -1, :] / temp
             pred = F.softmax(pred, dim=-1)
@@ -377,7 +378,7 @@ class PGT(nn.Module):
     def generate_ca(self, idx, temp=1, attention_mask=None):
         if len(idx.shape) == 1:
             idx = idx.unsqueeze(0)
-        idx = idx[:, -self.max_position_embeddings:]
+        idx = idx[:, -self.chunk:]
         pred = self.forward(idx, attention_mask=attention_mask)
         pred = pred[:, -1, :] / temp
         pred = F.softmax(pred, dim=-1)

@@ -1,9 +1,9 @@
-import dataclasses
 import os
 import typing
 
 import torch
 import tqdm
+from erutils import fprint
 from torch.utils.data import Dataset
 from transformers import BertTokenizer, GPT2Tokenizer
 
@@ -26,7 +26,7 @@ class GB:
         return x, y
 
 
-def save_model(name: str = 'model_save.pt', **kwargs):
+def save_checkpoints(name: str = 'model_save.pt', **kwargs):
     v = {**kwargs}
 
     torch.save(v, name)
@@ -240,24 +240,25 @@ class DatasetPGT(Dataset):
 
 class HyperParameters(object):
     def __init__(self, **kwargs):
-        self.model_type: str = kwargs.pop('model_type', 'PGT-s')
-        self.num_embedding: int = kwargs.pop('num_embedding', 512)
-        self.num_heads: int = kwargs.pop('num_heads', 8)
-        self.chunk: int = kwargs.pop('chunk', 256)
-        self.vocab_size: int = kwargs.pop('vocab_size', 5000)
-        self.num_layers: int = kwargs.pop('num_layers', 2)
-        self.scale_attn_by_layer_idx: bool = kwargs.pop('scale_attn_by_layer_idx', False)
-        self.use_mask: bool = kwargs.pop('use_mask', True)
-        self.attn_dropout: float = kwargs.pop('attn_dropout', 0.1)
-        self.residual_dropout: float = kwargs.pop('residual_dropout', 0.2)
-        self.activation: str = kwargs.pop('activation', "gelu_new")
-        self.embedded_dropout: float = kwargs.pop('embedded_dropout', 0.15)
-        self.epochs: int = kwargs.pop('epochs', 500)
-        self.lr: float = kwargs.pop('lr', 4e-4)
-        self.pad_token_id: int = kwargs.pop('pad_token_id', 0)
-        self.create_attention_mask: bool = kwargs.pop('create_attention_mask', False)
-        self.device: str = kwargs.pop('device', 'cuda' if torch.cuda.is_available() else 'cpu')
-        self.weight_decay: float = kwargs.pop('weight_decay', 2e-1, )
+        self.model_type: typing.Optional[str] = kwargs.pop('model_type', 'PGT-s')
+        self.num_embedding: typing.Optional[int] = kwargs.pop('num_embedding', 512)
+        self.intermediate_size: typing.Optional[int] = kwargs.pop('intermediate_size', 4)
+        self.num_heads: typing.Optional[int] = kwargs.pop('num_heads', 8)
+        self.chunk: typing.Optional[int] = kwargs.pop('chunk', 256)
+        self.vocab_size: typing.Optional[int] = kwargs.pop('vocab_size', 5000)
+        self.num_layers: typing.Optional[int] = kwargs.pop('num_layers', 2)
+        self.scale_attn_by_layer_idx: typing.Optional[bool] = kwargs.pop('scale_attn_by_layer_idx', False)
+        self.use_mask: typing.Optional[bool] = kwargs.pop('use_mask', True)
+        self.attn_dropout: typing.Optional[float] = kwargs.pop('attn_dropout', 0.1)
+        self.residual_dropout: typing.Optional[float] = kwargs.pop('residual_dropout', 0.2)
+        self.activation: typing.Optional[str] = kwargs.pop('activation', "gelu_new")
+        self.embedded_dropout: typing.Optional[float] = kwargs.pop('embedded_dropout', 0.15)
+        self.epochs: typing.Optional[int] = kwargs.pop('epochs', 500)
+        self.lr: typing.Optional[float] = kwargs.pop('lr', 4e-4)
+        self.pad_token_id: typing.Optional[int] = kwargs.pop('pad_token_id', 0)
+        self.create_attention_mask: typing.Optional[bool] = kwargs.pop('create_attention_mask', False)
+        self.device: typing.Optional[str] = kwargs.pop('device', 'cuda' if torch.cuda.is_available() else 'cpu')
+        self.weight_decay: typing.Optional[float] = kwargs.pop('weight_decay', 2e-1, )
         for k, v in kwargs.items():
             if k not in self:
                 setattr(self, k, v)
@@ -483,3 +484,16 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
     else:
         raise NameError(
             f"Valid Names for Model are {models_name} | [ERROR : Unknown {name} type]")
+
+
+def print_config(config: typing.Optional[HyperParameters]) -> None:
+    fprint('Loaded Configs :: =>')
+    for d in config.__dict__:
+        print('{:<25} : {:>25}'.format(f"{d}", f"{config.__dict__[d]}"))
+
+
+def device_info() -> None:
+    prp = torch.cuda.get_device_properties("cuda")
+    fprint(
+        f'DEVICES : {torch.cuda.get_device_name()} | {prp.name} |'
+        f' {prp.total_memory / 1e9} GB Memory')

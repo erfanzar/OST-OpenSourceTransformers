@@ -5,7 +5,7 @@ import torch
 from erutils.loggers import fprint
 from erutils.utils import read_yaml
 
-from utils.utils import save_model,GB
+from utils.utils import save_checkpoints,GB
 
 
 def train(config_path: typing.Union[str, os.PathLike],
@@ -133,7 +133,7 @@ def train(config_path: typing.Union[str, os.PathLike],
             if (epoch + 1) % 500 == 0:
                 if mode == 'train':
                     print()
-                    save_model('ptt-m.pt', model=m.state_dict(), epochs=epochs, epoch=epoch + 1, lr=lr,
+                    save_checkpoints('ptt-m.pt', model=m.state_dict(), epochs=epochs, epoch=epoch + 1, lr=lr,
                                optim=optimizer.state_dict())
                 # saves = {
                 #     'model': m.state_dict(),

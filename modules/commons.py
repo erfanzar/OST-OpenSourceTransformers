@@ -406,7 +406,7 @@ class MultiCNNAttention(nn.Module):
     def __init__(self, config, layer_idx=None, use_mask: bool = None):
         super(MultiCNNAttention, self).__init__()
         self.layer_idx = layer_idx
-        self.embedding = config.hidden_size
+        self.embedding = config.num_embedding
         self.num_heads = config.num_heads
         self.num_div = self.embedding // self.num_heads
         self.scale_attn_by_layer_idx = config.scale_attn_by_layer_idx
@@ -420,9 +420,9 @@ class MultiCNNAttention(nn.Module):
         self.residual_dropout = nn.Dropout(config.residual_dropout)
         self.attn_dropout = nn.Dropout(config.attn_dropout)
         self.register_buffer('bias', torch.tril(
-            torch.ones(config.max_len, config.max_len, dtype=torch.uint8, device=config.device).view(1, 1,
-                                                                                                     config.max_len,
-                                                                                                     config.max_len)))
+            torch.ones(config.chunk, config.chunk, dtype=torch.uint8, device=config.device).view(1, 1,
+                                                                                                 config.chunk,
+                                                                                                 config.chunk)))
 
         self.register_buffer('masked_bias', torch.tensor(float(-1e4)))
 
@@ -474,8 +474,8 @@ class MultiCNNAttention(nn.Module):
 class PGTMLP(nn.Module):
     def __init__(self, config):
         super(PGTMLP, self).__init__()
-        self.c_op = Conv1D(config.hidden_size, config.intermediate_size)
-        self.c_proj = Conv1D(config.intermediate_size, config.hidden_size)
+        self.c_op = Conv1D(config.num_embedding, config.num_embedding * config.intermediate_size)
+        self.c_proj = Conv1D(config.num_embedding * config.intermediate_size, config.num_embedding)
         self.dropout = nn.Dropout(config.residual_dropout)
         self.act = get_activation(config.activation)
 
@@ -490,14 +490,14 @@ class PGTMLP(nn.Module):
 class PGTBlock(nn.Module):
     def __init__(self, config, layer_idx_1=None, layer_idx_2=None):
         super(PGTBlock, self).__init__()
-        # self.ln1 = nn.LayerNorm(config.hidden_size)
-        # self.ln2 = nn.LayerNorm(config.hidden_size)
-        # self.ln3 = nn.LayerNorm(config.hidden_size)
+        # self.ln1 = nn.LayerNorm(config.num_embedding)
+        # self.ln2 = nn.LayerNorm(config.num_embedding)
+        # self.ln3 = nn.LayerNorm(config.num_embedding)
         # self.h_1 = MultiCNNAttention(config=config, layer_idx=layer_idx_1)
         # self.h_2 = MultiCNNAttention(config=config, layer_idx=layer_idx_2, use_mask=False)
         # self.mlp = PGTMLP(config)
-        self.ln1 = nn.LayerNorm(config.hidden_size)
-        self.ln2 = nn.LayerNorm(config.hidden_size)
+        self.ln1 = nn.LayerNorm(config.num_embedding)
+        self.ln2 = nn.LayerNorm(config.num_embedding)
         self.h_1 = MultiCNNAttention(config=config, layer_idx=layer_idx_1)
         self.mlp = PGTMLP(config)
 
@@ -527,8 +527,8 @@ class PGTBlock(nn.Module):
 class CC_PGT_Block(nn.Module):
     def __init__(self, config, layer_idx: int = None):
         super(CC_PGT_Block, self).__init__()
-        self.ln1 = nn.LayerNorm(config.hidden_size)
-        self.ln2 = nn.LayerNorm(config.hidden_size)
+        self.ln1 = nn.LayerNorm(config.num_embedding)
+        self.ln2 = nn.LayerNorm(config.num_embedding)
         self.h = MultiCNNAttention(config=config, layer_idx=layer_idx)
         self.mlp = PGTMLP(config=config)
 

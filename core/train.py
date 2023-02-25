@@ -7,7 +7,7 @@ from erutils.utils import read_yaml, read_json
 from torch.utils.data import DataLoader
 
 from modules.models import PTTGenerative
-from utils.utils import DatasetQA, save_model
+from utils.utils import DatasetQA, save_checkpoints
 
 
 # from torch.utils.tensorboard import SummaryWriter
@@ -84,7 +84,7 @@ def train_ptt(config_path: typing.Union[str, os.PathLike],
             fprint(f'QUESTION : {dataset.decode(question)}')
             fprint(f'ANSWER   : {dataset.decode(answer)}')
             fprint(f'PREDICTION : {dataset.decode(predictions)}')
-            save_model(model=ptt.state_dict(), optimizer=optimizer.state_dict(), epochs=epochs, epoch=epoch,
+            save_checkpoints(model=ptt.state_dict(), optimizer=optimizer.state_dict(), epochs=epochs, epoch=epoch,
                        name='model.pt')
             fprint('==> MODEL SAVE SUCCESSFULLY')
     print()
