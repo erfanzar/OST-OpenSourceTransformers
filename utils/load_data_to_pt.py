@@ -45,5 +45,4 @@ def txt_2_pt(data_path: typing.Union[os.PathLike, str] = '../data/PGT-DATA-V2.tx
 
 if __name__ == "__main__":
     txt_2_pt()
-    # data = torch.load('Data.pt')
-    # print(data.shape)
+

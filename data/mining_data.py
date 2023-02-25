@@ -1,34 +1,25 @@
-subjects = [
-    'Artificial Intelligent',
-    'Dubai',
-    'United Arab Emirates',
-    'Dubai buildings',
-    'Abu Dhabi',
-    'Saudi Arabia',
-    'Burj Khalifa',
-    'List of tallest buildings in Dubai',
-    'Dubai Airports',
-    'best hotels',
-    'hotels in dubai'
-]
-# if __name__ == "__main__":
-#     wikipedia.set_lang('en')
-#     data = ''
-#     for subject in subjects:
-#         print(f'\033[1;36mCollecting {subject} Data ...')
-#         data += '[SEP]'
-#         data += wikipedia.summary(subject)
-#         print(f'{subject} Data Collected *')
-#     print(data)
-#     with open('wiki.txt', 'w') as st:
-#         st.write(data)
+import typing
+from urllib.request import urlopen
 
-if __name__ == "__main__":
+from bs4 import BeautifulSoup
+from wikipedia import wikipedia
 
-    from urllib.request import urlopen
-    from bs4 import BeautifulSoup
 
-    url = 'https://www.funtrivia.com/en/Geography/United-Arab-Emirates-5810.html'
+def wiki_data(subject: typing.Union[str, list[str]], lang: str = 'en', sep: str = ' '):
+    wikipedia.set_lang(lang)
+    data = ''
+    for sbj in subject:
+        print(f'\033[1;36mCollecting {sbj} Data ...')
+        data += sep
+        data += wikipedia.summary(sbj)
+        print(f'{sbj} Data Collected *')
+
+    print(data)
+    with open('wiki.txt', 'w') as st:
+        st.write(data)
+
+
+def html_data(url: str):
     print('COLLECTING HTML')
     html = urlopen(url).read()
     print('HTML COLLECTED')
