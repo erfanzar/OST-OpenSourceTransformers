@@ -10,6 +10,10 @@ from .commons import MultiHeadBlock, CasualBlock, Decoder, Encoder, PGTBlock, Co
 
 __all__ = ['PTTDecoder', 'PTT', 'PTTGenerative', 'PGT']
 
+class Tokenizer:
+    eos = '<|endoftext|>'
+    pad = '<|endoftext|>'
+    sos = '<|startoftext|>'
 
 class PTTDecoder(nn.Module):
     def __init__(self, vocab_size: int, number_of_layers: int, number_of_embedded: int, head_size: int,

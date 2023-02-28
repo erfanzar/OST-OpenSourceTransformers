@@ -10,7 +10,7 @@ def pgt(path: typing.Union[os.PathLike, str] = 'PGT-DATA.txt'):
     use = False
     for i, idx in enumerate(range(0, len(dt), 2)):
         try:
-            string += ' USER:' + dt[idx] + ' PGT:' + dt[idx + 1]
+            string += dt[idx] + '<|endoftext|>' + dt[idx + 1] + '<|endoftext|>'
         except:
             pass
     print(string)
@@ -20,10 +20,10 @@ def pgt(path: typing.Union[os.PathLike, str] = 'PGT-DATA.txt'):
 def pgt_j(path: typing.Union[os.PathLike, str] = 'PGT-DATA.txt'):
     data = open(path, 'r', encoding='utf8').read()
     dt = data.split(sep='[SEP]')
-    string = ' '.join(d for d in dt)
+    string = ' '.join(d + '<|endoftext|>' for d in dt)
     print(string)
     open('PGT-J-DATA.txt', 'w', encoding='utf8').write(string)
 
 
 if __name__ == "__main__":
-    pgt_j()
+    pgt()
