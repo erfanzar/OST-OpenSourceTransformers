@@ -285,9 +285,9 @@ class PGT(nn.Module):
         #     [PGTBlock(config, layer_idx_1=i, layer_idx_2=i + 1) for i in range(0, config.num_layers * 2, 2)])
         self.h = nn.ModuleList(
             [PGTBlock(config, layer_idx_1=i) for i in range(config.num_layers)])
-        self.ln_f = nn.LayerNorm(self.embed_dim)
-        self.fc = Conv1D(self.embed_dim, config.vocab_size)
-        # self.fc = nn.Linear(self.embed_dim, config.vocab_size)
+        self.ln_f = nn.LayerNorm(self.embed_dim).cuda()
+        # self.fc = Conv1D(self.embed_dim, config.vocab_size)
+        self.fc = nn.Linear(self.embed_dim, config.vocab_size, bias=True)
         # Model parallel
         self.model_parallel = False
         self.device_map = None
@@ -351,10 +351,18 @@ class PGT(nn.Module):
         optimizer = torch.optim.AdamW(optim_groups, lr=config.lr)
         return optimizer
 
-    def forward(self, inputs: typing.Optional[torch.LongTensor], attention_mask=None, heads_mask=None):
+    def forward(self,
+                inputs: typing.Optional[torch.LongTensor],
+                attention_mask: Optional[torch.FloatTensor] = None,
+                heads_mask: Optional[torch.FloatTensor] = None):
+
         if self.config.create_attention_mask:
             print('ay you why do you do that ?')
             attention_mask = self.make_attention_mask(inputs)
+        if attention_mask is not None:
+            attention_mask = attention_mask.type(torch.float32)
+            attention_mask = (1.0 - attention_mask) * torch.finfo(attention_mask.dtype).min
+
         token_embeddings = self.wte(inputs)
         pos_embeddings = self.wpe(torch.arange(0, inputs.size(-1), dtype=inputs.dtype, device=inputs.device))
         hidden = self.drop(token_embeddings + pos_embeddings)

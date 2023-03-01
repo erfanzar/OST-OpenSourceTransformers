@@ -5,7 +5,14 @@ import torch
 import tqdm
 from erutils import fprint
 from torch.utils.data import Dataset
+from tqdm.auto import tqdm
 from transformers import BertTokenizer, GPT2Tokenizer
+
+
+class Tokens:
+    eos = '<|endoftext|>'
+    pad = '<|pad|>'
+    sos = '<|startoftext|>'
 
 
 class GB:
@@ -149,6 +156,48 @@ class DatasetQA(Dataset):
         )['input_ids']
 
 
+class DatasetPGTC(Dataset, Tokens):
+    def __init__(self, data=None,
+                 mode: str = "gpt2", chunk: int = 184,
+                 ):
+        super().__init__()
+
+        self.input_ids = []
+        self.attention_mask = []
+        self.tokenizer = GPT2Tokenizer.from_pretrained(mode, bos_token=self.sos, eos_token=self.eos,
+                                                       pad_token=self.pad)
+        self.chunk = chunk
+        self.vocab_size = self.tokenizer.vocab_size
+        self.data = data
+        for d in tqdm(self.data):
+            emb = self.tokenizer.encode_plus(self.sos + d + self.eos, truncation=True, return_tensors='pt',
+                                             max_length=chunk, padding="max_length")
+            self.attention_mask.append(emb['attention_mask'])
+            self.input_ids.append(emb['input_ids'])
+
+    def __len__(self):
+        return len(self.input_ids)
+
+    def encode(self, text):
+        enc_trg = self.tokenizer.encode_plus(
+            text=text,
+            max_length=self.chunk,
+            padding='do_not_pad',
+            add_special_tokens=True,
+            return_attention_mask=True,
+            return_tensors='pt',
+            truncation=True
+        )
+        return enc_trg
+
+    def __getitem__(self, item):
+        return self.input_ids[item], self.attention_mask[item]
+
+    def decode(self, text):
+        text = self.tokenizer.decode(text[0], skip_special_tokens=True)
+        return text
+
+
 class DatasetPGT(Dataset):
     def __init__(self, src=None, batch_size: int = 4,
                  mode: str = "gpt2", chunk: int = 184, call_init: bool = True,
@@ -237,11 +286,6 @@ class DatasetPGT(Dataset):
             truncation=True
         )['input_ids']
 
-
-class Tokens:
-    eos = '<|endoftext|>'
-    pad = '<|pad|>'
-    sos = '<|startoftext|>'
 
 
 class GPT2Dataset(Dataset, Tokens):
@@ -353,7 +397,7 @@ dont use this function anymore use hyper parameters instance of this
 #     return cash
 
 
-def make2d(tensor):
+def make2d(tensor) -> typing.Optional[torch.Tensor]:
     return tensor.view(-1, tensor.size(-1))
 
 

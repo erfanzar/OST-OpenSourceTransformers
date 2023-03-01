@@ -1,15 +1,17 @@
 import argparse
 import math
-import time
 import typing
+from typing import Optional, Union
 
 import erutils
 import torch.utils.data
 from erutils.loggers import fprint
+from tqdm.auto import tqdm
 
 from modules.models import PGT
-from utils.utils import DatasetPGT, make2d, save_checkpoints, get_config_by_name, device_info
+from utils.utils import DatasetPGTC, make2d, save_checkpoints, get_config_by_name, device_info
 
+Tensor = torch.Tensor
 torch.backends.cudnn.benchmark = True
 
 pars = argparse.ArgumentParser()
@@ -19,32 +21,43 @@ pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
 pars.add_argument('--load', '--load', type=bool, default=False)
 pars.add_argument('--model', '--model', type=str, default='PGT-As')
-pars.add_argument('--data-src', '--data-src', type=str, nargs='+', default=['data/Data-conversation.pth'])
+pars.add_argument('--data-src', '--data-src', type=str, default='data/PGT-DATA-V2.txt')
 
 options = pars.parse_args()
 
 
 def main(opt):
-    def train(src, targets, network, optim, loss_function, loss_average, device) -> [typing.Union[torch.Tensor],
-                                                                                     typing.Union[torch.Tensor]]:
-        targets = make2d(targets.type(torch.long)).to(device)
-        predict = network(inputs=make2d(src.type(torch.long)).to(device))
+    def train(input_ids: Optional[Tensor],
+              targets: Optional[Tensor],
+              attention_mask: Optional[Tensor],
+              network: Optional[PGT],
+              optim: Optional[torch.optim.AdamW],
+              loss_function: Optional[torch.nn.CrossEntropyLoss],
+              loss_average: Optional[Tensor],
+              device: Union[torch.device, str]) -> [typing.Union[torch.Tensor],
+                                                    typing.Union[torch.Tensor]]:
+        targets: Optional[Tensor] = make2d(targets.type(torch.long).to(device))
+        input_ids: Optional[Tensor] = make2d(input_ids.type(torch.long).to(device))
+        attention_mask: Optional[Tensor] = make2d(attention_mask.to(device))
+        predict = network(inputs=input_ids,
+                          attention_mask=attention_mask)
         optim.zero_grad(set_to_none=True)
-        loss_prediction = loss_function(predict.permute(0, 2, 1), targets.view(-1, targets.size(-1))) * targets.size()[
-            0]
+        loss_prediction: Optional[Tensor] = loss_function(predict.permute(0, 2, 1),
+                                                          targets.view(-1, targets.size(-1))) * targets.size()[
+                                                0]
         loss_average += loss_prediction.item()
         loss_prediction.backward()
         optim.step()
         return loss_prediction, loss_average
 
     device_info()
-
-    dataset = DatasetPGT(batch_size=opt.batch, pt_data=True, src=opt.data_src)
+    data = open(opt.data_src, 'r', encoding='utf8').read().split('<|endoftext|>')
+    dataset = DatasetPGTC(data=data, chunk=184)
 
     parameters = get_config_by_name(opt.model, dataset.vocab_size)
-
+    parameters.vocab_size += 1
+    # parameters.device = 'cpu'
     parameters.data_path = opt.data_src
-    dataset.chunk = parameters.chunk
 
     parameters.batch_size = opt.batch
     dataloader = torch.utils.data.DataLoader(dataset=dataset, batch_size=parameters.batch_size, num_workers=4,
@@ -66,7 +79,7 @@ def main(opt):
     fprint(
         f'Model Loaded With {model_parameters_size} Million Parameters' if opt.load
         else f'Model Created With {model_parameters_size} Million Parameters')
-    criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
+    criterion = torch.nn.CrossEntropyLoss()
 
     if opt.compile:
         model = torch.compile(model)
@@ -74,33 +87,34 @@ def main(opt):
 
     question = dataset.encode('USER: hello how are you ?').to(parameters.device)
     question = question['input_ids'].to(parameters.device)
-    mxl = math.ceil(dataset.__len__() / parameters.batch_size)
 
     if opt.train:
+
         for epoch in range(checkpoints['epoch'] if opt.load else 0, parameters.epochs):
             loss_avg = 0
-            st = time.time()
-            for i, (inp, label) in enumerate(dataloader):
-                loss, loss_avg = train(src=inp, targets=label, network=model, optim=optimizer,
-                                       loss_average=loss_avg, loss_function=criterion, device=parameters.device)
-                fprint(
-                    f'\rEPOCH : [{epoch + 1}/{parameters.epochs}] | LOSS : {loss.item() / parameters.batch_size} |'
-                    f' EPOCH LOSS AVG : {(loss_avg / (i + 1)) / parameters.batch_size} | ITER : {i + 1}/{mxl} |'
-                    f' DEVICE : {parameters.device} | EPOCH TIME {int(time.time() - st)} SEC',
-                    end='')
+            with tqdm(enumerate(dataloader),
+                      total=math.ceil(dataset.__len__() // parameters.batch_size)) as progress_bar:
+                for i, (input_ids_t, attention_mask_t) in progress_bar:
+                    loss, loss_avg = train(input_ids=input_ids_t, targets=input_ids_t, network=model, optim=optimizer,
+                                           attention_mask=attention_mask_t,
+                                           loss_average=loss_avg, loss_function=criterion, device=parameters.device)
 
-            if (epoch + 1) % 5 == 0:
-                print()
-                save_checkpoints(model=model.state_dict(), optimizer=optimizer.state_dict(), epochs=parameters.epochs,
-                                 epoch=epoch + 1, config=opt.model,
-                                 name='model.pt')
-                fprint('==> MODEL SAVED SUCCESSFULLY')
-                predictions = model.generate(idx=question, eos=dataset.tokenizer.eos_token_id,
-                                             generate=256
+                    progress_bar.set_postfix(epoch=f'[{epoch}/{parameters.epochs}]', device=parameters.device,
+                                             loss_avg=(loss_avg / (i + 1)) / parameters.batch_size,
+                                             loss=loss.item() / parameters.batch_size)
+                if (epoch + 1) % 5 == 0:
+                    print()
+                    save_checkpoints(model=model.state_dict(), optimizer=optimizer.state_dict(),
+                                     epochs=parameters.epochs,
+                                     epoch=epoch + 1, config=opt.model,
+                                     name='model.pt')
+                    progress_bar.write('==> MODEL SAVED SUCCESSFULLY')
+                    predictions = model.generate(idx=question, eos=dataset.tokenizer.eos_token_id,
+                                                 generate=256
 
-                                             )
-                fprint(f'QUESTION : {dataset.decode(question)}')
-                fprint(f'PREDICTION : {dataset.decode(predictions)}')
+                                                 )
+                    progress_bar.write(f'QUESTION : {dataset.decode(question)}')
+                    progress_bar.write(f'PREDICTION : {dataset.decode(predictions)}')
 
 
 if __name__ == "__main__":
