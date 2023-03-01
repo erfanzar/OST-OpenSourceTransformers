@@ -16,12 +16,12 @@ torch.backends.cudnn.benchmark = True
 
 pars = argparse.ArgumentParser()
 
-pars.add_argument('--batch', '--batch', type=int, default=8)
+pars.add_argument('--batch', '--batch', type=int, default=8 )
 pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
 pars.add_argument('--load', '--load', type=bool, default=False)
 pars.add_argument('--model', '--model', type=str, default='PGT-As')
-pars.add_argument('--data-src', '--data-src', type=str, default='data/PGT-DATA-V2.txt')
+pars.add_argument('--data-src', '--data-src', type=str, default='data/PGT.txt')
 
 options = pars.parse_args()
 
@@ -54,11 +54,12 @@ def main(opt):
         return loss_prediction, loss_average
 
     device_info()
+    chunk: int = 128
     data = open(opt.data_src, 'r', encoding='utf8').read().split('<|endoftext|>')
-    dataset = DatasetPGTC(data=data, chunk=184)
+    dataset = DatasetPGTC(data=data, chunk=chunk)
 
     parameters = get_config_by_name(opt.model, dataset.vocab_size)
-    parameters.vocab_size += 3
+    parameters.vocab_size += 2
     # parameters.device = 'cpu'
     parameters.data_path = opt.data_src
 

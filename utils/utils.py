@@ -448,13 +448,13 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
     if name == 'PGT-As':
         return HyperParameters(
             model_type=name,
-            num_embedding=624,
+            num_embedding=576,
             num_heads=12,
             epochs=1000,
-            num_layers=10,
+            num_layers=8,
             device=device,
             vocab_size=vocab_size,
-            chunk=184,
+            chunk=128,
             lr=3e-4,
             use_mask=True
         )
