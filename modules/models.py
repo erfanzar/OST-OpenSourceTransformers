@@ -277,15 +277,15 @@ class PGT(nn.Module):
 
         self.embed_dim = config.num_embedding
 
-        self.wte = nn.Embedding(config.vocab_size, self.embed_dim)
-        self.wpe = nn.Embedding(config.chunk, self.embed_dim)
+        self.wte = nn.Embedding(config.vocab_size, self.embed_dim).cuda()
+        self.wpe = nn.Embedding(config.chunk, self.embed_dim).cuda()
         self.chunk = config.chunk
         self.drop = nn.Dropout(config.embedded_dropout)
         # self.h = nn.ModuleList(
         #     [PGTBlock(config, layer_idx_1=i, layer_idx_2=i + 1) for i in range(0, config.num_layers * 2, 2)])
         self.h = nn.ModuleList(
             [PGTBlock(config, layer_idx_1=i) for i in range(config.num_layers)])
-        self.ln_f = nn.LayerNorm(self.embed_dim).cuda()
+        self.ln_f = nn.LayerNorm(self.embed_dim)
         # self.fc = Conv1D(self.embed_dim, config.vocab_size)
         self.fc = nn.Linear(self.embed_dim, config.vocab_size, bias=True)
         # Model parallel
@@ -364,7 +364,9 @@ class PGT(nn.Module):
             attention_mask = (1.0 - attention_mask) * torch.finfo(attention_mask.dtype).min
 
         token_embeddings = self.wte(inputs)
+
         pos_embeddings = self.wpe(torch.arange(0, inputs.size(-1), dtype=inputs.dtype, device=inputs.device))
+
         hidden = self.drop(token_embeddings + pos_embeddings)
         for m in self.h:
             hidden = m(hidden, attention_mask=attention_mask, heads_mask=heads_mask)

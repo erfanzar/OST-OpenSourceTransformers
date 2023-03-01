@@ -455,7 +455,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             device=device,
             vocab_size=vocab_size,
             chunk=184,
-            lr=4e-4,
+            lr=3e-4,
             use_mask=True
         )
     elif name == 'PGT-s':
@@ -502,7 +502,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             device=device,
             vocab_size=vocab_size,
             chunk=184,
-            lr=4e-4,
+            lr=3e-4,
             use_mask=True
         )
     elif name == 'PGT-A':
@@ -517,7 +517,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             device=device,
             vocab_size=vocab_size,
             chunk=184,
-            lr=4e-4,
+            lr=3e-4,
             use_mask=True
         )
     elif name == 'PGT-J-small':

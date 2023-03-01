@@ -16,7 +16,7 @@ torch.backends.cudnn.benchmark = True
 
 pars = argparse.ArgumentParser()
 
-pars.add_argument('--batch', '--batch', type=int, default=16)
+pars.add_argument('--batch', '--batch', type=int, default=8)
 pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
 pars.add_argument('--load', '--load', type=bool, default=False)
@@ -42,9 +42,12 @@ def main(opt):
         predict = network(inputs=input_ids,
                           attention_mask=attention_mask)
         optim.zero_grad(set_to_none=True)
-        loss_prediction: Optional[Tensor] = loss_function(predict.permute(0, 2, 1),
-                                                          targets.view(-1, targets.size(-1))) * targets.size()[
-                                                0]
+
+        shift_logits = predict[..., :-1, :].contiguous()
+        shift_labels = targets[..., 1:].contiguous()
+
+        loss_prediction = loss_function(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+
         loss_average += loss_prediction.item()
         loss_prediction.backward()
         optim.step()
@@ -55,7 +58,7 @@ def main(opt):
     dataset = DatasetPGTC(data=data, chunk=184)
 
     parameters = get_config_by_name(opt.model, dataset.vocab_size)
-    parameters.vocab_size += 1
+    parameters.vocab_size += 3
     # parameters.device = 'cpu'
     parameters.data_path = opt.data_src
 
@@ -87,12 +90,12 @@ def main(opt):
 
     question = dataset.encode('USER: hello how are you ?').to(parameters.device)
     question = question['input_ids'].to(parameters.device)
-
+    model = model.to(device=parameters.device)
     if opt.train:
 
         for epoch in range(checkpoints['epoch'] if opt.load else 0, parameters.epochs):
             loss_avg = 0
-            with tqdm(enumerate(dataloader),
+            with tqdm(enumerate(dataloader), colour='green',
                       total=math.ceil(dataset.__len__() // parameters.batch_size)) as progress_bar:
                 for i, (input_ids_t, attention_mask_t) in progress_bar:
                     loss, loss_avg = train(input_ids=input_ids_t, targets=input_ids_t, network=model, optim=optimizer,
@@ -100,8 +103,8 @@ def main(opt):
                                            loss_average=loss_avg, loss_function=criterion, device=parameters.device)
 
                     progress_bar.set_postfix(epoch=f'[{epoch}/{parameters.epochs}]', device=parameters.device,
-                                             loss_avg=(loss_avg / (i + 1)) / parameters.batch_size,
-                                             loss=loss.item() / parameters.batch_size)
+                                             loss_avg=(loss_avg / (i + 1)),
+                                             loss=loss.item())
                 if (epoch + 1) % 5 == 0:
                     print()
                     save_checkpoints(model=model.state_dict(), optimizer=optimizer.state_dict(),
