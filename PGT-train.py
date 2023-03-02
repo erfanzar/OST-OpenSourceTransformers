@@ -5,6 +5,7 @@ from typing import Optional, Union
 
 import erutils
 import torch.utils.data
+from datasets import load_dataset
 from erutils.loggers import fprint
 from tqdm.auto import tqdm
 
@@ -16,12 +17,12 @@ torch.backends.cudnn.benchmark = True
 
 pars = argparse.ArgumentParser()
 
-pars.add_argument('--batch', '--batch', type=int, default=8 )
+pars.add_argument('--batch', '--batch', type=int, default=8)
 pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
 pars.add_argument('--load', '--load', type=bool, default=False)
 pars.add_argument('--model', '--model', type=str, default='PGT-As')
-pars.add_argument('--data-src', '--data-src', type=str, default='data/PGT.txt')
+pars.add_argument('--data-src', '--data-src', type=str, default='HF-wikitext/wikitext-103-raw-v1')
 
 options = pars.parse_args()
 
@@ -54,11 +55,19 @@ def main(opt):
         return loss_prediction, loss_average
 
     device_info()
-    chunk: int = 128
-    data = open(opt.data_src, 'r', encoding='utf8').read().split('<|endoftext|>')
-    dataset = DatasetPGTC(data=data, chunk=chunk)
-
-    parameters = get_config_by_name(opt.model, dataset.vocab_size)
+    if not opt.data_src.startswith('HF-'):
+        data = open(opt.data_src, 'r', encoding='utf8').read().split('<|endoftext|>')
+    else:
+        name = opt.data_src.replace('HF-', '')
+        if '/' in name:
+            model_name = name.split('/')
+            data = load_dataset(model_name[0], model_name[1])
+        else:
+            data = load_dataset(name)
+        data = data["train"]['text']
+    parameters = get_config_by_name(opt.model)
+    dataset = DatasetPGTC(data=data, chunk=parameters.chunk)
+    parameters.vocab_size = dataset.vocab_size
     parameters.vocab_size += 2
     # parameters.device = 'cpu'
     parameters.data_path = opt.data_src

@@ -54,7 +54,7 @@ class Head(nn.Module):
         self.query = nn.Linear(n_embedded, head_size, bias=False)
         self.value = nn.Linear(n_embedded, head_size, bias=False)
 
-    def forward(self, k: torch.Tensor, q: torch.Tensor = None, v: torch.Tensor = None, mask=None):
+    def forward(self, k: Optional[torch.Tensor], q: Optional[torch.Tensor] = None, v: Optional[torch.Tensor] = None, mask=None):
         # if q is not None and v is not None:
         assert k.shape == q.shape and q.shape == v.shape
         b, t, c = k.shape
@@ -426,16 +426,16 @@ class MultiCNNAttention(nn.Module):
 
         self.register_buffer('masked_bias', torch.tensor(float(-1e4)))
 
-    def _split_heads(self, tensor: torch.Tensor):
+    def _split_heads(self, tensor: Optional[torch.Tensor]):
         new_shape = tensor.size()[:-1] + (self.num_heads, self.num_div)
-        # print(f'Shape : {new_shape}')
+
         tensor = tensor.view(new_shape).permute(0, 2, 1, 3)
         return tensor
 
-    def _merge_heads(self, tensor: torch.Tensor):
-        tensor = tensor.permute(0, 2, 1, 3)
+    def _merge_heads(self, tensor: Optional[torch.Tensor]):
+        tensor = tensor.permute(0, 2, 1, 3).contiguous()
         new_shape = tensor.size()[:-2] + (self.num_heads * self.num_div,)
-        return tensor.reshape(new_shape)
+        return tensor.view(new_shape)
 
     def _attn(self, query, key, value, attention_mask, head_mask):
         attn_weight = torch.matmul(query, key.transpose(-2, -1))

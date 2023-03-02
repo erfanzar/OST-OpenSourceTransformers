@@ -169,11 +169,13 @@ class DatasetPGTC(Dataset, Tokens):
         self.chunk = chunk
         self.vocab_size = self.tokenizer.vocab_size
         self.data = data
-        for d in tqdm(self.data):
-            emb = self.tokenizer.encode_plus(self.sos + d + self.eos, truncation=True, return_tensors='pt',
-                                             max_length=chunk, padding="max_length")
-            self.attention_mask.append(emb['attention_mask'])
-            self.input_ids.append(emb['input_ids'])
+        if self.data is not None:
+            for d in tqdm(self.data):
+                if d != '' and not d.startswith(' ='):
+                    emb = self.tokenizer.encode_plus(self.sos + d + self.eos, truncation=True, return_tensors='pt',
+                                                     max_length=chunk, padding="max_length")
+                    self.attention_mask.append(emb['attention_mask'])
+                    self.input_ids.append(emb['input_ids'])
 
     def __len__(self):
         return len(self.input_ids)
@@ -194,7 +196,7 @@ class DatasetPGTC(Dataset, Tokens):
         return self.input_ids[item], self.attention_mask[item]
 
     def decode(self, text):
-        text = self.tokenizer.decode(text[0], skip_special_tokens=True)
+        text = self.tokenizer.decode(text[0], skip_special_tokens=False)
         return text
 
 
@@ -332,10 +334,10 @@ class HyperParameters(object):
         self.num_layers: typing.Optional[int] = kwargs.pop('num_layers', 2)
         self.scale_attn_by_layer_idx: typing.Optional[bool] = kwargs.pop('scale_attn_by_layer_idx', False)
         self.use_mask: typing.Optional[bool] = kwargs.pop('use_mask', True)
-        self.attn_dropout: typing.Optional[float] = kwargs.pop('attn_dropout', 0.1)
-        self.residual_dropout: typing.Optional[float] = kwargs.pop('residual_dropout', 0.2)
+        self.attn_dropout: typing.Optional[float] = kwargs.pop('attn_dropout', 0.13)
+        self.residual_dropout: typing.Optional[float] = kwargs.pop('residual_dropout', 0.18)
         self.activation: typing.Optional[str] = kwargs.pop('activation', "gelu_new")
-        self.embedded_dropout: typing.Optional[float] = kwargs.pop('embedded_dropout', 0.15)
+        self.embedded_dropout: typing.Optional[float] = kwargs.pop('embedded_dropout', 0.1)
         self.epochs: typing.Optional[int] = kwargs.pop('epochs', 500)
         self.lr: typing.Optional[float] = kwargs.pop('lr', 4e-4)
         self.pad_token_id: typing.Optional[int] = kwargs.pop('pad_token_id', 0)
@@ -448,13 +450,13 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
     if name == 'PGT-As':
         return HyperParameters(
             model_type=name,
-            num_embedding=576,
+            num_embedding=720,
             num_heads=12,
             epochs=1000,
-            num_layers=8,
+            num_layers=12,
             device=device,
             vocab_size=vocab_size,
-            chunk=128,
+            chunk=256,
             lr=3e-4,
             use_mask=True
         )
