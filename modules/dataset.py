@@ -1,158 +1,47 @@
 from torch.utils.data import Dataset
-from transformers import BertTokenizer
+import torch
+from typing import Optional, List
+from logging import getLogger
+from tqdm.auto import tqdm
+
+logger = getLogger(__name__)
 
 
-class DatasetQA(Dataset):
-    def __init__(self, src=None, trg=None, mode: str = "bert-base-uncased", max_length: int = 512,
-                 pad_to_max_length: bool = True):
-        super().__init__()
-        self.tokenizer = BertTokenizer.from_pretrained(mode)
+class Tokens:
+    eos = '<|endoftext|>'
+    pad = '<|pad|>'
+    sos = '<|startoftext|>'
 
-        self.vocab_size = self.tokenizer.vocab_size
-        self.pad_token_id = self.tokenizer.pad_token_id
-        self.pad_to_max_length = pad_to_max_length
-        self.src = src
+
+class DatasetLLama(Dataset, Tokens):
+    def __init__(self, txt_list: Optional[List[str]],
+                 tokenizer, max_length: Optional[int] = 768):
+        self.tokenizer = tokenizer
+        self.input_ids = []
+        self.attn_masks = []
         self.max_length = max_length
-        self.trg = trg
+        logger.info('Tokenizing Data')
+        for txt in tqdm(txt_list):
+            encodings_dict = tokenizer(self.sos + txt + self.eos, truncation=True,
+                                       max_length=max_length, padding="do_not_pad")
+
+            self.input_ids.append(torch.tensor(encodings_dict['input_ids']))
+            self.attn_masks.append(torch.tensor(encodings_dict['attention_mask']))
 
     def __len__(self):
-        return len(self.src) if self.src is not None else 1
+        return len(self.input_ids)
 
-    def encode(self, text, padding: bool = False):
-        enc_trg = self.tokenizer.encode_plus(
-            text=text,
-            max_length=self.max_length,
-            add_special_tokens=True,
-            return_attention_mask=True,
-            return_tensors='pt',
-            padding='longest' if padding else padding,
-            truncation=True
-        )
-        return enc_trg
-
-    def __getitem__(self, item):
-        # src = str(self.src[item])
-        # trg = str(self.trg[item]['text'][0])
-        src = str(self.src[item])
-        trg = str(self.trg[item])
-        enc_src = self.tokenizer.encode_plus(
-            text=src,
-            max_length=self.max_length,
-            add_special_tokens=True,
-            return_attention_mask=True,
-            return_tensors='pt',
-            # padding='longest',
-            # return_length=True,
-            padding='longest' if not self.pad_to_max_length else 'max_length',
-            truncation=True
-
-        )
-        enc_trg = self.tokenizer.encode_plus(
-            text=trg,
-            max_length=self.max_length,
-            add_special_tokens=True,
-            return_attention_mask=True,
-
-            return_tensors='pt',
-
-            padding='longest' if not self.pad_to_max_length else 'max_length',
-
-            truncation=True
-
-        )
-        # it = {
-        #     'input': enc_src['input_ids'],
-        #     'label': enc_trg['input_ids']
-        # }
-        it = {
-            'input': enc_src,
-            'label': enc_trg
-        }
-        return it
-
-    def decode(self, text):
-        text = self.tokenizer.decode(text[0], skip_special_tokens=True)
-        return text
-
-    def sos(self):
-        return self.tokenizer.encode_plus(
-            text='[CLS]',
-            max_length=self.max_length,
-            add_special_tokens=False,
-            return_attention_mask=True,
-            return_tensors='pt',
-            padding='longest' if not self.pad_to_max_length else 'max_length',
-            truncation=True
-        )['input_ids']
-
-
-class DatasetPGT(Dataset):
-    def __init__(self, src=None, batch_size: int = 4,
-                 mode: str = "bert-base-uncased", chunk: int = 128, call_init: bool = False):
-        super().__init__()
-        self.tokenizer = BertTokenizer.from_pretrained(mode)
-        self.chunk = chunk + 2
-        self.vocab_size = self.tokenizer.vocab_size
-        self.src = src
-        self.batch_size = batch_size
-        self.data = None
-        if call_init:
-            self.init()
-
-    def __len__(self):
-        return (len(self.src) // self.chunk) - (self.batch_size * 2) if self.src is not None else 1
+    def __getitem__(self, idx):
+        return self.input_ids[idx], self.attn_masks[idx]
 
     def encode(self, text):
         enc_trg = self.tokenizer.encode_plus(
             text=text,
-            max_length=self.chunk,
+            max_length=self.max_length,
+            padding='do_not_pad',
             add_special_tokens=True,
             return_attention_mask=True,
             return_tensors='pt',
             truncation=True
         )
         return enc_trg
-
-    def init(self):
-        start_from: int = 0
-        data_list = torch.tensor([])
-        total = (len(self.src) // self.chunk) - (self.batch_size * 2)
-        loop = tqdm.tqdm(iterable=range(start_from, total))
-
-        for ipa in loop:
-            data = self.tokenizer.encode_plus(
-                text=self.src[self.chunk * (ipa + 1):],
-                add_special_tokens=False,
-                return_attention_mask=True,
-                return_tensors='pt',
-                padding='longest',
-                max_length=self.chunk,
-                truncation=True
-            )['input_ids']
-
-            data_list = torch.cat([data_list, torch.cat([data[:, 0:-2], data[:, 1:-1]], dim=-2).unsqueeze(0)], dim=-3)
-            # print(f'\r\033[1;32m Loading Data [{ipa}/{total}]', end='')
-
-        self.data = data_list
-
-    def __getitem__(self, item):
-        x, y = self.data[item]
-        return x.unsqueeze(0), y.unsqueeze(0)
-
-    def decode(self, text):
-        text = self.tokenizer.decode(text[0], skip_special_tokens=True)
-        return text
-
-    def sos(self):
-        return self.tokenizer.encode_plus(
-            text='[CLS]',
-            add_special_tokens=False,
-            return_attention_mask=True,
-            return_tensors='pt',
-            truncation=True
-        )['input_ids']
-
-
-@dataclasses.dataclass
-class CF:
-    ...
