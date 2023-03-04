@@ -9,8 +9,9 @@ from datasets import load_dataset
 from erutils.loggers import fprint
 from tqdm.auto import tqdm
 
-from modules.models import PGT
-from utils.utils import DatasetPGTC, make2d, save_checkpoints, get_config_by_name, device_info
+from modules.modelling_llama import LLamaModel
+from modules.dataset import DatasetLLama
+from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info
 
 Tensor = torch.Tensor
 torch.backends.cudnn.benchmark = True
@@ -21,7 +22,7 @@ pars.add_argument('--batch', '--batch', type=int, default=2)
 pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
 pars.add_argument('--load', '--load', type=bool, default=False)
-pars.add_argument('--model', '--model', type=str, default='PGT-As')
+pars.add_argument('--model', '--model', type=str, default='LLama-As')
 pars.add_argument('--data-src', '--data-src', type=str, default='HF-wikitext/wikitext-103-raw-v1')
 
 options = pars.parse_args()
@@ -31,7 +32,7 @@ def main(opt):
     def train(input_ids: Optional[Tensor],
               targets: Optional[Tensor],
               attention_mask: Optional[Tensor],
-              network: Optional[PGT],
+              network: Optional[LLamaModel],
               optim: Optional[torch.optim.AdamW],
               loss_function: Optional[torch.nn.CrossEntropyLoss],
               loss_average: Optional[Tensor],
@@ -68,7 +69,7 @@ def main(opt):
         selected = int(len(data) * 0.1)
         data = data[:selected]
     parameters = get_config_by_name(opt.model)
-    dataset = DatasetPGTC(data=data, chunk=parameters.chunk)
+    dataset = DatasetLLama(data=data, max_length=parameters.chunk)
     parameters.vocab_size = dataset.vocab_size
     parameters.vocab_size += 2
     # parameters.device = 'cpu'

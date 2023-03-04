@@ -8,6 +8,8 @@ from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 from transformers import BertTokenizer, GPT2Tokenizer
 
+from modules.modelling_llama import LLamaConfig
+
 
 class Tokens:
     eos = '<|endoftext|>'
@@ -404,7 +406,8 @@ def make2d(tensor) -> typing.Optional[torch.Tensor]:
 
 
 def get_config_by_name(name: str, vocab_size: int = 5000,
-                       device: str = 'cuda' if torch.cuda.is_available() else 'cpu') -> HyperParameters:
+                       device: str = 'cuda' if torch.cuda.is_available() else 'cpu') -> typing.Union[
+    HyperParameters, LLamaConfig]:
     """
     :param device: device for model
     :param vocab_size: vocab_size
@@ -433,7 +436,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
         self.weight_decay: float = kwargs.pop('weight_decay', 2e-1, )
     """
     models_name = ['PGT-Cs', 'PGT-As', 'PGT-s', 'PGT-m', 'PGT-x', 'PGT-l', 'PGT-A', 'PGT-J-small', 'PGT-J-medium',
-                   'PGT-J-large', 'PGT-J-X']
+                   'PGT-J-large', 'PGT-J-X', 'LLama']
     if name == 'PGT-Cs':
         return HyperParameters(
             model_type=name,
@@ -565,6 +568,15 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             vocab_size=vocab_size,
             chunk=256,
             use_mask=True
+        )
+    elif name == 'LLama':
+        return LLamaConfig(
+            vocab_size=vocab_size,
+            max_batch_size=32,
+            n_layers=10,
+            n_heads=20,
+            hidden_size=1400,
+            max_sentence_length=256
         )
     else:
         raise NameError(

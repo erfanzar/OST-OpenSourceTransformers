@@ -14,14 +14,14 @@ class Tokens:
 
 
 class DatasetLLama(Dataset, Tokens):
-    def __init__(self, txt_list: Optional[List[str]],
+    def __init__(self, data: Optional[List[str]],
                  tokenizer, max_length: Optional[int] = 768):
         self.tokenizer = tokenizer
         self.input_ids = []
         self.attn_masks = []
         self.max_length = max_length
         logger.info('Tokenizing Data')
-        for txt in tqdm(txt_list):
+        for txt in tqdm(data):
             encodings_dict = tokenizer(self.sos + txt + self.eos, truncation=True,
                                        max_length=max_length, padding="do_not_pad")
 

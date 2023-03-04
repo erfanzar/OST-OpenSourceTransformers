@@ -1,16 +1,14 @@
-import math
-
-import erutils
-import torch
-from torch import nn
-from typing import Optional, Union, Tuple
-from dataclasses import dataclass
-from transformers import GPT2Tokenizer
-from .dataset import Tokens
-from erutils.loggers import show_hyper_parameters
-from fairscale.nn.model_parallel.initialize import get_model_parallel_rank
-from fairscale.nn.model_parallel import ColumnParallelLinear, RowParallelLinear
 import logging
+import math
+from dataclasses import dataclass
+from typing import Optional, Union, Tuple
+
+import torch
+from erutils.loggers import show_hyper_parameters
+from torch import nn
+from transformers import GPT2Tokenizer
+
+from dataset import Tokens
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -27,7 +25,7 @@ class LLamaConfig:
     eps: Optional[float] = 1e-6
     hidden_size: Optional[int] = 1200
     n_heads: Optional[int] = 12
-    n_layers: Optional[int] = 8
+    n_layers: Optional[int] = 14
     vocab_size: Optional[int] = None
     max_sentence_length: Optional[int] = 512
     max_batch_size: Optional[int] = 32
@@ -90,6 +88,7 @@ class LLamaAttention(nn.Module):
         super(LLamaAttention, self).__init__()
         self.local_rank = config.n_heads // 1
         self.head_dim = config.hidden_size // config.n_heads
+        assert config.hidden_size % config.n_heads == 0
         self.wq = nn.Linear(config.hidden_size, config.n_heads * self.head_dim, bias=False,
                             )
         self.wk = nn.Linear(config.hidden_size, config.n_heads * self.head_dim, bias=False,
@@ -193,6 +192,9 @@ class LLamaModel(nn.Module):
 if __name__ == "__main__":
     config = LLamaConfig()
     config.vocab_size = 5027
+    config.hidden_size = 1400
+    config.n_heads = 20
+    config.n_layers = 10
     model = LLamaModel(config=config)
     show_hyper_parameters(config)
     print('Model Initialized with ', sum(v.numel() for v in model.parameters()) / 1e6, ' Million Parameters')
