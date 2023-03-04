@@ -24,7 +24,7 @@ pars = argparse.ArgumentParser()
 pars.add_argument('--batch', '--batch', type=int, default=1)
 pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
-pars.add_argument('--load', '--load', type=bool, default=False)
+pars.add_argument('--load', '--load', type=bool, default=True)
 pars.add_argument('--model', '--model', type=str, default='LLama')
 pars.add_argument('--data-src', '--data-src', type=str, default='HF-wikitext/wikitext-2-v1')
 
@@ -69,7 +69,7 @@ def main(opt):
         else:
             data = load_dataset(name)
         data = data["train"]['text']
-        selected = int(len(data) * 0.01)
+        selected = int(len(data) * 0.1)
         data = data[:selected]
     parameters: LLamaConfig = get_config_by_name(opt.model)
     tokenizer: GPT2Tokenizer = GPT2Tokenizer.from_pretrained('gpt2-medium', bos_token=Tokens.eos,
@@ -110,11 +110,12 @@ def main(opt):
     question = dataset.encode(Tokens.sos + 'hello how are you ?').to(parameters.device)
     question = question['input_ids'].to(parameters.device)
     model = model.to(device=parameters.device)
+
     if opt.train:
 
         for epoch in range(checkpoints['epoch'] if opt.load else 0, parameters.epochs):
             loss_avg = 0
-            with tqdm(enumerate(dataloader), colour='white',
+            with tqdm(enumerate(dataloader), colour='blue',
                       total=math.ceil(dataset.__len__() // parameters.batch_size)) as progress_bar:
                 for i, (input_ids_t) in progress_bar:
                     loss, loss_avg = train(input_ids=input_ids_t, targets=input_ids_t, network=model, optim=optimizer,
@@ -130,9 +131,10 @@ def main(opt):
                                  epoch=epoch + 1, config=opt.model,
                                  name=f'{opt.model}-model.pt')
                 progress_bar.write('==> MODEL SAVED SUCCESSFULLY')
-                predictions = model.generate(prompts=question, max_gen_len=30)
-                progress_bar.write(f'QUESTION : {dataset.decode(question)}')
-                progress_bar.write(f'PREDICTION : {dataset.decode(predictions)}')
+                predictions = model.generate(prompts=question, max_gen_len=30, pad_id=dataset.tokenizer.pad_token_id,
+                                             eos_id=dataset.tokenizer.eos_token_id)
+                progress_bar.write(f'QUESTION : {dataset.tokenizer.decode(question[0])}')
+                progress_bar.write(f'PREDICTION : {dataset.tokenizer.decode(predictions)}')
 
 
 if __name__ == "__main__":

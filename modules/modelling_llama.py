@@ -168,9 +168,12 @@ def sample_top_p(probs, p):
     mask = probs_sum - probs_sort > p
     probs_sort[mask] = 0.0
     probs_sort.div_(probs_sort.sum(dim=-1, keepdim=True))
+
     next_token = torch.multinomial(probs_sort, num_samples=1)
+
     next_token = torch.gather(probs_idx, -1, next_token)
     return next_token
+
 
 
 class LLamaModel(nn.Module):
@@ -209,11 +212,13 @@ class LLamaModel(nn.Module):
             self,
             prompts: List[str],
             max_gen_len: int,
+            pad_id: int,
+            eos_id: int,
             temperature: float = 0.8,
             top_p: float = 0.95,
-    ) -> List[str]:
+    ) -> List[int]:
         batch_size = len(prompts)
-        params = self.model.params
+        params = self.config
         assert batch_size <= self.config.max_batch_size, (batch_size, self.config.max_batch_size)
 
         prompt_tokens = prompts
@@ -221,21 +226,23 @@ class LLamaModel(nn.Module):
         min_prompt_size = min([len(t) for t in prompt_tokens])
         max_prompt_size = max([len(t) for t in prompt_tokens])
 
-        total_len = min(params.max_seq_len, max_gen_len + max_prompt_size)
+        total_len = min(params.max_sentence_length, max_gen_len + max_prompt_size)
 
-        tokens = torch.full((bsz, total_len), self.tokenizer.pad_id).cuda().long()
+        tokens = torch.full((batch_size, total_len), pad_id).cuda().long()
         for k, t in enumerate(prompt_tokens):
             tokens[k, : len(t)] = torch.tensor(t).long()
-        input_text_mask = tokens != self.tokenizer.pad_id
+        input_text_mask = tokens != pad_id
         start_pos = min_prompt_size
         prev_pos = 0
         for cur_pos in range(start_pos, total_len):
-            logits = self.model.forward(tokens[:, prev_pos:cur_pos], prev_pos)
+            logits = self.forward(tokens[:, prev_pos:cur_pos], prev_pos)
+            logits = logits[:, -1, :]
             if temperature > 0:
                 probs = torch.softmax(logits / temperature, dim=-1)
                 next_token = sample_top_p(probs, top_p)
             else:
                 next_token = torch.argmax(logits, dim=-1)
+
             next_token = next_token.reshape(-1)
 
             next_token = torch.where(
@@ -244,17 +251,16 @@ class LLamaModel(nn.Module):
             tokens[:, cur_pos] = next_token
             prev_pos = cur_pos
 
-        decoded = []
         for i, t in enumerate(tokens.tolist()):
 
             t = t[: len(prompt_tokens[i]) + max_gen_len]
 
             try:
-                t = t[: t.index(self.tokenizer.eos_id)]
+                t = t[: t.index(eos_id)]
             except ValueError:
                 pass
-            decoded.append(self.tokenizer.decode(t))
-        return decoded
+
+        return t
 
 
 if __name__ == "__main__":

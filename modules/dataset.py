@@ -2,6 +2,7 @@ from logging import getLogger
 from typing import Optional, List
 
 import torch
+import transformers
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 
@@ -16,8 +17,9 @@ class Tokens:
 
 class DatasetLLama(Dataset, Tokens):
     def __init__(self, data: Optional[List[str]],
-                 tokenizer, max_length: Optional[int] = 768):
+                 tokenizer: Optional[transformers.GPT2Tokenizer], max_length: Optional[int] = 768):
         self.tokenizer = tokenizer
+
         self.input_ids = []
         self.max_length = max_length
         logger.info('Tokenizing Data')
