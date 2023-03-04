@@ -1,17 +1,16 @@
 import logging
 import math
 from dataclasses import dataclass
-from typing import Optional, Union, Tuple
+from typing import Optional, Union, Tuple, List
 
 import torch
 from erutils.loggers import show_hyper_parameters
 from torch import nn
 from transformers import GPT2Tokenizer
 
-from dataset import Tokens
+from .dataset import Tokens
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
 
 class Tokenizer(Tokens):
@@ -29,6 +28,9 @@ class LLamaConfig:
     vocab_size: Optional[int] = None
     max_sentence_length: Optional[int] = 512
     max_batch_size: Optional[int] = 32
+    lr: Optional[float] = 3e-4
+    weight_decay: Optional[float] = 2e-1
+    epochs: Optional[int] = 100
     device: Union[torch.device, str] = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
@@ -42,12 +44,13 @@ class PMSNorm(nn.Module):
         return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
 
     def forward(self, x: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
-        x = self.pms(x.float()).type_as(x)
+        x = self.pms(x.float())
         return x * self.weight
 
 
 def precompute_frq_cis(dim: int, end: int, theta: float = 10000.0) -> Optional[torch.Tensor]:
-    freq = 1.0 / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim))
+    rng = torch.arange(0, dim, 2)
+    freq = 1.0 / (theta ** (rng[: (dim // 2)].float() / dim))
     t = torch.arange(end, device=freq.device)  # type: ignore
     freq = torch.outer(t, freq).float()  # type: ignore
     freq = torch.polar(torch.ones_like(freq), freq)  # complex64
@@ -97,11 +100,13 @@ class LLamaAttention(nn.Module):
                             )
         self.wo = nn.Linear(config.n_heads * self.head_dim, config.hidden_size, bias=False,
                             )
-        self.cash_k = torch.zeros(
-            (config.max_batch_size, config.max_sentence_length, self.local_rank, self.head_dim)).to(config.device)
-        self.cash_v = torch.zeros(
-            (config.max_batch_size, config.max_sentence_length, self.local_rank, self.head_dim)).to(config.device)
-
+        # self.cash_k = nn.Parameter(torch.zeros(
+        #     (config.max_batch_size, config.max_sentence_length, self.local_rank, self.head_dim)).to(config.device),
+        #                            requires_grad=False)
+        # self.cash_v = nn.Parameter(torch.zeros(
+        #     (config.max_batch_size, config.max_sentence_length, self.local_rank, self.head_dim)).to(config.device),
+        #                            requires_grad=False
+        #                            )
     def forward(self, x: Optional[torch.Tensor], pos_start: int, freq: Optional[torch.Tensor],
                 mask: Optional[torch.Tensor] = None) -> Optional[torch.Tensor]:
         batch_, seq_len_, _ = x.shape
@@ -110,14 +115,18 @@ class LLamaAttention(nn.Module):
         xk = self.wk(x).view(batch_, seq_len_, self.local_rank, self.head_dim)
         logger.debug(f'xq : {xq.shape} \nxv : {xv.shape}\nxk : {xk.shape}')
         # using rotary embedding for key and query
-        xq, xk = rotary_embedding(xq=xq, xk=xk, frq=freq)
+        if freq is not None:
+            xq, xk = rotary_embedding(xq=xq, xk=xk, frq=freq)
+        else:
+            logger.debug('Freq is None')
         # we need to cash key and values
-        self.cash_v = self.cash_v.to(xv)
-        self.cash_k = self.cash_k.to(xk)
-        self.cash_k[:batch_, pos_start:pos_start + seq_len_] = xk
-        self.cash_v[:batch_, pos_start:pos_start + seq_len_] = xq
-        key = self.cash_k[:batch_, pos_start:pos_start + seq_len_]
-        value = self.cash_v[:batch_, pos_start:pos_start + seq_len_]
+
+        # self.cash_k[:batch_, pos_start:pos_start + seq_len_] = xk
+        # self.cash_v[:batch_, pos_start:pos_start + seq_len_] = xv
+        # key = self.cash_k[:batch_, pos_start:pos_start + seq_len_]
+        # value = self.cash_v[:batch_, pos_start:pos_start + seq_len_]
+        key = xk
+        value = xv
         # [batch, seq_len , num_heads, head_dim] -> [batch, num_heads, seq_len, head_dim]
         key = key.permute(0, 2, 1, 3)
         # [batch, seq_len , num_heads, head_dim] -> [batch, num_heads, seq_len, head_dim]
@@ -147,10 +156,21 @@ class LLamaBlock(nn.Module):
         self.attention = LLamaAttention(config)
         self.ffw = FeedForward(config)
 
-    def forward(self, x: Optional[torch.Tensor], pos_start: int, freq: Optional[torch.Tensor],
-                mask: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
+    def forward(self, x: Optional[torch.Tensor], pos_start: int,
+                mask: Optional[torch.Tensor], freq: Optional[torch.Tensor] = None) -> Optional[torch.Tensor]:
         h = x + self.attention(self.ln1(x), mask=mask, pos_start=pos_start, freq=freq)
         return h + self.ffw(self.ln2(h))
+
+
+def sample_top_p(probs, p):
+    probs_sort, probs_idx = torch.sort(probs, dim=-1, descending=True)
+    probs_sum = torch.cumsum(probs_sort, dim=-1)
+    mask = probs_sum - probs_sort > p
+    probs_sort[mask] = 0.0
+    probs_sort.div_(probs_sort.sum(dim=-1, keepdim=True))
+    next_token = torch.multinomial(probs_sort, num_samples=1)
+    next_token = torch.gather(probs_idx, -1, next_token)
+    return next_token
 
 
 class LLamaModel(nn.Module):
@@ -166,27 +186,75 @@ class LLamaModel(nn.Module):
         self.output = nn.Linear(
             config.hidden_size, config.vocab_size, bias=False
         )
-        self.freq = precompute_frq_cis(
-            config.hidden_size // config.n_heads, self.config.max_sentence_length * 2
-        )
+        self.freq = precompute_frq_cis(config.hidden_size // config.n_heads, config.max_sentence_length * 2)
 
-    @torch.inference_mode()
-    def forward(self, tokens: torch.Tensor, start_pos: int):
+    def forward(self, tokens: torch.Tensor, pos_start: int):
         _batch, seq_len = tokens.shape
         h = self.wte(tokens)
-        self.freq = self.freqs_cis.to(h.device)
-        freq = self.freqs_cis[start_pos: start_pos + seq_len]
-
         mask = None
+        self.freq = self.freq.to(h.device)
+        chosen_freq = self.freq[pos_start:pos_start + seq_len]
         if seq_len > 1:
             mask = torch.full((1, 1, seq_len, seq_len), float("-inf"), device=tokens.device)
-            mask = torch.triu(mask, diagonal=start_pos + 1).type_as(h)
+            mask = torch.triu(mask, diagonal=pos_start + 1).type_as(h)
 
         for layer in self.layers:
-            h = layer(h, start_pos, freq, mask)
+            h = layer(h, pos_start=pos_start, mask=mask, freq=chosen_freq)
         h = self.norm(h)
-        output = self.output(h[:, -1, :])  # only compute last logits
-        return output.float()
+        # output = self.output(h[:, -1, :])  # only compute last logits
+        output = self.output(h)
+        return output
+
+    def generate(
+            self,
+            prompts: List[str],
+            max_gen_len: int,
+            temperature: float = 0.8,
+            top_p: float = 0.95,
+    ) -> List[str]:
+        batch_size = len(prompts)
+        params = self.model.params
+        assert batch_size <= self.config.max_batch_size, (batch_size, self.config.max_batch_size)
+
+        prompt_tokens = prompts
+
+        min_prompt_size = min([len(t) for t in prompt_tokens])
+        max_prompt_size = max([len(t) for t in prompt_tokens])
+
+        total_len = min(params.max_seq_len, max_gen_len + max_prompt_size)
+
+        tokens = torch.full((bsz, total_len), self.tokenizer.pad_id).cuda().long()
+        for k, t in enumerate(prompt_tokens):
+            tokens[k, : len(t)] = torch.tensor(t).long()
+        input_text_mask = tokens != self.tokenizer.pad_id
+        start_pos = min_prompt_size
+        prev_pos = 0
+        for cur_pos in range(start_pos, total_len):
+            logits = self.model.forward(tokens[:, prev_pos:cur_pos], prev_pos)
+            if temperature > 0:
+                probs = torch.softmax(logits / temperature, dim=-1)
+                next_token = sample_top_p(probs, top_p)
+            else:
+                next_token = torch.argmax(logits, dim=-1)
+            next_token = next_token.reshape(-1)
+
+            next_token = torch.where(
+                input_text_mask[:, cur_pos], tokens[:, cur_pos], next_token
+            )
+            tokens[:, cur_pos] = next_token
+            prev_pos = cur_pos
+
+        decoded = []
+        for i, t in enumerate(tokens.tolist()):
+
+            t = t[: len(prompt_tokens[i]) + max_gen_len]
+
+            try:
+                t = t[: t.index(self.tokenizer.eos_id)]
+            except ValueError:
+                pass
+            decoded.append(self.tokenizer.decode(t))
+        return decoded
 
 
 if __name__ == "__main__":

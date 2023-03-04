@@ -572,10 +572,10 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
     elif name == 'LLama':
         return LLamaConfig(
             vocab_size=vocab_size,
-            max_batch_size=32,
-            n_layers=10,
-            n_heads=20,
-            hidden_size=1400,
+            max_batch_size=3,
+            n_layers=8,
+            n_heads=8,
+            hidden_size=768,
             max_sentence_length=256
         )
     else:
