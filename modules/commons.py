@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Optional, Union, Tuple, List, Any
+from typing import Optional, Union, Tuple, Any
 
 from torch import Tensor
 from transformers.models.gptj.modeling_gptj import fixed_pos_embedding, apply_rotary_pos_emb
@@ -413,6 +415,8 @@ class MultiCNNAttention(nn.Module):
         self.num_heads = config.num_heads
         self.num_div = self.embedding // self.num_heads
         self.scale_attn_by_layer_idx = config.scale_attn_by_layer_idx
+        if not config.scale_attn_by_layer_idx:
+            print('set config.scale_attn_by_layer_idx to True')
         self.use_mask = config.use_mask if use_mask is None else use_mask
         if self.num_heads // self.embedding != 0:
             raise ValueError(
@@ -744,4 +748,3 @@ class GPTJBlock(nn.Module):
         return outputs  # hidden_states, present, (attentions)
 
 
-from transformers import GPTJModel

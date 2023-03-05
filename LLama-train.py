@@ -16,7 +16,6 @@ from modules.dataset import DatasetLLama
 from modules.modelling_llama import LLamaModel, LLamaConfig, Tokens
 from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info
 
-logging.basicConfig(level=logging.CRITICAL)
 torch.backends.cudnn.benchmark = True
 torch.autograd.set_detect_anomaly(True)
 pars = argparse.ArgumentParser()
@@ -24,11 +23,14 @@ pars = argparse.ArgumentParser()
 pars.add_argument('--batch', '--batch', type=int, default=1)
 pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
-pars.add_argument('--load', '--load', type=bool, default=True)
+pars.add_argument('--load', '--load', type=bool, default=False)
 pars.add_argument('--model', '--model', type=str, default='LLama')
 pars.add_argument('--data-src', '--data-src', type=str, default='HF-wikitext/wikitext-2-v1')
 
 options = pars.parse_args()
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.WARN)
 
 
 def train(input_ids: Optional[Tensor],
@@ -44,9 +46,12 @@ def train(input_ids: Optional[Tensor],
     network.zero_grad(set_to_none=True)
     predict = network(tokens=input_ids, pos_start=0)
 
-    shift_logits = predict[..., :-1, :].contiguous()
-    shift_labels = targets[..., 1:].contiguous()
-    shift_logits = shift_logits.view(-1, shift_logits.size(-1))
+    # shift_logits = predict[..., :-1, :].contiguous()
+    shift_logits = predict.contiguous()
+    shift_labels = targets[..., -1].contiguous()
+
+    shift_logits = shift_logits.view(-1 if shift_logits.shape[0] > 1 else 1, shift_logits.size(-1))
+
     shift_labels = shift_labels.view(-1)
 
     loss_prediction = loss_function(shift_logits, shift_labels)
@@ -107,12 +112,12 @@ def main(opt):
         model = torch.compile(model)
         fprint(f"Model Compiled Successfully")
 
-    question = dataset.encode(Tokens.sos + 'hello how are you ?').to(parameters.device)
+    question = dataset.encode(Tokens.sos + 'say something ').to(parameters.device)
     question = question['input_ids'].to(parameters.device)
     model = model.to(device=parameters.device)
-
+    logger.info('TRAIN IS ABOUT TO START!!!')
     if opt.train:
-
+        logger.info('TRAIN IS ABOUT TO START')
         for epoch in range(checkpoints['epoch'] if opt.load else 0, parameters.epochs):
             loss_avg = 0
             with tqdm(enumerate(dataloader), colour='blue',

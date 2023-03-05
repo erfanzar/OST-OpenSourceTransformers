@@ -204,8 +204,8 @@ class LLamaModel(nn.Module):
         for layer in self.layers:
             h = layer(h, pos_start=pos_start, mask=mask, freq=chosen_freq)
         h = self.norm(h)
-        # output = self.output(h[:, -1, :])  # only compute last logits
-        output = self.output(h)
+        output = self.output(h[:, -1, :])  # only compute last logits
+        # output = self.output(h)
         return output
 
     def generate(
@@ -236,7 +236,7 @@ class LLamaModel(nn.Module):
         prev_pos = 0
         for cur_pos in range(start_pos, total_len):
             logits = self.forward(tokens[:, prev_pos:cur_pos], prev_pos)
-            logits = logits[:, -1, :]
+            # logits = logits[:, -1, :]
             if temperature > 0:
                 probs = torch.softmax(logits / temperature, dim=-1)
                 next_token = sample_top_p(probs, top_p)
