@@ -641,7 +641,12 @@ class LLmP(nn.Module):
     def forward(self, input_ids: Optional[torch.Tensor], attention_mask: Optional[torch.Tensor],
                 labels: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, Union[torch.Tensor, None]]:
         batch, seq_len = input_ids.shape
-        chosen_freq = self.freq[batch, :seq_len]
+        if attention_mask is not None:
+            attention_mask = attention_mask.to(input_ids.device)
+            if attention_mask.ndim == 2:
+                attention_mask = attention_mask.unsqueeze(0).unsqueeze(1)
+        self.freq = self.freq.to(input_ids.device)
+        chosen_freq = self.freq[:seq_len]
         x_ = self.dropout(self.wte(input_ids))
 
         for h in self.h:

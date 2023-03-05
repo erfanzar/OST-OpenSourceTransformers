@@ -65,7 +65,7 @@ def main(opt):
         else:
             data = load_dataset(name)
         data = data["train"]['text']
-        selected = int(len(data) * 0.1)
+        selected = int(len(data) * 0.01)
         data = data[:selected]
     parameters: LLmPConfig = get_config_by_name(opt.model)
     tokenizer: GPT2Tokenizer = GPT2Tokenizer.from_pretrained('gpt2', bos_token=Tokens.eos,
