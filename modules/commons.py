@@ -746,5 +746,3 @@ class GPTJBlock(nn.Module):
             outputs = (hidden_states,) + outputs[1:]
 
         return outputs  # hidden_states, present, (attentions)
-
-

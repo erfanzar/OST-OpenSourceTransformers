@@ -1,19 +1,23 @@
 import typing
-from typing import Optional
+from typing import Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from utils.utils import HyperParameters
+from .cross_modules import LLmPConfig, precompute_frq_cis
 from .commons import MultiHeadBlock, CasualBlock, Decoder, Encoder, PGTBlock, Conv1D, CC_PGT_Block
+from .modeling_LLmP import LLmPBlock, PMSNorm
 
 __all__ = ['PTTDecoder', 'PTT', 'PTTGenerative', 'PGT']
+
 
 class Tokenizer:
     eos = '<|endoftext|>'
     pad = '<|endoftext|>'
     sos = '<|startoftext|>'
+
 
 class PTTDecoder(nn.Module):
     def __init__(self, vocab_size: int, number_of_layers: int, number_of_embedded: int, head_size: int,
@@ -622,3 +626,31 @@ class PGT_J(nn.Module):
         next_index = torch.multinomial(pred, 1)
         idx = torch.cat([idx, next_index], 1)
         return idx
+
+
+class LLmP(nn.Module):
+    def __init__(self, config: LLmPConfig):
+        super(LLmP, self).__init__()
+        self.wte = nn.Embedding(config.vocab_size, config.hidden_size)
+        self.dropout = nn.Dropout(config.embed_dropout)
+        self.h = nn.ModuleList([LLmPBlock(config=config, layer_index=i) for i in range(config.n_layers)])
+        self.ln = PMSNorm(config)
+        self.out = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        self.freq = precompute_frq_cis(config.hidden_size // config.n_heads, config.max_sentence_length * 2)
+
+    def forward(self, input_ids: Optional[torch.Tensor], attention_mask: Optional[torch.Tensor],
+                labels: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, Union[torch.Tensor, None]]:
+        batch, seq_len = input_ids.shape
+        chosen_freq = self.freq[batch, :seq_len]
+        x_ = self.dropout(self.wte(input_ids))
+
+        for h in self.h:
+            x_ = h(x_, attention_mask=attention_mask, freq=chosen_freq)
+        logits = self.out(self.ln(x_))
+        if labels is not None:
+            shift_logits = logits[..., :-1, :].contiguous()
+            shift_labels = labels[..., 1:].contiguous()
+            loss = nn.functional.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+        else:
+            loss = None
+        return logits, loss

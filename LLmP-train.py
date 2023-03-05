@@ -12,8 +12,9 @@ from torch import Tensor
 from tqdm.auto import tqdm
 from transformers import GPT2Tokenizer
 
-from modules.dataset import DatasetLLama
-from modules.modelling_llama import LLamaModel, LLamaConfig, Tokens
+from modules.dataset import DatasetLLmP, Tokens
+from modules.models import LLmP, LLmPConfig
+
 from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info
 
 torch.backends.cudnn.benchmark = True
@@ -24,8 +25,8 @@ pars.add_argument('--batch', '--batch', type=int, default=1)
 pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
 pars.add_argument('--load', '--load', type=bool, default=False)
-pars.add_argument('--model', '--model', type=str, default='LLama')
-pars.add_argument('--data-src', '--data-src', type=str, default='HF-wikitext/wikitext-2-v1')
+pars.add_argument('--model', '--model', type=str, default='LLmP')
+pars.add_argument('--data-src', '--data-src', type=str, default='data/TPAP.txt')
 
 options = pars.parse_args()
 
@@ -35,31 +36,21 @@ logging.basicConfig(level=logging.WARN)
 
 def train(input_ids: Optional[Tensor],
           targets: Optional[Tensor],
-          network: Optional[LLamaModel.forward],
+          attention_mask: Optional[Tensor],
+          network: Optional[LLmP.forward],
           optim: Optional[torch.optim.AdamW],
-          loss_function: Optional[torch.nn.CrossEntropyLoss],
           loss_average: Optional[Tensor],
           device: Union[torch.device, str]) -> [typing.Union[torch.Tensor],
                                                 typing.Union[torch.Tensor]]:
-    targets: Optional[Tensor] = make2d(targets.type(torch.long).to(device))
+    labels: Optional[Tensor] = make2d(targets.type(torch.long).to(device))
     input_ids: Optional[Tensor] = make2d(input_ids.type(torch.long).to(device))
     network.zero_grad(set_to_none=True)
-    predict = network(tokens=input_ids, pos_start=0)
+    _, loss = network(input_ids=input_ids, labels=labels, attention_mask=attention_mask)
 
-    # shift_logits = predict[..., :-1, :].contiguous()
-    shift_logits = predict.contiguous()
-    shift_labels = targets[..., -1].contiguous()
-
-    shift_logits = shift_logits.view(-1 if shift_logits.shape[0] > 1 else 1, shift_logits.size(-1))
-
-    shift_labels = shift_labels.view(-1)
-
-    loss_prediction = loss_function(shift_logits, shift_labels)
-
-    loss_average += loss_prediction.item()
-    loss_prediction.backward()
+    loss_average += loss.item()
+    loss.backward()
     optim.step()
-    return loss_prediction, loss_average
+    return loss, loss_average
 
 
 def main(opt):
@@ -76,10 +67,10 @@ def main(opt):
         data = data["train"]['text']
         selected = int(len(data) * 0.1)
         data = data[:selected]
-    parameters: LLamaConfig = get_config_by_name(opt.model)
-    tokenizer: GPT2Tokenizer = GPT2Tokenizer.from_pretrained('gpt2-medium', bos_token=Tokens.eos,
+    parameters: LLmPConfig = get_config_by_name(opt.model)
+    tokenizer: GPT2Tokenizer = GPT2Tokenizer.from_pretrained('gpt2', bos_token=Tokens.eos,
                                                              pad_token=Tokens.pad, sos_token=Tokens.sos)
-    dataset = DatasetLLama(data=data, max_length=parameters.max_sentence_length, tokenizer=tokenizer)
+    dataset = DatasetLLmP(data=data, max_length=parameters.max_sentence_length, tokenizer=tokenizer)
     parameters.vocab_size = dataset.tokenizer.vocab_size
     parameters.vocab_size += 2
     # parameters.device = 'cpu'
@@ -92,7 +83,7 @@ def main(opt):
 
     fprint('Loading Model ...' if opt.load else 'Creating Model ...')
 
-    model = LLamaModel(config=parameters).to(parameters.device) if opt.load else LLamaModel(config=parameters).to('cpu')
+    model = LLmP(config=parameters).to(parameters.device) if opt.load else LLmP(config=parameters).to('cpu')
     optimizer_kwargs = dict(lr=parameters.lr, weight_decay=parameters.weight_decay)
     optimizer = torch.optim.AdamW(model.parameters(), **optimizer_kwargs)
     model_parameters_size: typing.Optional[float] = sum(p.numel() for p in model.parameters()) / 1e6
@@ -106,7 +97,6 @@ def main(opt):
     fprint(
         f'Model Loaded With {model_parameters_size} Million Parameters' if opt.load
         else f'Model Created With {model_parameters_size} Million Parameters')
-    criterion = torch.nn.CrossEntropyLoss()
 
     if opt.compile:
         model = torch.compile(model)
@@ -122,9 +112,10 @@ def main(opt):
             loss_avg = 0
             with tqdm(enumerate(dataloader), colour='blue',
                       total=math.ceil(dataset.__len__() // parameters.batch_size)) as progress_bar:
-                for i, (input_ids_t) in progress_bar:
+                for i, (input_ids_t, attention_mask) in progress_bar:
                     loss, loss_avg = train(input_ids=input_ids_t, targets=input_ids_t, network=model, optim=optimizer,
-                                           loss_average=loss_avg, loss_function=criterion, device=parameters.device)
+                                           loss_average=loss_avg, device=parameters.device,
+                                           attention_mask=attention_mask)
 
                     progress_bar.set_postfix(epoch=f'[{epoch}/{parameters.epochs}]', device=parameters.device,
                                              loss_avg=(loss_avg / (i + 1)),

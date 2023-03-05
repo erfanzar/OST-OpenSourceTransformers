@@ -9,6 +9,7 @@ from tqdm.auto import tqdm
 from transformers import BertTokenizer, GPT2Tokenizer
 
 from modules.modelling_llama import LLamaConfig
+from modules.cross_modules import LLmPConfig
 
 
 class Tokens:
@@ -291,7 +292,6 @@ class DatasetPGT(Dataset):
         )['input_ids']
 
 
-
 class GPT2Dataset(Dataset, Tokens):
 
     def __init__(self, txt_list: typing.Optional[typing.List[str]], tokenizer, max_length: typing.Optional[int] = 768):
@@ -323,6 +323,7 @@ class GPT2Dataset(Dataset, Tokens):
             truncation=True
         )
         return enc_trg
+
 
 class PGTConfig:
     attribute_map = {
@@ -472,7 +473,7 @@ def make2d(tensor) -> typing.Optional[torch.Tensor]:
 
 def get_config_by_name(name: str, vocab_size: int = 5000,
                        device: str = 'cuda' if torch.cuda.is_available() else 'cpu') -> typing.Union[
-    HyperParameters, LLamaConfig]:
+    HyperParameters, LLamaConfig, LLmPConfig]:
     """
     :param device: device for model
     :param vocab_size: vocab_size
@@ -501,7 +502,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
         self.weight_decay: float = kwargs.pop('weight_decay', 2e-1, )
     """
     models_name = ['PGT-Cs', 'PGT-As', 'PGT-s', 'PGT-m', 'PGT-x', 'PGT-l', 'PGT-A', 'PGT-J-small', 'PGT-J-medium',
-                   'PGT-J-large', 'PGT-J-X', 'LLama']
+                   'PGT-J-large', 'PGT-J-X', 'LLama', 'LLmP']
     if name == 'PGT-Cs':
         return HyperParameters(
             model_type=name,
@@ -638,6 +639,14 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
         return LLamaConfig(
             vocab_size=vocab_size,
             max_batch_size=3,
+            n_layers=8,
+            n_heads=8,
+            hidden_size=768,
+            max_sentence_length=256
+        )
+    elif name == 'LLmP':
+        return LLmPConfig(
+            vocab_size=vocab_size,
             n_layers=8,
             n_heads=8,
             hidden_size=768,

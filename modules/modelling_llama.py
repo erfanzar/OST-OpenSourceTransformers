@@ -107,6 +107,7 @@ class LLamaAttention(nn.Module):
         #     (config.max_batch_size, config.max_sentence_length, self.local_rank, self.head_dim)).to(config.device),
         #                            requires_grad=False
         #                            )
+
     def forward(self, x: Optional[torch.Tensor], pos_start: int, freq: Optional[torch.Tensor],
                 mask: Optional[torch.Tensor] = None) -> Optional[torch.Tensor]:
         batch_, seq_len_, _ = x.shape
@@ -173,7 +174,6 @@ def sample_top_p(probs, p):
 
     next_token = torch.gather(probs_idx, -1, next_token)
     return next_token
-
 
 
 class LLamaModel(nn.Module):
