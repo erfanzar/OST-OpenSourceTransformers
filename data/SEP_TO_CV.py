@@ -24,6 +24,10 @@ def pgt_j(path: typing.Union[os.PathLike, str] = 'PGT-DATA.txt'):
     print(string)
     open('PGT-J-DATA.txt', 'w', encoding='utf8').write(string)
 
+def llmp(path: typing.Union[os.PathLike, str] = 'PGT-DATA.txt'):
+    data = open(path, 'r', encoding='utf8').read()
+    dt = data.split(sep='[SEP]')
+
 
 if __name__ == "__main__":
     pgt()

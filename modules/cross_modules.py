@@ -1,10 +1,11 @@
-import torch
-from torch import nn
-from typing import Optional, List, Union, Tuple
-from erutils.lightning import rotary_embedding
 import logging
 import math
 from dataclasses import dataclass
+from typing import Optional, Union
+
+import torch
+from erutils.lightning import rotary_embedding
+from torch import nn
 
 logger = logging.getLogger(__name__)
 
@@ -92,13 +93,13 @@ class Attention(nn.Module):
         # score : [batch, num_heads, seq_len , head_dim]
         attention = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(self.head_dim)
         if self.use_layer_index_scaling:
-            attention /= self.layer_index
+            attention /= (self.layer_index + 1)
         logger.debug(f'score : {attention.shape}')
+        _, _, s, h = attention.shape
 
         if attention_mask is not None:
-            _, _, s, h = attention.shape
-            attention += self.bias[:, :, :s, :h]
-            attention *= attention_mask[:, :, :s, :h]
+            attention += attention_mask[:, :, :, :h]
+        attention += self.bias[:, :, :s, :h]
         attention = nn.functional.softmax(attention, dim=-1)
         # after matmul [batch, num_heads, seq_len , head_dim]
         comb = torch.matmul(attention, value).permute(0, 2, 1, 3).contiguous().view(batch_, seq_len_, -1)

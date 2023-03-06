@@ -644,7 +644,7 @@ class LLmP(nn.Module):
         if attention_mask is not None:
             attention_mask = attention_mask.to(input_ids.device)
             if attention_mask.ndim == 2:
-                attention_mask = attention_mask.unsqueeze(0).unsqueeze(1)
+                attention_mask = attention_mask.unsqueeze(2).unsqueeze(1)
         self.freq = self.freq.to(input_ids.device)
         chosen_freq = self.freq[:seq_len]
         x_ = self.dropout(self.wte(input_ids))

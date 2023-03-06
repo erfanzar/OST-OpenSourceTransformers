@@ -8,8 +8,8 @@ from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 from transformers import BertTokenizer, GPT2Tokenizer
 
-from modules.modelling_llama import LLamaConfig
 from modules.cross_modules import LLmPConfig
+from modules.modelling_llama import LLamaConfig
 
 
 class Tokens:
@@ -647,7 +647,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
     elif name == 'LLmP':
         return LLmPConfig(
             vocab_size=vocab_size,
-            n_layers=4,
+            n_layers=10,
             n_heads=8,
             hidden_size=512,
             max_sentence_length=256

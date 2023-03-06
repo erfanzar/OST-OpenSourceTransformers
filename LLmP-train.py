@@ -9,22 +9,23 @@ import torch.utils.data
 from datasets import load_dataset
 from erutils.loggers import fprint
 from torch import Tensor
+from torch.utils.tensorboard import SummaryWriter
 from tqdm.auto import tqdm
 from transformers import GPT2Tokenizer
 
 from modules.dataset import DatasetLLmP, Tokens
 from modules.models import LLmP, LLmPConfig
-
 from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info
 
+torch.manual_seed(42)
 torch.backends.cudnn.benchmark = True
 
 pars = argparse.ArgumentParser()
 
-pars.add_argument('--batch', '--batch', type=int, default=1)
+pars.add_argument('--batch', '--batch', type=int, default=3)
 pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
-pars.add_argument('--load', '--load', type=bool, default=False)
+pars.add_argument('--load', '--load', type=bool, default=True)
 pars.add_argument('--model', '--model', type=str, default='LLmP')
 pars.add_argument('--data-src', '--data-src', type=str, default='data/TPAP.txt')
 
@@ -56,7 +57,7 @@ def train(input_ids: Optional[Tensor],
 def main(opt):
     device_info()
     if not opt.data_src.startswith('HF-'):
-        data = open(opt.data_src, 'r', encoding='utf8').read().split('<|endoftext|>')
+        data = open(opt.data_src, 'r', encoding='utf8').read().split()
     else:
         name = opt.data_src.replace('HF-', '')
         if '/' in name:
@@ -72,7 +73,7 @@ def main(opt):
                                                              pad_token=Tokens.pad, sos_token=Tokens.sos)
     dataset = DatasetLLmP(data=data, max_length=parameters.max_sentence_length, tokenizer=tokenizer)
     parameters.vocab_size = dataset.tokenizer.vocab_size
-    parameters.vocab_size += 2
+    parameters.vocab_size += 1
     # parameters.device = 'cpu'
     parameters.data_path = opt.data_src
 
@@ -101,7 +102,7 @@ def main(opt):
     if opt.compile:
         model = torch.compile(model)
         fprint(f"Model Compiled Successfully")
-
+    board = SummaryWriter(log_dir='out/', filename_suffix='LLmP')
     question = dataset.encode(Tokens.sos + 'say something ').to(parameters.device)
     question = question['input_ids'].to(parameters.device)
     model = model.to(device=parameters.device)
@@ -116,7 +117,10 @@ def main(opt):
                     loss, loss_avg = train(input_ids=input_ids_t, targets=input_ids_t, network=model, optim=optimizer,
                                            loss_average=loss_avg, device=parameters.device,
                                            attention_mask=attention_mask)
-
+                    if i % 50 == 0:
+                        board.add_scalar('train/Loss', scalar_value=loss.item(), global_step=i * (epoch + 1))
+                        board.add_scalar('train/avg-Loss', scalar_value=(loss_avg / (i + 1)),
+                                         global_step=i * (epoch + 1))
                     progress_bar.set_postfix(epoch=f'[{epoch}/{parameters.epochs}]', device=parameters.device,
                                              loss_avg=(loss_avg / (i + 1)),
                                              loss=loss.item())
@@ -127,10 +131,10 @@ def main(opt):
                                  epoch=epoch + 1, config=opt.model,
                                  name=f'{opt.model}-model.pt')
                 progress_bar.write('==> MODEL SAVED SUCCESSFULLY')
-                predictions = model.generate(prompts=question, max_gen_len=30, pad_id=dataset.tokenizer.pad_token_id,
-                                             eos_id=dataset.tokenizer.eos_token_id)
-                progress_bar.write(f'QUESTION : {dataset.tokenizer.decode(question[0])}')
-                progress_bar.write(f'PREDICTION : {dataset.tokenizer.decode(predictions)}')
+                # predictions = model.generate(prompts=question, max_gen_len=30, pad_id=dataset.tokenizer.pad_token_id,
+                #                              eos_id=dataset.tokenizer.eos_token_id)
+                # progress_bar.write(f'QUESTION : {dataset.tokenizer.decode(question[0])}')
+                # progress_bar.write(f'PREDICTION : {dataset.tokenizer.decode(predictions)}')
 
 
 if __name__ == "__main__":

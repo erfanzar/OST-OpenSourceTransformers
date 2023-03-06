@@ -63,18 +63,16 @@ class DatasetLLmP(Dataset, Tokens):
         self.input_ids = []
         self.max_length = max_length
         logger.info('Tokenizing Data')
-        pbar = tqdm(enumerate(data))
+        pbar = tqdm(enumerate(range(0, len(data), max_length)))
         failed = 0
-        for i, txt in pbar:
-            if txt != '' and not txt.startswith(' ='):
-                pbar.set_postfix(failed=failed, collected=i + 1 - failed)
-                encodings_dict = tokenizer(txt + self.eos, truncation=True,
-                                           max_length=max_length, padding="do_not_pad")
+        for i, rng in pbar:
+            pbar.set_postfix(failed=failed, collected=i + 1 - failed)
+            string = ' '.join(data[rng:(max_length - 1) + rng])
+            encodings_dict = tokenizer(string + self.eos, truncation=True,
+                                       max_length=max_length, padding="max_length")
 
-                self.input_ids.append(torch.tensor(encodings_dict['input_ids']))
-                self.attention_mask.append(torch.tensor(encodings_dict['attention_mask']))
-            else:
-                failed += 1
+            self.input_ids.append(torch.tensor(encodings_dict['input_ids']))
+            self.attention_mask.append(torch.tensor(encodings_dict['attention_mask']))
 
     def __len__(self):
         return len(self.input_ids)
