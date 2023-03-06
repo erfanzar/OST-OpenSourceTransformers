@@ -1,13 +1,13 @@
 import typing
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, Union, List
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from utils.utils import HyperParameters
-from .cross_modules import LLmPConfig, precompute_frq_cis
 from .commons import MultiHeadBlock, CasualBlock, Decoder, Encoder, PGTBlock, Conv1D, CC_PGT_Block
+from .cross_modules import LLmPConfig, precompute_frq_cis
 from .modeling_LLmP import LLmPBlock, PMSNorm
 
 __all__ = ['PTTDecoder', 'PTT', 'PTTGenerative', 'PGT']
@@ -637,6 +637,7 @@ class LLmP(nn.Module):
         self.ln = PMSNorm(config)
         self.out = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         self.freq = precompute_frq_cis(config.hidden_size // config.n_heads, config.max_sentence_length * 2)
+        self.config = config
 
     def forward(self, input_ids: Optional[torch.Tensor], attention_mask: Optional[torch.Tensor],
                 labels: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, Union[torch.Tensor, None]]:
@@ -644,7 +645,7 @@ class LLmP(nn.Module):
         if attention_mask is not None:
             attention_mask = attention_mask.to(input_ids.device)
             if attention_mask.ndim == 2:
-                attention_mask = attention_mask.unsqueeze(2).unsqueeze(1)
+                attention_mask = attention_mask.unsqueeze(1).unsqueeze(1)
         self.freq = self.freq.to(input_ids.device)
         chosen_freq = self.freq[:seq_len]
         x_ = self.dropout(self.wte(input_ids))
@@ -659,3 +660,39 @@ class LLmP(nn.Module):
         else:
             loss = None
         return logits, loss
+
+    def generate(
+            self,
+            prompts: Optional[torch.Tensor],
+            max_gen_len: int = 20,
+            # eos_id: int,
+            temperature: float = 0.8,
+            top_p: float = 0.95,
+    ) -> List[int]:
+        def sample_top_p(probs, p):
+            probs_sort, probs_idx = torch.sort(probs, dim=-1, descending=True)
+            probs_sum = torch.cumsum(probs_sort, dim=-1)
+            mask = probs_sum - probs_sort > p
+            probs_sort[mask] = 0.0
+            probs_sort.div_(probs_sort.sum(dim=-1, keepdim=True))
+
+            next_token = torch.multinomial(probs_sort, num_samples=1)
+
+            next_token = torch.gather(probs_idx, -1, next_token)
+            return next_token
+
+        attention_mask = torch.nn.functional.pad((prompts != 0).float(),
+                                                 (0, self.config.max_sentence_length - prompts.size(-1)), value=0)
+
+        for i in range(max_gen_len):
+            logits, _ = self.forward(prompts, attention_mask)
+            logits = logits[:, -1, :]
+            if temperature > 0:
+                probs = torch.softmax(logits / temperature, dim=-1)
+                next_token = sample_top_p(probs, top_p)
+            else:
+                next_token = torch.argmax(logits, dim=-1)
+
+            next_token = next_token.reshape(*prompts.shape[:-1], 1)
+            prompts = torch.cat([prompts, next_token], dim=1)
+        return prompts

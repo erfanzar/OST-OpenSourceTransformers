@@ -32,7 +32,7 @@ pars.add_argument('--data-src', '--data-src', type=str, default='data/TPAP.txt')
 options = pars.parse_args()
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.WARN)
+# logging.basicConfig(level=logging.WARN)
 
 
 def train(input_ids: Optional[Tensor],

@@ -95,6 +95,7 @@ class Attention(nn.Module):
         if self.use_layer_index_scaling:
             attention /= (self.layer_index + 1)
         logger.debug(f'score : {attention.shape}')
+        logger.debug(f'attention mask : {attention_mask.shape}')
         _, _, s, h = attention.shape
 
         if attention_mask is not None:
