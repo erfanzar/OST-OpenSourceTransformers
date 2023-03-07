@@ -666,7 +666,7 @@ class LLmP(nn.Module):
             prompts: Optional[torch.Tensor],
             max_gen_len: int = 20,
             # eos_id: int,
-            temperature: float = 0.8,
+            temperature: float = 0.9,
             top_p: float = 0.95,
     ) -> List[int]:
         def sample_top_p(probs, p):
@@ -681,9 +681,9 @@ class LLmP(nn.Module):
             next_token = torch.gather(probs_idx, -1, next_token)
             return next_token
 
-        attention_mask = torch.nn.functional.pad((prompts != 0).float(),
-                                                 (0, self.config.max_sentence_length - prompts.size(-1)), value=0)
-
+        # attention_mask = torch.nn.functional.pad((prompts != 0).float(),
+        #                                          (0, self.config.max_sentence_length - prompts.size(-1)), value=0)
+        attention_mask = None
         for i in range(max_gen_len):
             logits, _ = self.forward(prompts, attention_mask)
             logits = logits[:, -1, :]

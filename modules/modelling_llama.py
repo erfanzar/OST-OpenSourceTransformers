@@ -251,15 +251,6 @@ class LLamaModel(nn.Module):
             tokens[:, cur_pos] = next_token
             prev_pos = cur_pos
 
-        for i, t in enumerate(tokens.tolist()):
-
-            t = t[: len(prompt_tokens[i]) + max_gen_len]
-
-            try:
-                t = t[: t.index(eos_id)]
-            except ValueError:
-                pass
-
         return t
 
 
