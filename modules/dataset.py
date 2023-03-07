@@ -13,6 +13,8 @@ class Tokens:
     eos = '<|endoftext|>'
     pad = '<|pad|>'
     sos = '<|startoftext|>'
+    atn_start = '<|STN|>'
+    atn_end = '<|ETN|>'
 
 
 class DatasetLLama(Dataset, Tokens):
