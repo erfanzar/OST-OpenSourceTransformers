@@ -1,3 +1,6 @@
+import copy
+from typing import Union, Optional, Tuple
+
 import torch
 from torch import nn
 
@@ -512,7 +515,7 @@ class T5Block(nn.Module):
 
 class T5Stack(nn.Module):
     def __init__(self, config, embed_tokens=None):
-        super().__init__(config)
+        super().__init__()
 
         self.embed_tokens = embed_tokens
         self.is_decoder = config.is_decoder
@@ -755,7 +758,7 @@ class T5Model(nn.Module):
         decoder_config.num_layers = config.num_decoder_layers
         self.decoder = T5Stack(decoder_config, self.shared)
 
-        self.post_init()
+         
 
         # Model parallel
         self.model_parallel = False
@@ -817,7 +820,7 @@ class T5Model(nn.Module):
             output_attentions: Optional[bool] = None,
             output_hidden_states: Optional[bool] = None,
             return_dict: Optional[bool] = None,
-    ) -> Union[Tuple[torch.FloatTensor], Seq2SeqModelOutput]:
+    ) -> Union[Tuple[torch.FloatTensor]]:
 
         use_cache = use_cache if use_cache is not None else self.config.use_cache
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
@@ -879,7 +882,7 @@ class T5Model(nn.Module):
 
 class T5ForConditionalGeneration(nn.Module):
     def __init__(self, config: T5Config):
-        super().__init__(config)
+        super().__init__()
         self.model_dim = config.d_model
 
         self.shared = nn.Embedding(config.vocab_size, config.d_model)
@@ -898,14 +901,10 @@ class T5ForConditionalGeneration(nn.Module):
 
         self.lm_head = nn.Linear(config.d_model, config.vocab_size, bias=False)
 
-        # Initialize weights and apply final processing
-        self.post_init()
-
         # Model parallel
         self.model_parallel = False
         self.device_map = None
 
-    @add_start_docstrings(PARALLELIZE_DOCSTRING)
     def parallelize(self, device_map=None):
         self.device_map = (
             get_device_map(len(self.encoder.block), range(torch.cuda.device_count()))
@@ -918,7 +917,6 @@ class T5ForConditionalGeneration(nn.Module):
         self.lm_head = self.lm_head.to(self.decoder.first_device)
         self.model_parallel = True
 
-    @add_start_docstrings(DEPARALLELIZE_DOCSTRING)
     def deparallelize(self):
         self.encoder.deparallelize()
         self.decoder.deparallelize()
@@ -949,8 +947,6 @@ class T5ForConditionalGeneration(nn.Module):
     def get_decoder(self):
         return self.decoder
 
-    @add_start_docstrings_to_model_forward(T5_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=Seq2SeqLMOutput, config_class=_CONFIG_FOR_DOC)
     def forward(
             self,
             input_ids: Optional[torch.LongTensor] = None,
@@ -969,38 +965,8 @@ class T5ForConditionalGeneration(nn.Module):
             output_attentions: Optional[bool] = None,
             output_hidden_states: Optional[bool] = None,
             return_dict: Optional[bool] = None,
-    ) -> Union[Tuple[torch.FloatTensor], Seq2SeqLMOutput]:
-        r"""
-        labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
-            Labels for computing the sequence classification/regression loss. Indices should be in `[-100, 0, ...,
-            config.vocab_size - 1]`. All labels set to `-100` are ignored (masked), the loss is only computed for
-            labels in `[0, ..., config.vocab_size]`
+    ) -> Union[Tuple[torch.FloatTensor]]:
 
-        Returns:
-
-        Examples:
-
-        ```python
-        >>> from transformers import AutoTokenizer, T5ForConditionalGeneration
-
-        >>> tokenizer = AutoTokenizer.from_pretrained("t5-small")
-        >>> model = T5ForConditionalGeneration.from_pretrained("t5-small")
-
-        >>> # training
-        >>> input_ids = tokenizer("The <extra_id_0> walks in <extra_id_1> park", return_tensors="pt").input_ids
-        >>> labels = tokenizer("<extra_id_0> cute dog <extra_id_1> the <extra_id_2>", return_tensors="pt").input_ids
-        >>> outputs = model(input_ids=input_ids, labels=labels)
-        >>> loss = outputs.loss
-        >>> logits = outputs.logits
-
-        >>> # inference
-        >>> input_ids = tokenizer(
-        ...     "summarize: studies have shown that owning a dog is good for you", return_tensors="pt"
-        ... ).input_ids  # Batch size 1
-        >>> outputs = model.generate(input_ids)
-        >>> print(tokenizer.decode(outputs[0], skip_special_tokens=True))
-        >>> # studies have shown that owning a dog is good for you.
-        ```"""
         use_cache = use_cache if use_cache is not None else self.config.use_cache
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
@@ -1067,15 +1033,13 @@ class T5ForConditionalGeneration(nn.Module):
 
         sequence_output = decoder_outputs[0]
 
-        # Set device for model parallelism
         if self.model_parallel:
             torch.cuda.set_device(self.encoder.first_device)
             self.lm_head = self.lm_head.to(self.encoder.first_device)
             sequence_output = sequence_output.to(self.lm_head.weight.device)
 
         if self.config.tie_word_embeddings:
-            # Rescale output before projecting on vocab
-            # See https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/transformer/transformer.py#L586
+
             sequence_output = sequence_output * (self.model_dim ** -0.5)
 
         lm_logits = self.lm_head(sequence_output)

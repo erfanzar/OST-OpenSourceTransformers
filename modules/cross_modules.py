@@ -64,7 +64,7 @@ class Attention(nn.Module):
         self.wv = nn.Linear(config.hidden_size, config.n_heads * self.head_dim, bias=False)
         self.wo = nn.Linear(config.n_heads * self.head_dim, config.hidden_size, bias=False)
         self.register_buffer('bias', torch.triu(
-            torch.full((1, 1, config.n_heads * self.head_dim, config.n_heads * self.head_dim), float('-inf')),
+            torch.full((1, 1, config.max_sentence_length, config.max_sentence_length), float('-inf')),
             diagonal=1))
 
     def forward(self, x: Optional[torch.Tensor], freq: Optional[torch.Tensor],

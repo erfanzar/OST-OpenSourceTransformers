@@ -69,8 +69,8 @@ class DatasetLLmP(Dataset, Tokens):
         failed = 0
         for i, rng in pbar:
             pbar.set_postfix(failed=failed, collected=i + 1 - failed)
-            string = ' '.join(data[rng:(max_length - 1) + rng])
-            encodings_dict = tokenizer(string + self.eos, truncation=True,
+            string = ' '.join(data[rng:max_length + rng])
+            encodings_dict = tokenizer(string, truncation=True,
                                        max_length=max_length, padding="max_length")
 
             self.input_ids.append(torch.tensor(encodings_dict['input_ids']))

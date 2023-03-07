@@ -23,7 +23,7 @@ torch.backends.cudnn.benchmark = True
 
 pars = argparse.ArgumentParser()
 
-pars.add_argument('--batch', '--batch', type=int, default=3)
+pars.add_argument('--batch', '--batch', type=int, default=1)
 pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
 pars.add_argument('--load', '--load', type=bool, default=True)
@@ -34,8 +34,7 @@ options = pars.parse_args()
 
 logger = logging.getLogger(__name__)
 
-
-# logging.basicConfig(level=logging.WARN)
+# logging.basicConfig(level=logging.DEBUG)
 
 
 def train(input_ids: Optional[Tensor],
@@ -75,7 +74,7 @@ def main(opt):
     tokenizer: GPT2Tokenizer = AutoTokenizer.from_pretrained('tokenizer_model')
     dataset = DatasetLLmP(data=data, max_length=parameters.max_sentence_length, tokenizer=tokenizer)
     parameters.vocab_size = dataset.tokenizer.vocab_size
-    parameters.vocab_size += 1
+    parameters.vocab_size += 3
     # parameters.device = 'cpu'
     parameters.data_path = opt.data_src
 
@@ -115,6 +114,7 @@ def main(opt):
             with tqdm(enumerate(dataloader), **TQDM_KWARGS,
                       total=math.ceil(dataset.__len__() // parameters.batch_size)) as progress_bar:
                 for i, (input_ids_t, attention_mask) in progress_bar:
+                    logger.debug(f'input_ids_t : {input_ids_t.shape}')
                     loss, loss_avg = train(input_ids=input_ids_t, targets=input_ids_t, network=model, optim=optimizer,
                                            loss_average=loss_avg, device=parameters.device,
                                            attention_mask=attention_mask)
@@ -133,7 +133,6 @@ def main(opt):
                                  epoch=epoch + 1, config=opt.model,
                                  name=f'{opt.model}-model.pt')
                 progress_bar.write('==> MODEL SAVED SUCCESSFULLY')
-
 
 
 if __name__ == "__main__":

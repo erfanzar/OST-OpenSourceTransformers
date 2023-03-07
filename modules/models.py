@@ -1,3 +1,4 @@
+import logging
 import typing
 from typing import Optional, Tuple, Union, List
 
@@ -9,6 +10,8 @@ from utils.utils import HyperParameters
 from .commons import MultiHeadBlock, CasualBlock, Decoder, Encoder, PGTBlock, Conv1D, CC_PGT_Block
 from .cross_modules import LLmPConfig, precompute_frq_cis
 from .modeling_LLmP import LLmPBlock, PMSNorm
+
+logger = logging.getLogger(__name__)
 
 __all__ = ['PTTDecoder', 'PTT', 'PTTGenerative', 'PGT']
 
@@ -648,8 +651,9 @@ class LLmP(nn.Module):
                 attention_mask = attention_mask.unsqueeze(1).unsqueeze(1)
         self.freq = self.freq.to(input_ids.device)
         chosen_freq = self.freq[:seq_len]
+        logger.debug(f'chosen_freq : {chosen_freq.shape}')
         x_ = self.dropout(self.wte(input_ids))
-
+        logger.debug(f'wte : {x_.shape}')
         for h in self.h:
             x_ = h(x_, attention_mask=attention_mask, freq=chosen_freq)
         logits = self.out(self.ln(x_))
