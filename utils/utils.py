@@ -655,6 +655,15 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             hidden_size=512,
             max_sentence_length=256
         )
+    elif name == 'LLmP-L':
+        return LLmPConfig(
+            vocab_size=vocab_size,
+            n_layers=10,
+            n_heads=8,
+            epochs=500,
+            hidden_size=512,
+            max_sentence_length=1024
+        )
     else:
         raise NameError(
             f"Valid Names for Model are {models_name} | [ERROR : Unknown {name} type]")
