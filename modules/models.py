@@ -695,4 +695,5 @@ class LLmP(nn.Module):
 
             next_token = next_token.reshape(*prompts.shape[:-1], 1)
             prompts = torch.cat([prompts, next_token], dim=1)
-        return prompts
+            yield next_token
+        # return prompts

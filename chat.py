@@ -1,6 +1,6 @@
 import torch.utils.data
 from erutils.loggers import fprint
-from transformers import GPT2Tokenizer
+from transformers import AutoTokenizer
 
 from modules.dataset import DatasetLLmP, Tokens
 from modules.models import LLmP
@@ -14,8 +14,8 @@ def _main():
         f' {prp.total_memory / 1e9} GB Memory')
 
     config = get_config_by_name('LLmP')
-    tokenizer: GPT2Tokenizer = GPT2Tokenizer.from_pretrained('gpt2', bos_token=Tokens.eos,
-                                                             pad_token=Tokens.pad, sos_token=Tokens.sos)
+    tokenizer = AutoTokenizer.from_pretrained('tokenizer_model', bos_token=Tokens.eos,
+                                              pad_token=Tokens.pad, sos_token=Tokens.sos)
     dataset = DatasetLLmP(data=[], tokenizer=tokenizer)
     config.vocab_size = dataset.tokenizer.vocab_size
     config.vocab_size += 1
@@ -35,20 +35,11 @@ def _main():
         income = input('>>> ')
         text = tokenizer.encode(Tokens.eos + income + Tokens.eos, return_tensors='pt').to(config.device)
 
-        len_question = text.size(-1)
-
-        text = model.generate(text)
-
-        wrt = tokenizer.decode(text[0], skip_special_tokens=False)
-        interface_response = ' '.join(k for k in wrt.split()[len_question:])
-        tp_ap = []
-        for tok in interface_response.split():
-            if tok != tokenizer.eos_token:
-                tp_ap.append(tok)
-            else:
+        for v in model.generate(text, 240):
+            print(f'{tokenizer.decode(v[0], skip_special_tokens=True)}', end='')
+            if v[0] == tokenizer.eos_token_id:
                 break
-        print(' '.join(tp_ap))
-
+        print()
 
 if __name__ == "__main__":
     _main()
