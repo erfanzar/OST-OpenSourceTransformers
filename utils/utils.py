@@ -504,7 +504,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
         self.weight_decay: float = kwargs.pop('weight_decay', 2e-1, )
     """
     models_name = ['PGT-Cs', 'PGT-As', 'PGT-s', 'PGT-m', 'PGT-x', 'PGT-l', 'PGT-A', 'PGT-J-small', 'PGT-J-medium',
-                   'PGT-J-large', 'PGT-J-X', 'LLama', 'LLmP']
+                   'PGT-J-large', 'PGT-J-X', 'LLama', 'LLmP', 'LLmP-small']
     if name == 'PGT-Cs':
         return HyperParameters(
             model_type=name,
@@ -663,6 +663,14 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             epochs=500,
             hidden_size=512,
             max_sentence_length=1024
+        )
+    elif name == 'LLmP-small':
+        return LLmPConfig(
+            vocab_size=vocab_size,
+            n_layers=14,
+            n_heads=8,
+            hidden_size=256,
+            max_sentence_length=360
         )
     else:
         raise NameError(
