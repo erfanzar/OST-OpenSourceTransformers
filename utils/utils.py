@@ -77,6 +77,10 @@ def detokenize_words(word: list, first_word_token: int = 0, last_word_token: int
     return w
 
 
+def count_model_parameters(model, div: int = 1e6):
+    return sum(m.numel() for m in model.parameters()) / div
+
+
 class DatasetQA(Dataset):
     def __init__(self, src=None, trg=None, mode: str = "bert-base-uncased", max_length: int = 512,
                  pad_to_max_length: bool = True):
