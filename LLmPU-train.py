@@ -22,9 +22,9 @@ from utils.utils import make2d, count_model_parameters, save_checkpoints, device
 logging.basicConfig(level=logging.WARN)
 torch.backends.cudnn.benchmark = True
 pars = argparse.ArgumentParser()
-pars.add_argument('--batch', '--batch', type=int, default=3)
+pars.add_argument('--batch-size', '--batch-size', type=int, default=3)
 pars.add_argument('--epochs', '--epochs', type=int, default=100)
-pars.add_argument('--train', '--train', type=bool, default=False)
+pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
 pars.add_argument('--load', '--load', type=bool, default=False)
 
