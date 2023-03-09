@@ -7,7 +7,7 @@ from erutils import fprint
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 from transformers import BertTokenizer, GPT2Tokenizer
-
+from modules.modeling_llmpu import LLmPUConfig
 from modules.cross_modules import LLmPConfig
 from modules.modelling_llama import LLamaConfig
 
@@ -479,7 +479,7 @@ def make2d(tensor) -> typing.Optional[torch.Tensor]:
 
 def get_config_by_name(name: str, vocab_size: int = 5000,
                        device: str = 'cuda' if torch.cuda.is_available() else 'cpu') -> typing.Union[
-    HyperParameters, LLamaConfig, LLmPConfig]:
+    HyperParameters, LLamaConfig, LLmPConfig, LLmPUConfig]:
     """
     :param device: device for model
     :param vocab_size: vocab_size
@@ -508,7 +508,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
         self.weight_decay: float = kwargs.pop('weight_decay', 2e-1, )
     """
     models_name = ['PGT-Cs', 'PGT-As', 'PGT-s', 'PGT-m', 'PGT-x', 'PGT-l', 'PGT-A', 'PGT-J-small', 'PGT-J-medium',
-                   'PGT-J-large', 'PGT-J-X', 'LLama', 'LLmP', 'LLmP-small']
+                   'PGT-J-large', 'PGT-J-X', 'LLama', 'LLmP', 'LLmP-small', 'LLmPU-small']
     if name == 'PGT-Cs':
         return HyperParameters(
             model_type=name,
@@ -675,6 +675,95 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_heads=8,
             hidden_size=256,
             max_sentence_length=360
+        )
+    elif name == 'LLmPU-base':
+        L = {"d_ff": 768,
+             "d_kv": 32,
+             "d_model": 512,
+             "decoder_start_token_id": 0,
+             "dropout_rate": 0.1,
+             "eos_token_id": 1,
+             "feed_forward_proj": "gated-gelu",
+             "initializer_factor": 1.0,
+             "is_encoder_decoder": True,
+             "layer_norm_epsilon": 1e-06,
+             "model_type": "t5",
+             "n_positions": 1024,
+             "num_decoder_layers": 12,
+             "num_heads": 12,
+             "num_layers": 8,
+             "output_past": True,
+             "pad_token_id": 0,
+             "relative_attention_max_distance": 128,
+             "relative_attention_num_buckets": 32,
+             "tie_word_embeddings": False,
+             "use_cache": True,
+             "max_length": 512,
+             "mesh": 5,
+             "vocab_size": vocab_size
+             }
+
+        return LLmPUConfig(
+            **L
+        )
+
+    elif name == 'LLmPU-small':
+        L = {"d_ff": 512,
+             "d_kv": 32,
+             "d_model": 256,
+             "decoder_start_token_id": 0,
+             "dropout_rate": 0.1,
+             "eos_token_id": 1,
+             "feed_forward_proj": "gated-gelu",
+             "initializer_factor": 1.0,
+             "is_encoder_decoder": True,
+             "layer_norm_epsilon": 1e-06,
+             "model_type": "t5",
+             "n_positions": 1024,
+             "num_decoder_layers": 12,
+             "num_heads": 12,
+             "num_layers": 6,
+             "output_past": True,
+             "pad_token_id": 0,
+             "relative_attention_max_distance": 128,
+             "relative_attention_num_buckets": 32,
+             "tie_word_embeddings": False,
+             "use_cache": True,
+             "max_length": 256,
+             "mesh": 5,
+             "vocab_size": vocab_size
+             }
+        return LLmPUConfig(
+            **L
+        )
+    elif name == 'LLmPU-large':
+        L = {"d_ff": 1024,
+             "d_kv": 64,
+             "d_model": 768,
+             "decoder_start_token_id": 0,
+             "dropout_rate": 0.1,
+             "eos_token_id": 1,
+             "feed_forward_proj": "gated-gelu",
+             "initializer_factor": 1.0,
+             "is_encoder_decoder": True,
+             "layer_norm_epsilon": 1e-06,
+             "model_type": "t5",
+             "n_positions": 1024,
+             "num_decoder_layers": 12,
+             "num_heads": 12,
+             "num_layers": 10,
+             "output_past": True,
+             "pad_token_id": 0,
+             "relative_attention_max_distance": 128,
+             "relative_attention_num_buckets": 32,
+             "tie_word_embeddings": False,
+             "use_cache": True,
+             "max_length": 768,
+             "mesh": 5,
+             "vocab_size": vocab_size
+             }
+        return LLmPUConfig(
+            **L
         )
     else:
         raise NameError(

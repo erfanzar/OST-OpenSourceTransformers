@@ -14,19 +14,20 @@ from tqdm.auto import tqdm
 from transformers import T5Tokenizer, AutoTokenizer
 
 from config.config import TQDM_KWARGS
-from config.llmpu_configs import LLmPU_M
+
 from modules.dataset import DatasetLLmPU
 from modules.modeling_llmpu import LLmPUForConditionalGeneration, LLmPUConfig
-from utils.utils import make2d, count_model_parameters, save_checkpoints, device_info
+from utils.utils import make2d, count_model_parameters, save_checkpoints, device_info, get_config_by_name
 
 logging.basicConfig(level=logging.WARN)
 torch.backends.cudnn.benchmark = True
 pars = argparse.ArgumentParser()
-pars.add_argument('--batch-size', '--batch-size', type=int, default=3)
+pars.add_argument('--batch-size', '--batch-size', type=int, default=1)
 pars.add_argument('--epochs', '--epochs', type=int, default=100)
 pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
 pars.add_argument('--load', '--load', type=bool, default=True)
+pars.add_argument('--model', '--model', type=str, default='LLmPU-small')
 
 opt = pars.parse_args()
 
@@ -70,7 +71,7 @@ def _main(opt):
     data_frame = pd.read_csv('ipynb/news_summary.csv')
     data_frame["text"] = "summarize: " + data_frame["text"]
     data_frame = data_frame[0:5000]
-    config = LLmPUConfig(vocab_size=tokenizer.vocab_size, **LLmPU_M)
+    config: LLmPUConfig = get_config_by_name(opt.model, vocab_size=tokenizer.vocab_size)
     show_hyper_parameters(config)
     model = LLmPUForConditionalGeneration(config=config).to(device if not opt.load else 'cpu')
     erutils.fprint(f'Model Created with {count_model_parameters(model)} Million Parameters')
@@ -82,12 +83,12 @@ def _main(opt):
         model.load_state_dict(p_checkpoint['model'])
 
         model.to(device)
-        optimizer = torch.optim.AdamW(model.parameters(), 3e-4)
+        optimizer = torch.optim.Adam(model.parameters(), 3e-4)
         optimizer.load_state_dict(p_checkpoint['optimizer'])
 
         del p_checkpoint
     else:
-        optimizer = torch.optim.AdamW(model.parameters(), 3e-4)
+        optimizer = torch.optim.Adam(model.parameters(), 3e-4)
     dataset = DatasetLLmPU(tokenizer=tokenizer, source_len=source_length, target_len=target_length,
                            source_text=data_frame['text'], target_text=data_frame['headlines'])
     dataloader_kw = dict(batch_size=opt.batch_size, shuffle=True, pin_memory=True)
@@ -123,9 +124,8 @@ def _main(opt):
                 save_checkpoints(model=model.state_dict(), optimizer=optimizer.state_dict(),
                                  epochs=opt.epochs,
                                  epoch=epoch + 1,
-                                 conf=dict(
-                                     vocab_size=tokenizer.vocab_size, **LLmPU_M
-                                 ),
+                                 conf=config,
+                                 config_name=opt.model,
                                  name='LLmPU-model.pt')
 
 
