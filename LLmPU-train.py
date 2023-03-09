@@ -123,12 +123,12 @@ def _main(opt):
                         board.add_scalar('train/epochs', scalar_value=epoch, **board_args)
                         board.add_scalar('train/gpu_used', scalar_value=used_gpu, **board_args)
                         board.add_scalar('train/gpu_free', scalar_value=free_gpu, **board_args)
-                        board.add_scalars('cuda:0', {
+                        board.add_scalars('cuda0', {
                             'total': total_gpu,
                             'free': free_gpu,
                             'used': used_gpu
                         }, global_step=casual_iter)
-                        board.add_scalar('meshController', {
+                        board.add_scalars('meshController', {
                             'sin': i * np.sin(i / mesh),
                             'cos': i * np.cos(i / mesh),
                             'tan': np.tan(i / mesh)
