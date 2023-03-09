@@ -26,7 +26,7 @@ pars.add_argument('--batch-size', '--batch-size', type=int, default=3)
 pars.add_argument('--epochs', '--epochs', type=int, default=100)
 pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
-pars.add_argument('--load', '--load', type=bool, default=False)
+pars.add_argument('--load', '--load', type=bool, default=True)
 
 opt = pars.parse_args()
 
@@ -72,15 +72,22 @@ def _main(opt):
     data_frame = data_frame[0:5000]
     config = LLmPUConfig(vocab_size=tokenizer.vocab_size, **LLmPU_M)
     show_hyper_parameters(config)
-    model = LLmPUForConditionalGeneration(config=config).to(device)
+    model = LLmPUForConditionalGeneration(config=config).to(device if not opt.load else 'cpu')
     erutils.fprint(f'Model Created with {count_model_parameters(model)} Million Parameters')
-    optimizer = torch.optim.AdamW(model.parameters(), 3e-4)
+
     source_length = config.max_length
     target_length = 32
     if opt.load:
         p_checkpoint = torch.load('LLmPU-model.pt')
         model.load_state_dict(p_checkpoint['model'])
+
+        model.to(device)
+        optimizer = torch.optim.AdamW(model.parameters(), 3e-4)
         optimizer.load_state_dict(p_checkpoint['optimizer'])
+
+        del p_checkpoint
+    else:
+        optimizer = torch.optim.AdamW(model.parameters(), 3e-4)
     dataset = DatasetLLmPU(tokenizer=tokenizer, source_len=source_length, target_len=target_length,
                            source_text=data_frame['text'], target_text=data_frame['headlines'])
     dataloader_kw = dict(batch_size=opt.batch_size, shuffle=True, pin_memory=True)
@@ -95,13 +102,13 @@ def _main(opt):
                       **TQDM_KWARGS) as progress_bar:
                 for i, data in progress_bar:
                     casual_iter += 1
-                    iter_at = (epoch + 1) * i
+
                     _source_ids, _source_mask, _target_ids = data['source_ids'], data['source_mask'], data['target_ids']
                     loss = train(model, optimizer, source_mask=_source_mask, source_ids=_source_ids,
                                  target_ids=_target_ids,
                                  device=device)
                     total_loss += loss
-                    avg = total_loss.item() / (iter_at + 1)
+                    avg = total_loss.item() / (i + 1)
                     progress_bar.set_postfix(loss=loss.item(), epoch=f'[{epoch}/{opt.epochs}]',
                                              avg=avg)
                     if (i + 1) % 50 == 0:
