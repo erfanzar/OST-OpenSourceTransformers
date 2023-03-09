@@ -14,7 +14,7 @@ from transformers import GPT2Tokenizer
 
 from modules.dataset import DatasetLLama
 from modules.modelling_llama import LLamaModel, LLamaConfig, Tokens
-from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info
+from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info, get_memory
 
 torch.backends.cudnn.benchmark = True
 
@@ -125,10 +125,10 @@ def main(opt):
                 for i, (input_ids_t) in progress_bar:
                     loss, loss_avg = train(input_ids=input_ids_t, targets=input_ids_t, network=model, optim=optimizer,
                                            loss_average=loss_avg, loss_function=criterion, device=parameters.device)
-
+                    free_gpu, used_gpu, total_gpu = get_memory(0)
                     progress_bar.set_postfix(epoch=f'[{epoch}/{parameters.epochs}]', device=parameters.device,
                                              loss_avg=(loss_avg / (i + 1)),
-                                             loss=loss.item())
+                                             loss=loss.item(), free_GPU=free_gpu, used_GPU=used_gpu)
 
                 print()
                 save_checkpoints(model=model.state_dict(), optimizer=optimizer.state_dict(),

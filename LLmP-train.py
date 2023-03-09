@@ -16,7 +16,7 @@ from transformers import GPT2Tokenizer, AutoTokenizer
 from config.config import TQDM_KWARGS
 from modules.dataset import DatasetLLmP
 from modules.models import LLmP, LLmPConfig
-from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info
+from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info, get_memory
 
 torch.manual_seed(42)
 torch.backends.cudnn.benchmark = True
@@ -33,6 +33,7 @@ pars.add_argument('--data-src', '--data-src', type=str, default='data/Q&A-NO-SEP
 options = pars.parse_args()
 
 logger = logging.getLogger(__name__)
+
 
 # logging.basicConfig(level=logging.DEBUG)
 
@@ -118,6 +119,7 @@ def main(opt):
                     loss, loss_avg = train(input_ids=input_ids_t, targets=input_ids_t, network=model, optim=optimizer,
                                            loss_average=loss_avg, device=parameters.device,
                                            attention_mask=attention_mask)
+                    free_gpu, used_gpu, total_gpu = get_memory(0)
                     if i % 50 == 0:
                         board.add_scalar('train/Loss', scalar_value=loss.item(), global_step=at)
                         board.add_scalar('train/avg-Loss', scalar_value=(loss_avg / (i + 1)),
@@ -125,7 +127,7 @@ def main(opt):
                     at += 1
                     progress_bar.set_postfix(epoch=f'[{epoch}/{parameters.epochs}]', device=parameters.device,
                                              loss_avg=(loss_avg / (i + 1)),
-                                             loss=loss.item())
+                                             loss=loss.item(), free_GPU=free_gpu, used_GPU=used_gpu)
 
                 print()
                 save_checkpoints(model=model.state_dict(), optimizer=optimizer.state_dict(),
