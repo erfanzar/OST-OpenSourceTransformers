@@ -24,9 +24,9 @@ torch.backends.cudnn.benchmark = True
 pars = argparse.ArgumentParser()
 pars.add_argument('--batch-size', '--batch-size', type=int, default=1)
 pars.add_argument('--epochs', '--epochs', type=int, default=100)
-pars.add_argument('--train', '--train', type=bool, default=False)
+pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=False)
-pars.add_argument('--load', '--load', type=bool, default=False)
+pars.add_argument('--load', '--load', type=bool, default=True)
 pars.add_argument('--model', '--model', type=str, default='LLmPU-small')
 
 opt = pars.parse_args()
@@ -70,7 +70,7 @@ def _main(opt):
     tokenizer: T5Tokenizer = AutoTokenizer.from_pretrained('tokenizer_model/LLmPU')
     data_frame = pd.read_csv('ipynb/news_summary.csv')
     data_frame["text"] = "summarize: " + data_frame["text"]
-    data_frame = data_frame[0:5000]
+    data_frame = data_frame[0:500]
     config: LLmPUConfig = get_config_by_name(opt.model, vocab_size=tokenizer.vocab_size)
     show_hyper_parameters(config)
     model = LLmPUForConditionalGeneration(config=config).to(device if not opt.load else 'cpu')
@@ -123,6 +123,16 @@ def _main(opt):
                         board.add_scalar('train/epochs', scalar_value=epoch, **board_args)
                         board.add_scalar('train/gpu_used', scalar_value=used_gpu, **board_args)
                         board.add_scalar('train/gpu_free', scalar_value=free_gpu, **board_args)
+                        board.add_scalars('cuda:0', {
+                            'total': total_gpu,
+                            'free': free_gpu,
+                            'used': used_gpu
+                        }, global_step=casual_iter)
+                        board.add_scalar('meshController', {
+                            'sin': i * np.sin(i / mesh),
+                            'cos': i * np.cos(i / mesh),
+                            'tan': np.tan(i / mesh)
+                        }, global_step=casual_iter)
                         board.add_scalar('train/meshIter_sin', scalar_value=i * np.sin(i / mesh), **board_args)
                         board.add_scalar('train/meshIter_cos', scalar_value=i * np.cos(i / mesh), **board_args)
                         board.add_scalar('train/meshIter_tan', scalar_value=np.tan(i / mesh), **board_args)
