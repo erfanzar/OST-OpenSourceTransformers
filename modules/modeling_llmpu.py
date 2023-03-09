@@ -169,7 +169,6 @@ class LLmPUAttention(nn.Module):
         self.pruned_heads = set()
         self.gradient_checkpointing = False
 
-
     @staticmethod
     def _relative_position_bucket(relative_position, bidirectional=True, num_buckets=32, max_distance=128):
 

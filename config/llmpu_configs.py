@@ -1,5 +1,5 @@
 LLmPU_M = {"d_ff": 768,
-           "d_kv": 64,
+           "d_kv": 32,
            "d_model": 512,
            "decoder_start_token_id": 0,
            "dropout_rate": 0.1,
@@ -20,4 +20,5 @@ LLmPU_M = {"d_ff": 768,
            "tie_word_embeddings": False,
            "use_cache": True,
            "max_length": 512,
+           "mesh": 5
            }
