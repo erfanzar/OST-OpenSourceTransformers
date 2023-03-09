@@ -678,7 +678,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             max_sentence_length=360
         )
     elif name == 'LLmPU-base':
-        L = {"d_ff": 768,
+        L = {"d_ff": 1024,
              "d_kv": 32,
              "d_model": 512,
              "decoder_start_token_id": 0,
@@ -709,7 +709,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
         )
 
     elif name == 'LLmPU-small':
-        L = {"d_ff": 1024,
+        L = {"d_ff": 1792,
              "d_kv": 32,
              "d_model": 256,
              "decoder_start_token_id": 0,
