@@ -6,6 +6,7 @@ import tqdm
 from erutils import fprint
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
+import psutil
 from transformers import BertTokenizer, GPT2Tokenizer
 from modules.modeling_llmpu import LLmPUConfig
 from modules.cross_modules import LLmPConfig
@@ -778,6 +779,21 @@ def print_config(config: typing.Optional[HyperParameters]) -> None:
 
 def device_info() -> None:
     prp = torch.cuda.get_device_properties("cuda")
+    memory = psutil.virtual_memory()
+    free, total_gpu = torch.cuda.mem_get_info('cuda:0')
+    used_gpu = total_gpu - free
     fprint(
-        f'DEVICES : {torch.cuda.get_device_name()} | {prp.name} |'
-        f' {prp.total_memory / 1e9} GB Memory')
+        f'DEVICES : [ {torch.cuda.get_device_name()} ] | [ Free : {free / 1e9} GB ] | [ Used : {used_gpu / 1e9} GB ] | '
+        f'[ Total : {total_gpu / 1e9} GB ]\n'
+        f'RAM : [ Free : {memory.free / 1e9} GB ] | [ Total : {memory.total / 1e9} GB ]')
+
+
+def get_memory(index: int) -> typing.Tuple[float, float, float]:
+    """
+    :param index: cuda index
+    :return: free,used_gpu,total_gpu memory
+    """
+    free, total_gpu = torch.cuda.mem_get_info(f'cuda:{index}')
+    used_gpu = total_gpu - free
+    free, total_gpu, used_gpu = free / 1e9, total_gpu / 1e9, used_gpu / 1e9
+    return free, used_gpu, total_gpu

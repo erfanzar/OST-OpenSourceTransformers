@@ -17,16 +17,16 @@ from config.config import TQDM_KWARGS
 
 from modules.dataset import DatasetLLmPU
 from modules.modeling_llmpu import LLmPUForConditionalGeneration, LLmPUConfig
-from utils.utils import make2d, count_model_parameters, save_checkpoints, device_info, get_config_by_name
+from utils.utils import make2d, count_model_parameters, save_checkpoints, device_info, get_config_by_name, get_memory
 
 logging.basicConfig(level=logging.WARN)
 torch.backends.cudnn.benchmark = True
 pars = argparse.ArgumentParser()
 pars.add_argument('--batch-size', '--batch-size', type=int, default=1)
 pars.add_argument('--epochs', '--epochs', type=int, default=100)
-pars.add_argument('--train', '--train', type=bool, default=True)
-pars.add_argument('--compile', '--compile', type=bool, default=True)
-pars.add_argument('--load', '--load', type=bool, default=True)
+pars.add_argument('--train', '--train', type=bool, default=False)
+pars.add_argument('--compile', '--compile', type=bool, default=False)
+pars.add_argument('--load', '--load', type=bool, default=False)
 pars.add_argument('--model', '--model', type=str, default='LLmPU-small')
 
 opt = pars.parse_args()
@@ -94,6 +94,9 @@ def _main(opt):
     dataloader_kw = dict(batch_size=opt.batch_size, shuffle=True, pin_memory=True)
     dataloader = DataLoader(dataset, **dataloader_kw)
     casual_iter = 0
+    if opt.compile:
+        model = torch.compile(model)
+        erutils.fprint('Model Compiled Successfully !')
     mesh = config.mesh
     if opt.train:
         for epoch in range(opt.epochs):
@@ -110,13 +113,16 @@ def _main(opt):
                                  device=device)
                     total_loss += loss
                     avg = total_loss.item() / (i + 1)
+                    free_gpu, used_gpu, total_gpu = get_memory(0)
                     progress_bar.set_postfix(loss=loss.item(), epoch=f'[{epoch}/{opt.epochs}]',
-                                             avg=avg)
+                                             avg=avg, free_GPU=free_gpu, used_GPU=used_gpu)
                     if (i + 1) % 50 == 0:
                         board_args = dict(global_step=casual_iter, new_style=True)
                         board.add_scalar('train/Loss', scalar_value=loss.item(), **board_args)
                         board.add_scalar('train/avgLoss', scalar_value=avg, **board_args)
                         board.add_scalar('train/epochs', scalar_value=epoch, **board_args)
+                        board.add_scalar('train/gpu_used', scalar_value=used_gpu, **board_args)
+                        board.add_scalar('train/gpu_free', scalar_value=free_gpu, **board_args)
                         board.add_scalar('train/meshIter_sin', scalar_value=i * np.sin(i / mesh), **board_args)
                         board.add_scalar('train/meshIter_cos', scalar_value=i * np.cos(i / mesh), **board_args)
                         board.add_scalar('train/meshIter_tan', scalar_value=np.tan(i / mesh), **board_args)
