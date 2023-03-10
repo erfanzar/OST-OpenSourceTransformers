@@ -599,7 +599,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             lr=3e-4,
             use_mask=True
         )
-    elif name == 'PGT-J-small':
+    elif name == 'PGT-J-S':
         return HyperParameters(
             model_type=name,
             num_embedding=512,
@@ -610,7 +610,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             chunk=256,
             use_mask=True
         )
-    elif name == 'PGT-J-medium':
+    elif name == 'PGT-J-M':
         return HyperParameters(
             model_type=name,
             num_embedding=512,
@@ -621,7 +621,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             chunk=256,
             use_mask=True
         )
-    elif name == 'PGT-J-large':
+    elif name == 'PGT-J-L':
         return HyperParameters(
             model_type=name,
             num_embedding=984,
@@ -652,13 +652,22 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             hidden_size=768,
             max_sentence_length=256
         )
-    elif name == 'LLmP-small':
+    elif name == 'LLmP-S':
         return LLmPConfig(
             vocab_size=vocab_size,
             n_layers=10,
             n_heads=8,
             epochs=500,
             hidden_size=768,
+            max_sentence_length=128
+        )
+    elif name == 'LLmP-ML':
+        return LLmPConfig(
+            vocab_size=vocab_size,
+            n_layers=8,
+            n_heads=16,
+            epochs=500,
+            hidden_size=896,
             max_sentence_length=128
         )
     elif name == 'LLmP':
@@ -727,7 +736,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             **L
         )
 
-    elif name == 'LLmPU-small':
+    elif name == 'LLmPU-S':
         L = {"d_ff": 1792,
              "d_kv": 32,
              "d_model": 256,
@@ -756,7 +765,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
         return LLmPUConfig(
             **L
         )
-    elif name == 'LLmPU-large':
+    elif name == 'LLmPU-L':
         L = {"d_ff": 2048,
              "d_kv": 64,
              "d_model": 768,
@@ -785,7 +794,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
         return LLmPUConfig(
             **L
         )
-    elif name == 'LLmPU-largeX':
+    elif name == 'LLmPU-LX':
         L = {"d_ff": 2048,
              "d_kv": 64,
              "d_model": 768,
