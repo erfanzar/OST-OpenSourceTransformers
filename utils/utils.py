@@ -693,7 +693,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             vocab_size=vocab_size,
             n_layers=18,
             n_heads=16,
-            hidden_size=768,
+            hidden_size=2048,
             max_sentence_length=1024
         )
     elif name == 'LLmPU-base':
