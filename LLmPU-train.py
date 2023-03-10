@@ -65,7 +65,7 @@ def train(m: Optional[LLmPUForConditionalGeneration],
 
 def _main(opt):
     device_info()
-    board = SummaryWriter(log_dir='out', filename_suffix='LLmPU')
+    board = SummaryWriter(log_dir=f'out/{opt.model}', filename_suffix=f'{opt.model}')
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     tokenizer: T5Tokenizer = AutoTokenizer.from_pretrained('tokenizer_model/LLmPU')
     data_frame = pd.read_csv('ipynb/news_summary.csv')

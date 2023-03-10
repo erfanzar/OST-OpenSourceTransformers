@@ -5,6 +5,7 @@ import torch
 import tqdm
 from erutils import fprint
 from torch.utils.data import Dataset
+import time
 from tqdm.auto import tqdm
 import psutil
 from transformers import BertTokenizer, GPT2Tokenizer
@@ -651,6 +652,15 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             hidden_size=768,
             max_sentence_length=256
         )
+    elif name == 'LLmP-small':
+        return LLmPConfig(
+            vocab_size=vocab_size,
+            n_layers=8,
+            n_heads=8,
+            epochs=500,
+            hidden_size=512,
+            max_sentence_length=128
+        )
     elif name == 'LLmP':
         return LLmPConfig(
             vocab_size=vocab_size,
@@ -826,3 +836,14 @@ def get_memory(index: int) -> typing.Tuple[float, float, float]:
     used_gpu = total_gpu - free
     free, total_gpu, used_gpu = free / 1e9, total_gpu / 1e9, used_gpu / 1e9
     return free, used_gpu, total_gpu
+
+
+def monitor_function(function):
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        result = function(*args, **kwargs)
+        end = time.perf_counter()
+        print(f'\033[1;92m {function.__name__} took {end - start:.6f} seconds to complete')
+        return result
+
+    return wrapper

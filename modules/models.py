@@ -638,15 +638,19 @@ class LLmP(nn.Module):
         self.dropout = nn.Dropout(config.embed_dropout)
         self.h = nn.ModuleList([LLmPBlock(config=config, layer_index=i) for i in range(config.n_layers)])
         self.ln = PMSNorm(config)
+        self.dtype = torch.float16
         self.out = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
-        self.freq = precompute_frq_cis(config.hidden_size // config.n_heads, config.max_sentence_length * 2)
+        self.freq = precompute_frq_cis(config.hidden_size // config.n_heads, config.max_sentence_length * 2).to(
+            self.dtype)
         self.config = config
 
     def forward(self, input_ids: Optional[torch.Tensor], attention_mask: Optional[torch.Tensor],
                 labels: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, Union[torch.Tensor, None]]:
         batch, seq_len = input_ids.shape
         if attention_mask is not None:
-            attention_mask = attention_mask.to(input_ids.device)
+
+            attention_mask = attention_mask.to(input_ids.device, dtype=self.dtype)
+            attention_mask = (1.0 - attention_mask) * torch.finfo(self.dtype).min
             if attention_mask.ndim == 2:
                 attention_mask = attention_mask.unsqueeze(1).unsqueeze(1)
         self.freq = self.freq.to(input_ids.device)
@@ -657,19 +661,20 @@ class LLmP(nn.Module):
         for h in self.h:
             x_ = h(x_, attention_mask=attention_mask, freq=chosen_freq)
         logits = self.out(self.ln(x_))
+        loss = None
         if labels is not None:
             shift_logits = logits[..., :-1, :].contiguous()
             shift_labels = labels[..., 1:].contiguous()
             loss = nn.functional.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
-        else:
-            loss = None
+
         return logits, loss
 
     def generate(
             self,
-            prompts: Optional[torch.Tensor],
+            tokens: Optional[torch.Tensor],
+            eos_id: int,
+            attention_mask=None,
             max_gen_len: int = 20,
-            # eos_id: int,
             temperature: float = 0.9,
             top_p: float = 0.95,
     ) -> List[int]:
@@ -680,16 +685,17 @@ class LLmP(nn.Module):
             probs_sort[mask] = 0.0
             probs_sort.div_(probs_sort.sum(dim=-1, keepdim=True))
 
-            next_token = torch.multinomial(probs_sort, num_samples=1)
+            _next_token = torch.multinomial(probs_sort, num_samples=1)
 
-            next_token = torch.gather(probs_idx, -1, next_token)
-            return next_token
+            _next_token = torch.gather(probs_idx, -1, _next_token)
+            return _next_token
 
-        # attention_mask = torch.nn.functional.pad((prompts != 0).float(),
-        #                                          (0, self.config.max_sentence_length - prompts.size(-1)), value=0)
-        attention_mask = None
+        if attention_mask is None:
+            attention_mask = torch.nn.functional.pad((tokens != 0).float(),
+                                                     (0, self.config.max_sentence_length - tokens.size(-1)), value=0)
+        # attention_mask = None
         for i in range(max_gen_len):
-            logits, _ = self.forward(prompts, attention_mask)
+            logits, _ = self.forward(tokens, attention_mask)
             logits = logits[:, -1, :]
             if temperature > 0:
                 probs = torch.softmax(logits / temperature, dim=-1)
@@ -697,7 +703,9 @@ class LLmP(nn.Module):
             else:
                 next_token = torch.argmax(logits, dim=-1)
 
-            next_token = next_token.reshape(*prompts.shape[:-1], 1)
-            prompts = torch.cat([prompts, next_token], dim=1)
-            yield next_token
-        # return prompts
+            next_token = next_token.reshape(*tokens.shape[:-1], 1)
+            tokens = torch.cat([tokens, next_token], dim=1)
+            if next_token.view(-1)[0] != eos_id:
+                yield next_token
+            else:
+                break

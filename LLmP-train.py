@@ -2,7 +2,7 @@ import argparse
 import logging
 import math
 import typing
-from typing import Optional, Union
+from typing import Optional, Union, List, Tuple
 
 import erutils
 import torch.utils.data
@@ -14,9 +14,9 @@ from tqdm.auto import tqdm
 from transformers import GPT2Tokenizer, AutoTokenizer
 
 from config.config import TQDM_KWARGS
-from modules.dataset import DatasetLLmP
+from modules.dataset import DatasetLLmPChat, Tokens
 from modules.models import LLmP, LLmPConfig
-from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info, get_memory
+from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info, get_memory, count_model_parameters
 
 torch.manual_seed(42)
 torch.backends.cudnn.benchmark = True
@@ -26,9 +26,9 @@ pars = argparse.ArgumentParser()
 pars.add_argument('--batch', '--batch', type=int, default=1)
 pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
-pars.add_argument('--load', '--load', type=bool, default=True)
-pars.add_argument('--model', '--model', type=str, default='LLmP-L')
-pars.add_argument('--data-src', '--data-src', type=str, default='data/Q&A-NO-SEP.txt')
+pars.add_argument('--load', '--load', type=bool, default=False)
+pars.add_argument('--model', '--model', type=str, default='LLmP-small')
+pars.add_argument('--data-src', '--data-src', type=str, default='data/convai.json')
 
 options = pars.parse_args()
 
@@ -36,6 +36,10 @@ logger = logging.getLogger(__name__)
 
 
 # logging.basicConfig(level=logging.DEBUG)
+def inter_q(question: Optional[str], tokenizer: GPT2Tokenizer, agent_name: str = '<LLmP> :') \
+        -> Tuple[torch.Tensor, torch.Tensor]:
+    out = tokenizer(Tokens.sos + question + agent_name, return_tensors='pt')
+    return out['input_ids'], out['attention_mask']
 
 
 def train(input_ids: Optional[Tensor],
@@ -48,10 +52,11 @@ def train(input_ids: Optional[Tensor],
                                                 typing.Union[torch.Tensor]]:
     labels: Optional[Tensor] = make2d(targets.type(torch.long).to(device))
     input_ids: Optional[Tensor] = make2d(input_ids.type(torch.long).to(device))
-    network.zero_grad(set_to_none=True)
+
     _, loss = network(input_ids=input_ids, labels=labels, attention_mask=attention_mask)
 
     loss_average += loss.item()
+    optim.zero_grad(set_to_none=True)
     loss.backward()
     optim.step()
     return loss, loss_average
@@ -59,9 +64,11 @@ def train(input_ids: Optional[Tensor],
 
 def main(opt):
     device_info()
-    if not opt.data_src.startswith('HF-'):
+    if opt.data_src.endswith('.txt'):
         data = open(opt.data_src, 'r', encoding='utf8').read().split()
-    else:
+    elif opt.data_src.endswith('.json'):
+        data = opt.data_src
+    elif opt.data_src.startswith('HF-'):
         name = opt.data_src.replace('HF-', '')
         if '/' in name:
             model_name = name.split('/')
@@ -71,11 +78,15 @@ def main(opt):
         data = data["train"]['text']
         selected = int(len(data) * 0.01)
         data = data[:selected]
+    else:
+        data = None
+        raise ValueError()
     parameters: LLmPConfig = get_config_by_name(opt.model)
-    tokenizer: GPT2Tokenizer = AutoTokenizer.from_pretrained('tokenizer_model')
-    dataset = DatasetLLmP(data=data, max_length=parameters.max_sentence_length, tokenizer=tokenizer)
+    tokenizer: GPT2Tokenizer = AutoTokenizer.from_pretrained('tokenizer_model/LLmP')
+
+    dataset = DatasetLLmPChat(data=data, max_length=parameters.max_sentence_length, tokenizer=tokenizer)
     parameters.vocab_size = dataset.tokenizer.vocab_size
-    parameters.vocab_size += 3
+    parameters.vocab_size += 4
     # parameters.device = 'cpu'
     parameters.data_path = opt.data_src
 
@@ -89,7 +100,7 @@ def main(opt):
     model = LLmP(config=parameters).to(parameters.device) if opt.load else LLmP(config=parameters).to('cpu')
     optimizer_kwargs = dict(lr=parameters.lr, weight_decay=parameters.weight_decay)
     optimizer = torch.optim.AdamW(model.parameters(), **optimizer_kwargs)
-    model_parameters_size: typing.Optional[float] = sum(p.numel() for p in model.parameters()) / 1e6
+    model_parameters_size: typing.Optional[float] = count_model_parameters(model)
 
     checkpoints = torch.load(f'{opt.model}-model.pt', 'cpu') if opt.load else None
 
@@ -104,8 +115,10 @@ def main(opt):
     if opt.compile:
         model = torch.compile(model)
         fprint(f"Model Compiled Successfully")
-    board = SummaryWriter(log_dir='out/', filename_suffix='LLmP')
+    board = SummaryWriter(log_dir=f'out/{opt.model}', filename_suffix=f'{opt.model}')
     at = 0
+
+    question = 'Oh there you are'
     model = model.to(device=parameters.device)
     logger.info('TRAIN IS ABOUT TO START!!!')
     if opt.train:
@@ -120,10 +133,17 @@ def main(opt):
                                            loss_average=loss_avg, device=parameters.device,
                                            attention_mask=attention_mask)
                     free_gpu, used_gpu, total_gpu = get_memory(0)
-                    if i % 50 == 0:
+                    if i % 10 == 0:
+                        tk, attention_m = inter_q(question, tokenizer=tokenizer)
+                        cals = []
+                        for pred in model.generate(tokens=tk, attention_mask=attention_m,
+                                                   eos_id=tokenizer.eos_token_id):
+                            cals.append(pred)
+                        cals = tokenizer.decode(cals)
                         board.add_scalar('train/Loss', scalar_value=loss.item(), global_step=at)
                         board.add_scalar('train/avg-Loss', scalar_value=(loss_avg / (i + 1)),
                                          global_step=at)
+                        board.add_text('train/GeneratedResponse', f'question : {question}\nanswer : {cals}')
                     at += 1
                     progress_bar.set_postfix(epoch=f'[{epoch}/{parameters.epochs}]', device=parameters.device,
                                              loss_avg=(loss_avg / (i + 1)),
