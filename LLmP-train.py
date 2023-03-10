@@ -152,7 +152,7 @@ def main(opt):
                         cals = torch.cat(cals, dim=-1)
 
                         cals = tokenizer.decode(cals[0])
-
+                        from transformers import BloomModel
                         board.add_scalar('train/Loss', scalar_value=loss.item(), global_step=at)
                         board.add_scalar('train/avg-Loss', scalar_value=(loss_avg / (i + 1)),
                                          global_step=at)
