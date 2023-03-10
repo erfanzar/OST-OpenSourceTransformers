@@ -73,7 +73,7 @@ class Attention(nn.Module):
         xq = self.wq(x).view(batch_, seq_len_, self.local_rank, self.head_dim)
         xv = self.wv(x).view(batch_, seq_len_, self.local_rank, self.head_dim)
         xk = self.wk(x).view(batch_, seq_len_, self.local_rank, self.head_dim)
-        logger.debug(f'xq : {xq.shape} \nxv : {xv.shape}\nxk : {xk.shape}')
+        # logger.debug(f'xq : {xq.shape} \nxv : {xv.shape}\nxk : {xk.shape}')
         # using rotary embedding for key and query
         if freq is not None:
             xq, xk = rotary_embedding(xq, xk, freq=freq)
@@ -88,15 +88,14 @@ class Attention(nn.Module):
         value = value.permute(0, 2, 1, 3)
         # [batch, seq_len , num_heads, head_dim] -> [batch, num_heads, seq_len, head_dim]
         query = xq.permute(0, 2, 1, 3)
-        logger.debug(f'key : {key.shape} \nvalue : {value.shape}\nquery : {query.shape}')
+        # logger.debug(f'key : {key.shape} \nvalue : {value.shape}\nquery : {query.shape}')
         # key : [batch, num_heads, seq_len, head_dim] -> [batch, seq_len , num_heads, head_dim]
         # score : [batch, num_heads, seq_len , head_dim]
         attention = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(self.head_dim)
         if self.use_layer_index_scaling:
             attention /= (self.layer_index + 1)
-        logger.debug(f'score : {attention.shape}')
-        if attention_mask is not None:
-            logger.debug(f'attention mask : {attention_mask.shape}')
+        logger.debug(f'attention : {attention.shape}')
+        logger.debug(f'attention mask : {attention_mask.shape if attention_mask is not None else None}')
         _, _, s, h = attention.shape
 
         if attention_mask is not None:

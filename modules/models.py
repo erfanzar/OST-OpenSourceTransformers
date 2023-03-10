@@ -1,6 +1,6 @@
 import logging
 import typing
-from typing import Optional, Tuple, Union, List
+from typing import Optional, Tuple, Union, List, Iterable
 
 import torch
 import torch.nn as nn
@@ -635,7 +635,7 @@ class LLmP(nn.Module):
     def __init__(self, config: LLmPConfig):
         super(LLmP, self).__init__()
         self.wte = nn.Embedding(config.vocab_size, config.hidden_size)
-        self.dropout = nn.Dropout(config.embed_dropout)
+        self.wte_ln = PMSNorm(config)
         self.h = nn.ModuleList([LLmPBlock(config=config, layer_index=i) for i in range(config.n_layers)])
         self.ln = PMSNorm(config)
         self.dtype = torch.float16
@@ -648,19 +648,23 @@ class LLmP(nn.Module):
                 labels: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, Union[torch.Tensor, None]]:
         batch, seq_len = input_ids.shape
         if attention_mask is not None:
-
             attention_mask = attention_mask.to(input_ids.device, dtype=self.dtype)
             attention_mask = (1.0 - attention_mask) * torch.finfo(self.dtype).min
+            if attention_mask.ndim == 3:
+                attention_mask = attention_mask[:, None, :, :]
             if attention_mask.ndim == 2:
-                attention_mask = attention_mask.unsqueeze(1).unsqueeze(1)
+                attention_mask = attention_mask[:, None, None, :]
+        logger.debug(
+            f'We Got INPUT ---**--- :  [ input _ids : {input_ids.shape}] [ attention _mask : {attention_mask.shape if attention_mask is not None else None} ]')
         self.freq = self.freq.to(input_ids.device)
         chosen_freq = self.freq[:seq_len]
         logger.debug(f'chosen_freq : {chosen_freq.shape}')
-        x_ = self.dropout(self.wte(input_ids))
-        logger.debug(f'wte : {x_.shape}')
-        for h in self.h:
-            x_ = h(x_, attention_mask=attention_mask, freq=chosen_freq)
-        logits = self.out(self.ln(x_))
+        x = self.wte_ln(self.wte(input_ids))
+        logger.debug(f'word tokenizing shape ==> : {x.shape}')
+        for i, h in enumerate(self.h):
+            logger.debug(f'At Block Index  : \033[32m{i}\033[92m')
+            x = h(x, attention_mask=attention_mask, freq=chosen_freq)
+        logits = self.out(self.ln(x))
         loss = None
         if labels is not None:
             shift_logits = logits[..., :-1, :].contiguous()
@@ -673,11 +677,12 @@ class LLmP(nn.Module):
             self,
             tokens: Optional[torch.Tensor],
             eos_id: int,
+            pad_id: int,
             attention_mask=None,
             max_gen_len: int = 20,
             temperature: float = 0.9,
             top_p: float = 0.95,
-    ) -> List[int]:
+    ) -> Iterable[torch.Tensor]:
         def sample_top_p(probs, p):
             probs_sort, probs_idx = torch.sort(probs, dim=-1, descending=True)
             probs_sum = torch.cumsum(probs_sort, dim=-1)
@@ -690,11 +695,13 @@ class LLmP(nn.Module):
             _next_token = torch.gather(probs_idx, -1, _next_token)
             return _next_token
 
-        if attention_mask is None:
+        if attention_mask is True:
             attention_mask = torch.nn.functional.pad((tokens != 0).float(),
-                                                     (0, self.config.max_sentence_length - tokens.size(-1)), value=0)
+                                                     (0, self.config.max_sentence_length - tokens.size(-1)),
+                                                     value=pad_id)
         # attention_mask = None
         for i in range(max_gen_len):
+            tokens = tokens[:, -self.config.max_sentence_length:]
             logits, _ = self.forward(tokens, attention_mask)
             logits = logits[:, -1, :]
             if temperature > 0:
@@ -706,6 +713,7 @@ class LLmP(nn.Module):
             next_token = next_token.reshape(*tokens.shape[:-1], 1)
             tokens = torch.cat([tokens, next_token], dim=1)
             if next_token.view(-1)[0] != eos_id:
-                yield next_token
+
+                yield next_token.view(1, -1)
             else:
                 break

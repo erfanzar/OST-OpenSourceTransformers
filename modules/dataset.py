@@ -139,13 +139,13 @@ class DatasetLLmPChat(Dataset, Tokens):
     def __init__(self, data: Union[os.PathLike, str],
                  tokenizer: Optional[transformers.GPT2Tokenizer], max_length: Optional[int] = 256):
         self.tokenizer = tokenizer
-        tokenizer.add_special_tokens(
-            {'pad_token': self.pad, 'eos_token': self.eos, 'bos_token': self.sos}
-        )
-        if not os.path.exists('tokenizer_model/LLmP-C'):
-            os.mkdir('tokenizer_model/LLmP-C')
-        tokenizer.add_tokens('<LLmP> :')
-        tokenizer.save_vocabulary('tokenizer_model/LLmP-C')
+        # tokenizer.add_special_tokens(
+        #     {'pad_token': self.pad, 'eos_token': self.eos, 'bos_token': self.sos}
+        # )
+        # if not os.path.exists('tokenizer_model/LLmP-C'):
+        #     os.mkdir('tokenizer_model/LLmP-C')
+        # tokenizer.add_tokens('<LLmP> :')
+        # tokenizer.save_pretrained('tokenizer_model/LLmP-C')
         self.attention_mask = []
         self.input_ids = []
         self.max_length = max_length
@@ -164,8 +164,8 @@ class DatasetLLmPChat(Dataset, Tokens):
                 pass
         tqdm_pr = tqdm(iterable=preprocessed_data)
         for string in tqdm_pr:
-            encodings_dict = tokenizer(string, truncation=True, return_tensors='pt',
-                                       max_length=max_length, padding="max_length")
+            encodings_dict = tokenizer.encode_plus(string, max_length=max_length, truncation=True, return_tensors='pt',
+                                                   padding="max_length")
             self.attention_mask.append(encodings_dict['attention_mask'])
             self.input_ids.append(encodings_dict['input_ids'])
 

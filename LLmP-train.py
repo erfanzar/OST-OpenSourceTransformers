@@ -34,11 +34,12 @@ options = pars.parse_args()
 
 logger = logging.getLogger(__name__)
 
+logging.basicConfig(level=logging.CRITICAL)
 
-# logging.basicConfig(level=logging.DEBUG)
+
 def inter_q(question: Optional[str], tokenizer: GPT2Tokenizer, agent_name: str = '<LLmP> :') \
         -> Tuple[torch.Tensor, torch.Tensor]:
-    out = tokenizer(Tokens.sos + question + agent_name, return_tensors='pt')
+    out = tokenizer.encode_plus(Tokens.sos + question + agent_name, return_tensors='pt')
     return out['input_ids'], out['attention_mask']
 
 
@@ -52,7 +53,7 @@ def train(input_ids: Optional[Tensor],
                                                 typing.Union[torch.Tensor]]:
     labels: Optional[Tensor] = make2d(targets.type(torch.long).to(device))
     input_ids: Optional[Tensor] = make2d(input_ids.type(torch.long).to(device))
-
+    logger.debug('RUNNING TRAIN FUNCTION IN MAIN THREAD ')
     _, loss = network(input_ids=input_ids, labels=labels, attention_mask=attention_mask)
 
     loss_average += loss.item()
@@ -82,11 +83,12 @@ def main(opt):
         data = None
         raise ValueError()
     parameters: LLmPConfig = get_config_by_name(opt.model)
-    tokenizer: GPT2Tokenizer = AutoTokenizer.from_pretrained('tokenizer_model/LLmP')
+    tokenizer: GPT2Tokenizer = AutoTokenizer.from_pretrained('tokenizer_model/LLmP-C')
 
     dataset = DatasetLLmPChat(data=data, max_length=parameters.max_sentence_length, tokenizer=tokenizer)
     parameters.vocab_size = dataset.tokenizer.vocab_size
-    parameters.vocab_size += 4
+
+    parameters.vocab_size += 5
     # parameters.device = 'cpu'
     parameters.data_path = opt.data_src
 
@@ -120,7 +122,7 @@ def main(opt):
 
     question = 'Oh there you are'
     model = model.to(device=parameters.device)
-    logger.info('TRAIN IS ABOUT TO START!!!')
+
     if opt.train:
         logger.info('TRAIN IS ABOUT TO START')
         for epoch in range(checkpoints['epoch'] if opt.load else 0, parameters.epochs):
@@ -128,18 +130,29 @@ def main(opt):
             with tqdm(enumerate(dataloader), **TQDM_KWARGS,
                       total=math.ceil(dataset.__len__() // parameters.batch_size)) as progress_bar:
                 for i, (input_ids_t, attention_mask) in progress_bar:
-                    logger.debug(f'input_ids_t : {input_ids_t.shape}')
-                    loss, loss_avg = train(input_ids=input_ids_t, targets=input_ids_t, network=model, optim=optimizer,
+                    logger.debug(f'\033[1;94m input_ids_t    : {input_ids_t.shape}')
+                    logger.debug(f'\033[1;94m attention_mask : {attention_mask.shape}')
+                    # input_ids_t, attention_mask = input_ids_t.type_as(torch.float16), attention_mask.type_as(
+                    #     torch.float16)
+                    loss, loss_avg = train(input_ids=input_ids_t, targets=input_ids_t, network=model,
+                                           optim=optimizer,
                                            loss_average=loss_avg, device=parameters.device,
                                            attention_mask=attention_mask)
+
                     free_gpu, used_gpu, total_gpu = get_memory(0)
-                    if i % 10 == 0:
-                        tk, attention_m = inter_q(question, tokenizer=tokenizer)
+                    if ((i+1) % 50) == 0:
+                        tk, _ = inter_q(question, tokenizer=tokenizer
+                                        )
+                        tk = tk.to(parameters.device)
                         cals = []
-                        for pred in model.generate(tokens=tk, attention_mask=attention_m,
+                        for pred in model.generate(tokens=tk, pad_id=tokenizer.pad_token_id,
+                                                   attention_mask=None,
                                                    eos_id=tokenizer.eos_token_id):
                             cals.append(pred)
-                        cals = tokenizer.decode(cals)
+                        cals = torch.cat(cals, dim=-1)
+
+                        cals = tokenizer.decode(cals[0])
+
                         board.add_scalar('train/Loss', scalar_value=loss.item(), global_step=at)
                         board.add_scalar('train/avg-Loss', scalar_value=(loss_avg / (i + 1)),
                                          global_step=at)

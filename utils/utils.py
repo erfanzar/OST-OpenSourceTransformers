@@ -655,7 +655,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
     elif name == 'LLmP-small':
         return LLmPConfig(
             vocab_size=vocab_size,
-            n_layers=6,
+            n_layers=10,
             n_heads=8,
             epochs=500,
             hidden_size=256,
