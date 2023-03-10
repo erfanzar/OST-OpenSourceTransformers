@@ -667,7 +667,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_layers=8,
             n_heads=16,
             epochs=500,
-            hidden_size=896,
+            hidden_size=768,
             max_sentence_length=128
         )
     elif name == 'LLmP':

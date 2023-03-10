@@ -27,7 +27,7 @@ pars.add_argument('--batch', '--batch', type=int, default=1)
 pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
 pars.add_argument('--load', '--load', type=bool, default=False)
-pars.add_argument('--model', '--model', type=str, default='LLmP-small')
+pars.add_argument('--model', '--model', type=str, default='LLmP-ML')
 pars.add_argument('--data-src', '--data-src', type=str, default='data/convai.json')
 
 options = pars.parse_args()
@@ -140,7 +140,7 @@ def main(opt):
                                            attention_mask=attention_mask)
 
                     free_gpu, used_gpu, total_gpu = get_memory(0)
-                    if ((i+1) % 50) == 0:
+                    if ((i + 1) % 50) == 0:
                         tk, _ = inter_q(question, tokenizer=tokenizer
                                         )
                         tk = tk.to(parameters.device)
@@ -150,13 +150,14 @@ def main(opt):
                                                    eos_id=tokenizer.eos_token_id):
                             cals.append(pred)
                         cals = torch.cat(cals, dim=-1)
-
-                        cals = tokenizer.decode(cals[0])
+                        cals = cals.to('cpu')
+                        awn = tokenizer.decode(cals[0])
+                        del cals
                         from transformers import BloomModel
                         board.add_scalar('train/Loss', scalar_value=loss.item(), global_step=at)
                         board.add_scalar('train/avg-Loss', scalar_value=(loss_avg / (i + 1)),
                                          global_step=at)
-                        board.add_text('train/GeneratedResponse', f'question : {question}\nanswer : {cals}')
+                        board.add_text('train/GeneratedResponse', f'question : {question}\nanswer : {awn}', at)
                     at += 1
                     progress_bar.set_postfix(epoch=f'[{epoch}/{parameters.epochs}]', device=parameters.device,
                                              loss_avg=(loss_avg / (i + 1)),
