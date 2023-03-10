@@ -655,10 +655,10 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
     elif name == 'LLmP-small':
         return LLmPConfig(
             vocab_size=vocab_size,
-            n_layers=8,
+            n_layers=6,
             n_heads=8,
             epochs=500,
-            hidden_size=512,
+            hidden_size=256,
             max_sentence_length=128
         )
     elif name == 'LLmP':
@@ -679,13 +679,13 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             hidden_size=512,
             max_sentence_length=1024
         )
-    elif name == 'LLmP-small':
+    elif name == 'LLmP-LX':
         return LLmPConfig(
             vocab_size=vocab_size,
-            n_layers=14,
-            n_heads=8,
-            hidden_size=256,
-            max_sentence_length=360
+            n_layers=18,
+            n_heads=16,
+            hidden_size=768,
+            max_sentence_length=1024
         )
     elif name == 'LLmPU-base':
         L = {"d_ff": 1024,
