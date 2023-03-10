@@ -675,8 +675,8 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             vocab_size=vocab_size,
             n_layers=10,
             n_heads=8,
-            epochs=1024,
-            hidden_size=512,
+            epochs=500,
+            hidden_size=1280,
             max_sentence_length=256
         )
     elif name == 'LLmP-L':
@@ -684,8 +684,8 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             vocab_size=vocab_size,
             n_layers=10,
             n_heads=8,
-            epochs=1024,
-            hidden_size=512,
+            epochs=500,
+            hidden_size=1536,
             max_sentence_length=1024
         )
     elif name == 'LLmP-LX':
