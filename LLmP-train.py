@@ -153,7 +153,7 @@ def main(opt):
                         cals = cals.to('cpu')
                         awn = tokenizer.decode(cals[0])
                         del cals
-                        from transformers import BloomModel
+
                         board.add_scalar('train/Loss', scalar_value=loss.item(), global_step=at)
                         board.add_scalar('train/avg-Loss', scalar_value=(loss_avg / (i + 1)),
                                          global_step=at)
