@@ -197,7 +197,8 @@ class DatasetLLMoUChat(Dataset, Tokens):
         )
         if not os.path.exists('tokenizer_model/LLMoU-C'):
             os.mkdir('tokenizer_model/LLMoU-C')
-        tokenizer.add_tokens('<LLMoU> :')
+        agent = '<LLMoU> :'
+        tokenizer.add_tokens(agent)
         tokenizer.save_pretrained('tokenizer_model/LLMoU-C')
         self.attention_mask = []
         self.input_ids = []
@@ -212,7 +213,7 @@ class DatasetLLMoUChat(Dataset, Tokens):
         preprocessed_data = []
         for c in tqdm_pr:
             try:
-                preprocessed_data.append(self.sos + conv[c] + '<LLmP> :' + conv[c + 1] + self.eos)
+                preprocessed_data.append(self.sos + conv[c] + agent + conv[c + 1] + self.eos)
             except IndexError:
                 pass
         tqdm_pr = tqdm(iterable=preprocessed_data)

@@ -145,13 +145,17 @@ def main(opt):
                                         )
                         tk = tk.to(parameters.device)
                         cals = []
-                        for pred in model.generate(tokens=tk, pad_id=tokenizer.pad_token_id,
-                                                   attention_mask=None,
-                                                   eos_id=tokenizer.eos_token_id):
-                            cals.append(pred)
-                        cals = torch.cat(cals, dim=-1)
-                        cals = cals.to('cpu')
-                        awn = tokenizer.decode(cals[0])
+                        try:
+                            for pred in model.generate(tokens=tk,
+                                                       attention_mask=None,
+                                                       eos_id=tokenizer.eos_token_id):
+                                cals.append(pred)
+                            cals = torch.cat(cals, dim=-1)
+                            cals = cals.to('cpu')
+                            awn = tokenizer.decode(cals[0])
+                        except:
+                            awn = 'error'
+                            pass
                         del cals
 
                         board.add_scalar('train/Loss', scalar_value=loss.item(), global_step=at)
