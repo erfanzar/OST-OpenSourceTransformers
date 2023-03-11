@@ -1,7 +1,9 @@
-from .cross_modules import PMSNorm, FeedForward, Attention, LLmPConfig
+from typing import Optional
+
 import torch
 from torch import nn
-from typing import Optional, List, Union, Tuple
+
+from .cross_modules import PMSNorm, FeedForward, Attention, LLmPConfig
 
 
 def sample_top_p(probs, p):

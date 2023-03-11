@@ -14,8 +14,8 @@ from tqdm.auto import tqdm
 from transformers import GPT2Tokenizer, AutoTokenizer
 
 from config.config import TQDM_KWARGS
-from modules.dataset import DatasetLLmPChat, Tokens
-from modules.models import LLmP, LLmPConfig
+from modules.dataset import DatasetLLMoUChat, Tokens
+from modules.modeling_LLMoU import LLMoUModel, LLMoUConfig
 from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info, get_memory, count_model_parameters
 
 torch.manual_seed(42)
@@ -26,8 +26,8 @@ pars = argparse.ArgumentParser()
 pars.add_argument('--batch', '--batch', type=int, default=1)
 pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
-pars.add_argument('--load', '--load', type=bool, default=True)
-pars.add_argument('--model', '--model', type=str, default='LLmP-ML')
+pars.add_argument('--load', '--load', type=bool, default=False)
+pars.add_argument('--model', '--model', type=str, default='LLMoU-ML')
 pars.add_argument('--data-src', '--data-src', type=str, default='data/convai.json')
 
 options = pars.parse_args()
@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.CRITICAL)
 
 
-def inter_q(question: Optional[str], tokenizer: GPT2Tokenizer, agent_name: str = '<LLmP> :') \
+def inter_q(question: Optional[str], tokenizer: GPT2Tokenizer, agent_name: str = '<LLMoU> :') \
         -> Tuple[torch.Tensor, torch.Tensor]:
     out = tokenizer.encode_plus(Tokens.sos + question + agent_name, return_tensors='pt')
     return out['input_ids'], out['attention_mask']
@@ -46,13 +46,14 @@ def inter_q(question: Optional[str], tokenizer: GPT2Tokenizer, agent_name: str =
 def train(input_ids: Optional[Tensor],
           targets: Optional[Tensor],
           attention_mask: Optional[Tensor],
-          network: Optional[LLmP.forward],
+          network: Optional[LLMoUModel.forward],
           optim: Optional[torch.optim.AdamW],
           loss_average: Optional[Tensor],
           device: Union[torch.device, str]) -> [typing.Union[torch.Tensor],
                                                 typing.Union[torch.Tensor]]:
     labels: Optional[Tensor] = make2d(targets.type(torch.long).to(device))
     input_ids: Optional[Tensor] = make2d(input_ids.type(torch.long).to(device))
+    attention_mask: Optional[Tensor] = make2d(attention_mask.type(torch.long).to(device))
     logger.debug('RUNNING TRAIN FUNCTION IN MAIN THREAD ')
     _, loss = network(input_ids=input_ids, labels=labels, attention_mask=attention_mask)
 
@@ -82,10 +83,10 @@ def main(opt):
     else:
         data = None
         raise ValueError()
-    parameters: LLmPConfig = get_config_by_name(opt.model)
-    tokenizer: GPT2Tokenizer = AutoTokenizer.from_pretrained('tokenizer_model/LLmP-C')
+    parameters: LLMoUConfig = get_config_by_name(opt.model)
+    tokenizer: GPT2Tokenizer = AutoTokenizer.from_pretrained('tokenizer_model/LLmP')
 
-    dataset = DatasetLLmPChat(data=data, max_length=parameters.max_sentence_length, tokenizer=tokenizer)
+    dataset = DatasetLLMoUChat(data=data, max_length=parameters.max_sentence_length, tokenizer=tokenizer)
     parameters.vocab_size = dataset.tokenizer.vocab_size
 
     parameters.vocab_size += 5
@@ -99,7 +100,7 @@ def main(opt):
 
     fprint('Loading Model ...' if opt.load else 'Creating Model ...')
 
-    model = LLmP(config=parameters).to(parameters.device) if opt.load else LLmP(config=parameters).to('cpu')
+    model = LLMoUModel(config=parameters).to(parameters.device) if opt.load else LLMoUModel(config=parameters).to('cpu')
     optimizer_kwargs = dict(lr=parameters.lr, weight_decay=parameters.weight_decay)
     optimizer = torch.optim.AdamW(model.parameters(), **optimizer_kwargs)
     model_parameters_size: typing.Optional[float] = count_model_parameters(model)
@@ -132,8 +133,7 @@ def main(opt):
                 for i, (input_ids_t, attention_mask) in progress_bar:
                     logger.debug(f'\033[1;94m input_ids_t    : {input_ids_t.shape}')
                     logger.debug(f'\033[1;94m attention_mask : {attention_mask.shape}')
-                    # input_ids_t, attention_mask = input_ids_t.type_as(torch.float16), attention_mask.type_as(
-                    #     torch.float16)
+
                     loss, loss_avg = train(input_ids=input_ids_t, targets=input_ids_t, network=model,
                                            optim=optimizer,
                                            loss_average=loss_avg, device=parameters.device,

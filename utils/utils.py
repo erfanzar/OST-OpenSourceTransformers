@@ -1,16 +1,18 @@
 import os
+import time
 import typing
 
+import psutil
 import torch
 import tqdm
 from erutils import fprint
 from torch.utils.data import Dataset
-import time
 from tqdm.auto import tqdm
-import psutil
 from transformers import BertTokenizer, GPT2Tokenizer
-from modules.modeling_llmpu import LLmPUConfig
+
 from modules.cross_modules import LLmPConfig
+from modules.modeling_LLMoU import LLMoUConfig
+from modules.modeling_llmpu import LLmPUConfig
 from modules.modelling_llama import LLamaConfig
 
 
@@ -481,7 +483,7 @@ def make2d(tensor) -> typing.Optional[torch.Tensor]:
 
 def get_config_by_name(name: str, vocab_size: int = 5000,
                        device: str = 'cuda' if torch.cuda.is_available() else 'cpu') -> typing.Union[
-    HyperParameters, LLamaConfig, LLmPConfig, LLmPUConfig]:
+    HyperParameters, LLamaConfig, LLmPConfig, LLmPUConfig, LLMoUConfig]:
     """
     :param device: device for model
     :param vocab_size: vocab_size
@@ -699,6 +701,59 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
         )
     elif name == 'LLmP-LX':
         return LLmPConfig(
+            vocab_size=vocab_size,
+            n_layers=18,
+            n_heads=16,
+            hidden_size=2048,
+            max_sentence_length=1024
+        )
+    elif name == 'LLMoU-S':
+        return LLMoUConfig(
+            vocab_size=vocab_size,
+            n_layers=10,
+            n_heads=8,
+            epochs=500,
+            hidden_size=768,
+            max_sentence_length=128
+        )
+    elif name == 'LLMoU-ML':
+        return LLMoUConfig(
+            vocab_size=vocab_size,
+            n_layers=8,
+            n_heads=16,
+            epochs=500,
+            hidden_size=768,
+            max_sentence_length=128
+        )
+    elif name == 'LLMoU':
+        return LLMoUConfig(
+            vocab_size=vocab_size,
+            n_layers=8,
+            n_heads=16,
+            epochs=500,
+            hidden_size=1024,
+            max_sentence_length=256
+        )
+    elif name == 'LLMoU-X':
+        return LLMoUConfig(
+            vocab_size=vocab_size,
+            n_layers=10,
+            n_heads=8,
+            epochs=500,
+            hidden_size=1280,
+            max_sentence_length=256
+        )
+    elif name == 'LLMoU-L':
+        return LLMoUConfig(
+            vocab_size=vocab_size,
+            n_layers=10,
+            n_heads=8,
+            epochs=500,
+            hidden_size=1536,
+            max_sentence_length=1024
+        )
+    elif name == 'LLMoU-LX':
+        return LLMoUConfig(
             vocab_size=vocab_size,
             n_layers=18,
             n_heads=16,
