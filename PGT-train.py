@@ -120,7 +120,7 @@ def main(opt):
 
                 print()
                 save_checkpoints(model=model.state_dict(), optimizer=optimizer.state_dict(),
-                                 epochs=parameters.epochs,
+                                 epochs=parameters.epochs,at=at,
                                  epoch=epoch + 1, config=opt.model,
                                  name='model.pt')
                 progress_bar.write('==> MODEL SAVED SUCCESSFULLY')

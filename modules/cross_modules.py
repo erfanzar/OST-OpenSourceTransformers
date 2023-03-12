@@ -91,7 +91,7 @@ class Attention(nn.Module):
         # logger.debug(f'key : {key.shape} \nvalue : {value.shape}\nquery : {query.shape}')
         # key : [batch, num_heads, seq_len, head_dim] -> [batch, seq_len , num_heads, head_dim]
         # score : [batch, num_heads, seq_len , head_dim]
-        attention = torch.matmul(query, key.transpose(-2, -1)) / (1 / math.sqrt(self.head_dim))
+        attention = torch.matmul(query, key.transpose(-2, -1)) / (math.sqrt(self.head_dim))
         if self.use_layer_index_scaling:
             attention /= (self.layer_index + 1)
         logger.debug(f'attention : {attention.shape}')

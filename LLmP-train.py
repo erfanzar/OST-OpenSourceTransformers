@@ -67,9 +67,19 @@ def train(input_ids: Optional[Tensor],
 
 
 def main(opt):
-    out_path = create_output_path(path=opt.out_path, name=opt.model)
-    if not os.path.exists(os.path.join(out_path, 'weights')):
-        os.mkdir(os.path.join(out_path, 'weights'))
+    if opt.weight is None:
+        out_path = create_output_path(path=opt.out_path, name=opt.model)
+        if not os.path.exists(os.path.join(out_path, 'weights')):
+            os.mkdir(os.path.join(out_path, 'weights'))
+    else:
+        if opt.weight.endswith('.pt'):
+            out_path = opt.weight.split('/')
+            if 'weights' in out_path:
+                out_path = os.path.join(*(p for p in out_path[:-2]))
+            else:
+                out_path = os.path.join(*(p for p in out_path[:-1]))
+        else:
+            raise ValueError('weight must contain path to .pt file')
     device_info()
     if opt.data_src.endswith('.txt'):
         data = open(opt.data_src, 'r', encoding='utf8').read().split()
@@ -169,7 +179,7 @@ def main(opt):
 
                 print()
                 save_checkpoints(model=model.state_dict(), optimizer=optimizer.state_dict(),
-                                 epochs=parameters.epochs,
+                                 epochs=parameters.epochs,at=at,
                                  epoch=epoch + 1, config=opt.model,
                                  name=f'{out_path}/weights/{opt.model}-model.pt')
                 progress_bar.write('==> MODEL SAVED SUCCESSFULLY')

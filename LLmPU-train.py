@@ -64,9 +64,19 @@ def train(m: Optional[LLmPUForConditionalGeneration],
 
 
 def _main(opt):
-    out_path = create_output_path(path=opt.out_path, name=opt.model)
-    if not os.path.exists(os.path.join(out_path, 'weights')):
-        os.mkdir(os.path.join(out_path, 'weights'))
+    if opt.weight is None:
+        out_path = create_output_path(path=opt.out_path, name=opt.model)
+        if not os.path.exists(os.path.join(out_path, 'weights')):
+            os.mkdir(os.path.join(out_path, 'weights'))
+    else:
+        if opt.weight.endswith('.pt'):
+            out_path = opt.weight.split('/')
+            if 'weights' in out_path:
+                out_path = os.path.join(*(p for p in out_path[:-2]))
+            else:
+                out_path = os.path.join(*(p for p in out_path[:-1]))
+        else:
+            raise ValueError('weight must contain path to .pt file')
     device_info()
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
