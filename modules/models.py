@@ -13,7 +13,7 @@ from .modeling_LLmP import LLmPBlock, PMSNorm
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['PTTDecoder', 'PTT', 'PTTGenerative', 'PGT']
+__all__ = ['PTTDecoder', 'PTT', 'PTTGenerative', 'PGT', 'PGT_J', 'LLmP', 'LLmPBlock', 'LLmPConfig']
 
 
 class Tokenizer:
