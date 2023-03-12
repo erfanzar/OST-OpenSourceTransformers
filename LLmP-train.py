@@ -18,7 +18,7 @@ from config.config import TQDM_KWARGS
 from modules.dataset import DatasetLLmP
 from modules.models import LLmP, LLmPConfig
 from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info, get_memory, count_model_parameters, \
-    create_output_path
+    create_output_path, _init_weights
 
 torch.manual_seed(42)
 torch.backends.cudnn.benchmark = True
@@ -115,6 +115,7 @@ def main(opt):
 
     model = LLmP(config=parameters).to(parameters.device) if opt.weight is not None else LLmP(config=parameters).to(
         'cpu')
+    model.apply(_init_weights)
     optimizer_kwargs = dict(lr=parameters.lr, weight_decay=parameters.weight_decay)
     optimizer = torch.optim.AdamW(model.parameters(), **optimizer_kwargs)
     model_parameters_size: typing.Optional[float] = count_model_parameters(model)

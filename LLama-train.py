@@ -14,7 +14,7 @@ from transformers import GPT2Tokenizer
 
 from modules.dataset import DatasetLLama
 from modules.modelling_llama import LLamaModel, LLamaConfig, Tokens
-from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info, get_memory
+from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info, get_memory, _init_weights
 
 torch.backends.cudnn.benchmark = True
 
@@ -111,6 +111,7 @@ def main(opt):
 
     model = LLamaModel(config=parameters).to(parameters.device) if opt.weight is not None else LLamaModel(
         config=parameters).to('cpu')
+    model.apply(_init_weights)
     optimizer_kwargs = dict(lr=parameters.lr, weight_decay=parameters.weight_decay)
     optimizer = torch.optim.AdamW(model.parameters(), **optimizer_kwargs)
     model_parameters_size: typing.Optional[float] = sum(p.numel() for p in model.parameters()) / 1e6

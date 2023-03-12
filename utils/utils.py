@@ -7,6 +7,7 @@ import psutil
 import torch
 import tqdm
 from erutils import fprint
+from torch import nn
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 from transformers import BertTokenizer, GPT2Tokenizer
@@ -942,3 +943,16 @@ def create_output_path(path: Union[os.PathLike, str], name: Optional[str]):
             except FileExistsError:
                 at_try += 1
     return f'{path}/{u_name}'
+
+
+def _init_weights(self, module: nn.Module):
+    if isinstance(module, nn.Linear):
+        module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+        if module.bias is not None:
+            module.bias.data.zero_()
+    elif isinstance(module, nn.Embedding):
+        module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+        if module.padding_idx is not None:
+            module.weight.data[module.padding_idx].zero_()
+    elif isinstance(module, LLMoUPMSNorm):
+        module.weight.data.fill_(1.0)

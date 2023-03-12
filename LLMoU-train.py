@@ -28,7 +28,7 @@ pars = argparse.ArgumentParser()
 pars.add_argument('--batch', '--batch', type=int, default=1)
 pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
-pars.add_argument('--weight', '--weight', type=str, default=None)
+pars.add_argument('--weight', '--weight', type=str, default='out/LLMoU-ML/weights/LLMoU-ML-model.pt')
 pars.add_argument('--out-path', '--out-path', type=str, default='out')
 pars.add_argument('--model', '--model', type=str, default='LLMoU-ML')
 pars.add_argument('--data-src', '--data-src', type=str, default='HF-super_glue/multirc')
@@ -82,6 +82,7 @@ def main(opt):
         else:
             raise ValueError('weight must contain path to .pt file')
     device_info()
+    erutils.fprint(f'OUT DIR : {out_path}')
     if opt.data_src.endswith('.txt'):
         data = open(opt.data_src, 'r', encoding='utf8').read().split()
     elif opt.data_src.endswith('.json'):

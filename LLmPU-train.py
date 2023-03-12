@@ -16,7 +16,8 @@ from transformers import T5Tokenizer, AutoTokenizer
 from config.config import TQDM_KWARGS
 from modules.dataset import DatasetLLmPU
 from modules.modeling_llmpu import LLmPUForConditionalGeneration, LLmPUConfig
-from utils.utils import make2d, count_model_parameters, save_checkpoints, device_info, get_config_by_name, get_memory
+from utils.utils import make2d, count_model_parameters, save_checkpoints, device_info, get_config_by_name, get_memory, \
+    _init_weights
 
 logging.basicConfig(level=logging.WARN)
 torch.backends.cudnn.benchmark = True
@@ -87,6 +88,7 @@ def _main(opt):
     config: LLmPUConfig = get_config_by_name(opt.model, vocab_size=tokenizer.vocab_size)
     show_hyper_parameters(config)
     model = LLmPUForConditionalGeneration(config=config).to(device if not opt.load else 'cpu')
+    model.apply(_init_weights)
     erutils.fprint(f'Model Created with {count_model_parameters(model)} Million Parameters')
 
     source_length = config.max_length
