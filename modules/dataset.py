@@ -98,24 +98,38 @@ class DatasetLLama(Dataset, Tokens):
 
 
 class DatasetLLmP(Dataset, Tokens):
-    def __init__(self, data: Optional[List[str]],
-                 tokenizer: Optional[transformers.GPT2Tokenizer], max_length: Optional[int] = 256):
+    def __init__(self, data: Union[dict[List], str],
+                 tokenizer: Optional[transformers.GPT2Tokenizer], max_length: Optional[int] = 256,
+                 till: Optional[int] = 5000):
         self.tokenizer = tokenizer
+
+        tokenizer.add_special_tokens(
+            {'pad_token': self.pad, 'eos_token': self.eos, 'bos_token': self.sos}
+        )
+        if not os.path.exists('tokenizer_model/LLmP-C'):
+            os.mkdir('tokenizer_model/LLmP-C')
+        agent = '<LLmP> :'
+        self.agent = agent
+        paragraph = 'paragraph:'
+        question = 'question:'
+        tokenizer.add_tokens(agent)
+        tokenizer.add_tokens(paragraph)
+        tokenizer.add_tokens(question)
+        tokenizer.save_pretrained('tokenizer_model/LLmP-C')
         self.attention_mask = []
         self.input_ids = []
         self.max_length = max_length
-        logger.info('Tokenizing Data')
-        pbar = tqdm(enumerate(range(0, len(data), max_length)))
-        failed = 0
-        for i, rng in pbar:
-            pbar.set_postfix(failed=failed, collected=i + 1 - failed)
-            string = ' '.join(data[rng:max_length + rng])
-            encodings_dict = tokenizer(string, truncation=True,
-                                       max_length=max_length, padding="max_length")
-
-            self.input_ids.append(torch.tensor(encodings_dict['input_ids']))
-            self.attention_mask.append(torch.tensor(encodings_dict['attention_mask']))
-
+        chosen = data['train']
+        till = till if till is not None else len(chosen)
+        tqdm_pr = tqdm(iterable=enumerate(chosen), total=till)
+        for ia, dt in tqdm_pr:
+            string = f'{paragraph} {dt["paragraph"]} {question} {dt["question"]} {agent} {dt["answer"]} {self.eos}'
+            encodings_dict = tokenizer.encode_plus(string, max_length=max_length, truncation=True, return_tensors='pt',
+                                                   padding="max_length")
+            self.attention_mask.append(encodings_dict['attention_mask'])
+            self.input_ids.append(encodings_dict['input_ids'])
+            if ia == till:
+                break
     def __len__(self):
         return len(self.input_ids)
 
@@ -134,7 +148,6 @@ class DatasetLLmP(Dataset, Tokens):
         )
         return enc_trg
 
-
 class DatasetLLmPChat(Dataset, Tokens):
     def __init__(self, data: Union[os.PathLike, str],
                  tokenizer: Optional[transformers.GPT2Tokenizer], max_length: Optional[int] = 256):
@@ -147,6 +160,7 @@ class DatasetLLmPChat(Dataset, Tokens):
         # tokenizer.add_tokens('<LLmP> :')
         # tokenizer.save_pretrained('tokenizer_model/LLmP-C')
         self.attention_mask = []
+        self.agent = '<LLmP> :'
         self.input_ids = []
         self.max_length = max_length
         data = json.load(open(data, 'r'))
@@ -200,6 +214,7 @@ class DatasetLLMoU(Dataset, Tokens):
         if not os.path.exists('tokenizer_model/LLMoU-C'):
             os.mkdir('tokenizer_model/LLMoU-C')
         agent = '<LLMoU> :'
+        self.agent = agent
         paragraph = 'paragraph:'
         question = 'question:'
         tokenizer.add_tokens(agent)

@@ -1,6 +1,6 @@
 import logging
 import typing
-from typing import Optional, Tuple, Union, List, Iterable
+from typing import Optional, Tuple, Union, Iterable
 
 import torch
 import torch.nn as nn
@@ -649,6 +649,13 @@ class LLmP(nn.Module):
         batch, seq_len = input_ids.shape
         if attention_mask is not None:
             attention_mask = attention_mask.to(input_ids.device, dtype=self.dtype)
+            attention_mask = (1.0 - attention_mask) * torch.finfo(self.dtype).min
+            if attention_mask.ndim == 3:
+                attention_mask = attention_mask[:, None, :, :]
+            if attention_mask.ndim == 2:
+                attention_mask = attention_mask[:, None, None, :]
+        else:
+            attention_mask = torch.ones(input_ids.shape).to(input_ids.device, dtype=self.dtype)
             attention_mask = (1.0 - attention_mask) * torch.finfo(self.dtype).min
             if attention_mask.ndim == 3:
                 attention_mask = attention_mask[:, None, :, :]

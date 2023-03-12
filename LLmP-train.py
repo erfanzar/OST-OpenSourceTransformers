@@ -14,7 +14,7 @@ from tqdm.auto import tqdm
 from transformers import GPT2Tokenizer, AutoTokenizer
 
 from config.config import TQDM_KWARGS
-from modules.dataset import DatasetLLmPChat, Tokens
+from modules.dataset import DatasetLLmP
 from modules.models import LLmP, LLmPConfig
 from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info, get_memory, count_model_parameters
 
@@ -29,7 +29,7 @@ pars.add_argument('--compile', '--compile', type=bool, default=True)
 pars.add_argument('--load', '--load', type=bool, default=True)
 pars.add_argument('--model', '--model', type=str, default='LLmP-ML')
 pars.add_argument('--out-path', '--out-path', type=str, default='out')
-pars.add_argument('--data-src', '--data-src', type=str, default='data/convai.json')
+pars.add_argument('--data-src', '--data-src', type=str, default='HF-super_glue/multirc')
 
 options = pars.parse_args()
 
@@ -38,9 +38,9 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.CRITICAL)
 
 
-def inter_q(question: Optional[str], tokenizer: GPT2Tokenizer, agent_name: str = '<LLmP> :') \
+def inter_q(question: Optional[str], tokenizer: GPT2Tokenizer) \
         -> Tuple[torch.Tensor, torch.Tensor]:
-    out = tokenizer.encode_plus(Tokens.sos + question + agent_name, return_tensors='pt')
+    out = tokenizer.encode_plus(question, return_tensors='pt')
     return out['input_ids'], out['attention_mask']
 
 
@@ -80,19 +80,17 @@ def main(opt):
             data = load_dataset(model_name[0], model_name[1])
         else:
             data = load_dataset(name)
-        data = data["train"]['text']
-        selected = int(len(data) * 0.01)
-        data = data[:selected]
+
     else:
         data = None
         raise ValueError()
     parameters: LLmPConfig = get_config_by_name(opt.model)
     tokenizer: GPT2Tokenizer = AutoTokenizer.from_pretrained('tokenizer_model/LLmP-C')
 
-    dataset = DatasetLLmPChat(data=data, max_length=parameters.max_sentence_length, tokenizer=tokenizer)
+    dataset = DatasetLLmP(data=data, max_length=parameters.max_sentence_length, tokenizer=tokenizer)
     parameters.vocab_size = dataset.tokenizer.vocab_size
 
-    parameters.vocab_size += 5
+    parameters.vocab_size += 7
     # parameters.device = 'cpu'
     parameters.data_path = opt.data_src
 
@@ -124,7 +122,7 @@ def main(opt):
     board = SummaryWriter(log_dir=f'{out_path}/tensorboard', filename_suffix=f'{opt.model}')
     at = 0
 
-    question = 'Oh there you are'
+    question = 'paragraph: my name is erfan question: what is my name ?' + dataset.agent
     model = model.to(device=parameters.device)
 
     if opt.train:
@@ -136,8 +134,7 @@ def main(opt):
                 for i, (input_ids_t, attention_mask) in progress_bar:
                     logger.debug(f'\033[1;94m input_ids_t    : {input_ids_t.shape}')
                     logger.debug(f'\033[1;94m attention_mask : {attention_mask.shape}')
-                    # input_ids_t, attention_mask = input_ids_t.type_as(torch.float16), attention_mask.type_as(
-                    #     torch.float16)
+
                     loss, loss_avg = train(input_ids=input_ids_t, targets=input_ids_t, network=model,
                                            optim=optimizer,
                                            loss_average=loss_avg, device=parameters.device,
@@ -145,8 +142,7 @@ def main(opt):
 
                     free_gpu, used_gpu, total_gpu = get_memory(0)
                     if ((i + 1) % 50) == 0:
-                        tk, _ = inter_q(question, tokenizer=tokenizer
-                                        )
+                        tk, _ = inter_q(question, tokenizer=tokenizer)
                         tk = tk.to(parameters.device)
                         cals = []
                         for pred in model.generate(tokens=tk, pad_id=tokenizer.pad_token_id,
@@ -161,7 +157,8 @@ def main(opt):
                         board.add_scalar('train/Loss', scalar_value=loss.item(), global_step=at)
                         board.add_scalar('train/avg-Loss', scalar_value=(loss_avg / (i + 1)),
                                          global_step=at)
-                        board.add_text('train/GeneratedResponse', f'question : {question} | answer : {awn}')
+                        board.add_text('train/Context', f'{question}', global_step=at)
+                        board.add_text('train/GeneratedResponse', f'{awn}', global_step=at)
                     at += 1
                     progress_bar.set_postfix(epoch=f'[{epoch}/{parameters.epochs}]', device=parameters.device,
                                              loss_avg=(loss_avg / (i + 1)),

@@ -40,9 +40,9 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.CRITICAL)
 
 
-def inter_q(question: Optional[str], tokenizer: GPT2Tokenizer, agent_name: str = '<LLMoU> :') \
+def inter_q(question: Optional[str], tokenizer: GPT2Tokenizer) \
         -> Tuple[torch.Tensor, torch.Tensor]:
-    out = tokenizer.encode_plus(Tokens.sos + question + agent_name, return_tensors='pt')
+    out = tokenizer.encode_plus(question, return_tensors='pt')
     return out['input_ids'], out['attention_mask']
 
 
@@ -126,7 +126,7 @@ def main(opt):
     board = SummaryWriter(log_dir=f'{out_path}/tensorboard', filename_suffix=f'{opt.model}')
     at = 0
 
-    question = 'paragraph: my name is erfan question: what is my name ?'
+    question = 'paragraph: my name is erfan question: what is my name ?' + dataset.agent
     model = model.to(device=parameters.device)
 
     if opt.train:
