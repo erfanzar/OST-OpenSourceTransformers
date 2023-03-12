@@ -66,6 +66,8 @@ def train(input_ids: Optional[Tensor],
 
 def main(opt):
     out_path = create_output_path(path=opt.out_path, name=opt.model)
+    if not os.path.exists(os.path.join(out_path, 'weights')):
+        os.mkdir(os.path.join(out_path, 'weights'))
     device_info()
     if opt.data_src.endswith('.txt'):
         data = open(opt.data_src, 'r', encoding='utf8').read().split()
@@ -106,7 +108,7 @@ def main(opt):
     optimizer = torch.optim.AdamW(model.parameters(), **optimizer_kwargs)
     model_parameters_size: typing.Optional[float] = count_model_parameters(model)
 
-    checkpoints = torch.load(f'{opt.model}-model.pt', 'cpu') if opt.load else None
+    checkpoints = torch.load(opt.weight, 'cpu') if opt.weight is not None else None
 
     if checkpoints is not None:
         model.load_state_dict(checkpoints['model'])

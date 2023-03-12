@@ -65,6 +65,8 @@ def train(m: Optional[LLmPUForConditionalGeneration],
 
 def _main(opt):
     out_path = create_output_path(path=opt.out_path, name=opt.model)
+    if not os.path.exists(os.path.join(out_path, 'weights')):
+        os.mkdir(os.path.join(out_path, 'weights'))
     device_info()
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'

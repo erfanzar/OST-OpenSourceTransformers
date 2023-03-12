@@ -66,6 +66,8 @@ def train(input_ids: Optional[Tensor],
 
 def main(opt):
     out_path = create_output_path(path=opt.out_path, name=opt.model)
+    if not os.path.exists(os.path.join(out_path, 'weights')):
+        os.mkdir(os.path.join(out_path, 'weights'))
     device_info()
     if not opt.data_src.startswith('HF-'):
         data = open(opt.data_src, 'r', encoding='utf8').read().split('<|endoftext|>')
@@ -95,7 +97,7 @@ def main(opt):
                                              pin_memory=True)
     erutils.loggers.show_hyper_parameters(parameters)
 
-    fprint('Loading Model ...' if opt.load else 'Creating Model ...')
+    fprint('Loading Model ...' if opt.weight is not None else 'Creating Model ...')
 
     model = LLamaModel(config=parameters).to(parameters.device) if opt.weight is not None else LLamaModel(
         config=parameters).to('cpu')

@@ -188,41 +188,38 @@ class DatasetLLmPChat(Dataset, Tokens):
         return enc_trg
 
 
-class DatasetLLMoUChat(Dataset, Tokens):
-    def __init__(self, data: Union[os.PathLike, str],
-                 tokenizer: Optional[transformers.GPT2Tokenizer], max_length: Optional[int] = 256):
+class DatasetLLMoU(Dataset, Tokens):
+    def __init__(self, data: Union[dict[List], str],
+                 tokenizer: Optional[transformers.GPT2Tokenizer], max_length: Optional[int] = 256,
+                 till: Optional[int] = 5000):
         self.tokenizer = tokenizer
+
         tokenizer.add_special_tokens(
             {'pad_token': self.pad, 'eos_token': self.eos, 'bos_token': self.sos}
         )
         if not os.path.exists('tokenizer_model/LLMoU-C'):
             os.mkdir('tokenizer_model/LLMoU-C')
         agent = '<LLMoU> :'
+        paragraph = 'paragraph:'
+        question = 'question:'
         tokenizer.add_tokens(agent)
+        tokenizer.add_tokens(paragraph)
+        tokenizer.add_tokens(question)
         tokenizer.save_pretrained('tokenizer_model/LLMoU-C')
         self.attention_mask = []
         self.input_ids = []
         self.max_length = max_length
-        data = json.load(open(data, 'r'))
-        conv = []
-        for S in data:
-            for c in S['dialog']:
-                conv.append(c['text'])
-        tqdm_pr = tqdm(iterable=range(len(conv)))
-        tqdm_pr.set_description('Cleaning Data ')
-        preprocessed_data = []
-        for c in tqdm_pr:
-            try:
-                preprocessed_data.append(self.sos + conv[c] + agent + conv[c + 1] + self.eos)
-            except IndexError:
-                pass
-        tqdm_pr = tqdm(iterable=preprocessed_data)
-        for string in tqdm_pr:
+        chosen = data['train']
+        till = till if till is not None else len(chosen)
+        tqdm_pr = tqdm(iterable=enumerate(chosen), total=till)
+        for ia, dt in tqdm_pr:
+            string = f'{paragraph} {dt["paragraph"]} {question} {dt["question"]} {agent} {dt["answer"]} {self.eos}'
             encodings_dict = tokenizer.encode_plus(string, max_length=max_length, truncation=True, return_tensors='pt',
                                                    padding="max_length")
             self.attention_mask.append(encodings_dict['attention_mask'])
             self.input_ids.append(encodings_dict['input_ids'])
-
+            if ia == till:
+                break
     def __len__(self):
         return len(self.input_ids)
 

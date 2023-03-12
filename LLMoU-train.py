@@ -1,6 +1,7 @@
 import argparse
 import logging
 import math
+import os.path
 import typing
 from typing import Optional, Union, Tuple
 
@@ -14,12 +15,12 @@ from tqdm.auto import tqdm
 from transformers import GPT2Tokenizer, AutoTokenizer
 
 from config.config import TQDM_KWARGS
-from modules.dataset import DatasetLLMoUChat, Tokens
+from modules.dataset import DatasetLLMoU, Tokens
 from modules.modeling_LLMoU import LLMoUModel, LLMoUConfig
 from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info, get_memory, count_model_parameters, \
     create_output_path
 
-torch.manual_seed(42)
+# torch.manual_seed(42)
 torch.backends.cudnn.benchmark = True
 
 pars = argparse.ArgumentParser()
@@ -30,7 +31,7 @@ pars.add_argument('--compile', '--compile', type=bool, default=True)
 pars.add_argument('--weight', '--weight', type=str, default=None)
 pars.add_argument('--out-path', '--out-path', type=str, default='out')
 pars.add_argument('--model', '--model', type=str, default='LLMoU-ML')
-pars.add_argument('--data-src', '--data-src', type=str, default='data/convai.json')
+pars.add_argument('--data-src', '--data-src', type=str, default='HF-super_glue/multirc')
 
 options = pars.parse_args()
 
@@ -68,6 +69,9 @@ def train(input_ids: Optional[Tensor],
 
 def main(opt):
     out_path = create_output_path(path=opt.out_path, name=opt.model)
+    if not os.path.exists(os.path.join(out_path, 'weights')):
+        os.mkdir(os.path.join(out_path, 'weights'))
+
     device_info()
     if opt.data_src.endswith('.txt'):
         data = open(opt.data_src, 'r', encoding='utf8').read().split()
@@ -80,19 +84,16 @@ def main(opt):
             data = load_dataset(model_name[0], model_name[1])
         else:
             data = load_dataset(name)
-        data = data["train"]['text']
-        selected = int(len(data) * 0.01)
-        data = data[:selected]
     else:
         data = None
         raise ValueError()
     parameters: LLMoUConfig = get_config_by_name(opt.model)
-    tokenizer: GPT2Tokenizer = AutoTokenizer.from_pretrained('tokenizer_model/LLmP')
+    tokenizer: GPT2Tokenizer = AutoTokenizer.from_pretrained('tokenizer_model/LLMoU-C')
 
-    dataset = DatasetLLMoUChat(data=data, max_length=parameters.max_sentence_length, tokenizer=tokenizer)
+    dataset = DatasetLLMoU(data=data, max_length=parameters.max_sentence_length, tokenizer=tokenizer)
     parameters.vocab_size = dataset.tokenizer.vocab_size
 
-    parameters.vocab_size += 5
+    parameters.vocab_size += 7
     # parameters.device = 'cpu'
     parameters.data_path = opt.data_src
 
@@ -101,21 +102,22 @@ def main(opt):
                                              pin_memory=True)
     erutils.loggers.show_hyper_parameters(parameters)
 
-    fprint('Loading Model ...' if opt.load else 'Creating Model ...')
+    fprint('Loading Model ...' if opt.weight is not None else 'Creating Model ...')
 
-    model = LLMoUModel(config=parameters).to(parameters.device) if opt.load else LLMoUModel(config=parameters).to('cpu')
+    model = LLMoUModel(config=parameters).to(parameters.device) if opt.weight is not None else LLMoUModel(
+        config=parameters).to('cpu')
     optimizer_kwargs = dict(lr=parameters.lr, weight_decay=parameters.weight_decay)
     optimizer = torch.optim.AdamW(model.parameters(), **optimizer_kwargs)
     model_parameters_size: typing.Optional[float] = count_model_parameters(model)
 
-    checkpoints = torch.load(f'{opt.model}-model.pt', 'cpu') if opt.load else None
+    checkpoints = torch.load(opt.weight, 'cpu') if opt.weight is not None else None
 
     if checkpoints is not None:
         model.load_state_dict(checkpoints['model'])
         model = model.to(parameters.device)
         optimizer.load_state_dict(checkpoints['optimizer'])
     fprint(
-        f'Model Loaded With {model_parameters_size} Million Parameters' if opt.load
+        f'Model Loaded With {model_parameters_size} Million Parameters' if opt.weight is not None
         else f'Model Created With {model_parameters_size} Million Parameters')
 
     if opt.compile:
@@ -124,12 +126,12 @@ def main(opt):
     board = SummaryWriter(log_dir=f'{out_path}/tensorboard', filename_suffix=f'{opt.model}')
     at = 0
 
-    question = 'Oh there you are'
+    question = 'paragraph: my name is erfan question: what is my name ?'
     model = model.to(device=parameters.device)
 
     if opt.train:
         logger.info('TRAIN IS ABOUT TO START')
-        for epoch in range(checkpoints['epoch'] if opt.load else 0, parameters.epochs):
+        for epoch in range(checkpoints['epoch'] if opt.weight is not None else 0, parameters.epochs):
             loss_avg = 0
             with tqdm(enumerate(dataloader), **TQDM_KWARGS,
                       total=math.ceil(dataset.__len__() // parameters.batch_size)) as progress_bar:
@@ -164,7 +166,8 @@ def main(opt):
                         board.add_scalar('train/Loss', scalar_value=loss.item(), global_step=at)
                         board.add_scalar('train/avg-Loss', scalar_value=(loss_avg / (i + 1)),
                                          global_step=at)
-                        board.add_text('train/GeneratedResponse', f'question : {question} | answer : {awn}')
+                        board.add_text('train/Context', f'{question}', global_step=at)
+                        board.add_text('train/GeneratedResponse', f'{awn}', global_step=at)
                     at += 1
                     progress_bar.set_postfix(epoch=f'[{epoch}/{parameters.epochs}]', device=parameters.device,
                                              loss_avg=(loss_avg / (i + 1)),
