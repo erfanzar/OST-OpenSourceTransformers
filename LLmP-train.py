@@ -1,6 +1,7 @@
 import argparse
 import logging
 import math
+import os
 import typing
 from typing import Optional, Union, Tuple
 
@@ -16,7 +17,8 @@ from transformers import GPT2Tokenizer, AutoTokenizer
 from config.config import TQDM_KWARGS
 from modules.dataset import DatasetLLmP
 from modules.models import LLmP, LLmPConfig
-from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info, get_memory, count_model_parameters
+from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info, get_memory, count_model_parameters, \
+    create_output_path
 
 torch.manual_seed(42)
 torch.backends.cudnn.benchmark = True
@@ -26,9 +28,9 @@ pars = argparse.ArgumentParser()
 pars.add_argument('--batch', '--batch', type=int, default=1)
 pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
-pars.add_argument('--load', '--load', type=bool, default=True)
-pars.add_argument('--model', '--model', type=str, default='LLmP-ML')
+pars.add_argument('--weight', '--weight', type=str, default=None)
 pars.add_argument('--out-path', '--out-path', type=str, default='out')
+pars.add_argument('--model', '--model', type=str, default='LLmP-ML')
 pars.add_argument('--data-src', '--data-src', type=str, default='HF-super_glue/multirc')
 
 options = pars.parse_args()
@@ -99,9 +101,10 @@ def main(opt):
                                              pin_memory=True)
     erutils.loggers.show_hyper_parameters(parameters)
 
-    fprint('Loading Model ...' if opt.load else 'Creating Model ...')
+    fprint('Loading Model ...' if opt.weight else 'Creating Model ...')
 
-    model = LLmP(config=parameters).to(parameters.device) if opt.load else LLmP(config=parameters).to('cpu')
+    model = LLmP(config=parameters).to(parameters.device) if opt.weight is not None else LLmP(config=parameters).to(
+        'cpu')
     optimizer_kwargs = dict(lr=parameters.lr, weight_decay=parameters.weight_decay)
     optimizer = torch.optim.AdamW(model.parameters(), **optimizer_kwargs)
     model_parameters_size: typing.Optional[float] = count_model_parameters(model)
@@ -113,7 +116,7 @@ def main(opt):
         model = model.to(parameters.device)
         optimizer.load_state_dict(checkpoints['optimizer'])
     fprint(
-        f'Model Loaded With {model_parameters_size} Million Parameters' if opt.load
+        f'Model Loaded With {model_parameters_size} Million Parameters' if opt.weight is not None
         else f'Model Created With {model_parameters_size} Million Parameters')
 
     if opt.compile:
@@ -127,7 +130,7 @@ def main(opt):
 
     if opt.train:
         logger.info('TRAIN IS ABOUT TO START')
-        for epoch in range(checkpoints['epoch'] if opt.load else 0, parameters.epochs):
+        for epoch in range(checkpoints['epoch'] if opt.weight is not None else 0, parameters.epochs):
             loss_avg = 0
             with tqdm(enumerate(dataloader), **TQDM_KWARGS,
                       total=math.ceil(dataset.__len__() // parameters.batch_size)) as progress_bar:
