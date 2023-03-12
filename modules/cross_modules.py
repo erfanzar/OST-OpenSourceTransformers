@@ -73,7 +73,7 @@ class Attention(nn.Module):
         xq = self.wq(x).view(batch_, seq_len_, self.local_rank, self.head_dim)
         xv = self.wv(x).view(batch_, seq_len_, self.local_rank, self.head_dim)
         xk = self.wk(x).view(batch_, seq_len_, self.local_rank, self.head_dim)
-        # logger.debug(f'xq : {xq.shape} \nxv : {xv.shape}\nxk : {xk.shape}')
+
         # using rotary embedding for key and query
         if freq is not None:
             xq, xk = rotary_embedding(xq, xk, freq=freq)
@@ -91,7 +91,7 @@ class Attention(nn.Module):
         # logger.debug(f'key : {key.shape} \nvalue : {value.shape}\nquery : {query.shape}')
         # key : [batch, num_heads, seq_len, head_dim] -> [batch, seq_len , num_heads, head_dim]
         # score : [batch, num_heads, seq_len , head_dim]
-        attention = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(self.head_dim)
+        attention = torch.matmul(query, key.transpose(-2, -1)) / (1 / math.sqrt(self.head_dim))
         if self.use_layer_index_scaling:
             attention /= (self.layer_index + 1)
         logger.debug(f'attention : {attention.shape}')
