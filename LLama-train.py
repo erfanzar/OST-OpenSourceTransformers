@@ -23,7 +23,9 @@ pars = argparse.ArgumentParser()
 pars.add_argument('--batch', '--batch', type=int, default=1)
 pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
-pars.add_argument('--load', '--load', type=bool, default=False)
+pars.add_argument('--out-path', '--out-path', type=str, default='out')
+
+pars.add_argument('--weight', '--weight', type=str, default=None)
 pars.add_argument('--model', '--model', type=str, default='LLama')
 pars.add_argument('--data-src', '--data-src', type=str, default='HF-wikitext/wikitext-2-v1')
 
@@ -63,6 +65,7 @@ def train(input_ids: Optional[Tensor],
 
 
 def main(opt):
+    out_path = create_output_path(path=opt.out_path, name=opt.model)
     device_info()
     if not opt.data_src.startswith('HF-'):
         data = open(opt.data_src, 'r', encoding='utf8').read().split('<|endoftext|>')
@@ -76,6 +79,8 @@ def main(opt):
         data = data["train"]['text']
         selected = int(len(data) * 0.1)
         data = data[:selected]
+    board = SummaryWriter(log_dir=f'{out_path}/tensorboard', filename_suffix=f'{opt.model}')
+
     parameters: LLamaConfig = get_config_by_name(opt.model)
     tokenizer: GPT2Tokenizer = GPT2Tokenizer.from_pretrained('gpt2-medium', bos_token=Tokens.eos,
                                                              pad_token=Tokens.pad, sos_token=Tokens.sos)
@@ -92,19 +97,20 @@ def main(opt):
 
     fprint('Loading Model ...' if opt.load else 'Creating Model ...')
 
-    model = LLamaModel(config=parameters).to(parameters.device) if opt.load else LLamaModel(config=parameters).to('cpu')
+    model = LLamaModel(config=parameters).to(parameters.device) if opt.weight is not None else LLamaModel(
+        config=parameters).to('cpu')
     optimizer_kwargs = dict(lr=parameters.lr, weight_decay=parameters.weight_decay)
     optimizer = torch.optim.AdamW(model.parameters(), **optimizer_kwargs)
     model_parameters_size: typing.Optional[float] = sum(p.numel() for p in model.parameters()) / 1e6
 
-    checkpoints = torch.load(f'{opt.model}-model.pt', 'cpu') if opt.load else None
+    checkpoints = torch.load(opt.weight, 'cpu') if opt.weight is not None else None
 
     if checkpoints is not None:
         model.load_state_dict(checkpoints['model'])
         model = model.to(parameters.device)
         optimizer.load_state_dict(checkpoints['optimizer'])
     fprint(
-        f'Model Loaded With {model_parameters_size} Million Parameters' if opt.load
+        f'Model Loaded With {model_parameters_size} Million Parameters' if opt.weight is not None
         else f'Model Created With {model_parameters_size} Million Parameters')
     criterion = torch.nn.CrossEntropyLoss()
 
@@ -118,28 +124,36 @@ def main(opt):
     logger.info('TRAIN IS ABOUT TO START!!!')
     if opt.train:
         logger.info('TRAIN IS ABOUT TO START')
+        at = 0
         for epoch in range(checkpoints['epoch'] if opt.load else 0, parameters.epochs):
             loss_avg = 0
             with tqdm(enumerate(dataloader), colour='blue',
                       total=math.ceil(dataset.__len__() // parameters.batch_size)) as progress_bar:
                 for i, (input_ids_t) in progress_bar:
+                    at += 1
                     loss, loss_avg = train(input_ids=input_ids_t, targets=input_ids_t, network=model, optim=optimizer,
                                            loss_average=loss_avg, loss_function=criterion, device=parameters.device)
                     free_gpu, used_gpu, total_gpu = get_memory(0)
                     progress_bar.set_postfix(epoch=f'[{epoch}/{parameters.epochs}]', device=parameters.device,
                                              loss_avg=(loss_avg / (i + 1)),
                                              loss=loss.item(), free_GPU=free_gpu, used_GPU=used_gpu)
+                    if (i + 1) % 50 == 0:
+                        predictions = model.generate(prompts=question, max_gen_len=30,
+                                                     pad_id=dataset.tokenizer.pad_token_id,
+                                                     eos_id=dataset.tokenizer.eos_token_id)
+                        board.add_scalar('train/Loss', scalar_value=loss.item(), global_step=at)
+                        board.add_scalar('train/avg-Loss', scalar_value=(loss_avg / (i + 1)),
+                                         global_step=at)
+                        board.add_text('train/GeneratedResponse',
+                                       f'QUESTION : {dataset.tokenizer.decode(question[0])} |'
+                                       f' PREDICTION : {dataset.tokenizer.decode(predictions)}')
 
                 print()
                 save_checkpoints(model=model.state_dict(), optimizer=optimizer.state_dict(),
                                  epochs=parameters.epochs,
                                  epoch=epoch + 1, config=opt.model,
-                                 name=f'{opt.model}-model.pt')
+                                 name=f'{out_path}/weights/{opt.model}-model.pt')
                 progress_bar.write('==> MODEL SAVED SUCCESSFULLY')
-                predictions = model.generate(prompts=question, max_gen_len=30, pad_id=dataset.tokenizer.pad_token_id,
-                                             eos_id=dataset.tokenizer.eos_token_id)
-                progress_bar.write(f'QUESTION : {dataset.tokenizer.decode(question[0])}')
-                progress_bar.write(f'PREDICTION : {dataset.tokenizer.decode(predictions)}')
 
 
 if __name__ == "__main__":

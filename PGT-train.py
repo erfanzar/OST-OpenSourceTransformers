@@ -20,7 +20,7 @@ pars = argparse.ArgumentParser()
 pars.add_argument('--batch', '--batch', type=int, default=2)
 pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
-pars.add_argument('--load', '--load', type=bool, default=False)
+pars.add_argument('--weight', '--weight', type=str, default=None)
 pars.add_argument('--model', '--model', type=str, default='PGT-As')
 pars.add_argument('--data-src', '--data-src', type=str, default='HF-wikitext/wikitext-103-raw-v1')
 

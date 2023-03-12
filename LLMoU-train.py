@@ -16,7 +16,8 @@ from transformers import GPT2Tokenizer, AutoTokenizer
 from config.config import TQDM_KWARGS
 from modules.dataset import DatasetLLMoUChat, Tokens
 from modules.modeling_LLMoU import LLMoUModel, LLMoUConfig
-from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info, get_memory, count_model_parameters
+from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info, get_memory, count_model_parameters, \
+    create_output_path
 
 torch.manual_seed(42)
 torch.backends.cudnn.benchmark = True
@@ -26,7 +27,8 @@ pars = argparse.ArgumentParser()
 pars.add_argument('--batch', '--batch', type=int, default=1)
 pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
-pars.add_argument('--load', '--load', type=bool, default=False)
+pars.add_argument('--weight', '--weight', type=str, default=None)
+pars.add_argument('--out-path', '--out-path', type=str, default='out')
 pars.add_argument('--model', '--model', type=str, default='LLMoU-ML')
 pars.add_argument('--data-src', '--data-src', type=str, default='data/convai.json')
 
@@ -65,6 +67,7 @@ def train(input_ids: Optional[Tensor],
 
 
 def main(opt):
+    out_path = create_output_path(path=opt.out_path, name=opt.model)
     device_info()
     if opt.data_src.endswith('.txt'):
         data = open(opt.data_src, 'r', encoding='utf8').read().split()
@@ -118,7 +121,7 @@ def main(opt):
     if opt.compile:
         model = torch.compile(model)
         fprint(f"Model Compiled Successfully")
-    board = SummaryWriter(log_dir=f'out/{opt.model}', filename_suffix=f'{opt.model}')
+    board = SummaryWriter(log_dir=f'{out_path}/tensorboard', filename_suffix=f'{opt.model}')
     at = 0
 
     question = 'Oh there you are'
@@ -171,7 +174,7 @@ def main(opt):
                 save_checkpoints(model=model.state_dict(), optimizer=optimizer.state_dict(),
                                  epochs=parameters.epochs,
                                  epoch=epoch + 1, config=opt.model,
-                                 name=f'{opt.model}-model.pt')
+                                 name=f'{out_path}/weights/{opt.model}-model.pt')
                 progress_bar.write('==> MODEL SAVED SUCCESSFULLY')
 
 

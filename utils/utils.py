@@ -1,6 +1,7 @@
 import os
 import time
 import typing
+from typing import Union, Optional
 
 import psutil
 import torch
@@ -42,7 +43,7 @@ class GB:
         return x, y
 
 
-def save_checkpoints(name: str = 'model_save.pt', **kwargs):
+def save_checkpoints(name: str, **kwargs):
     v = {**kwargs}
 
     torch.save(v, name)
@@ -920,3 +921,24 @@ def monitor_function(function):
         return result
 
     return wrapper
+
+
+def create_output_path(path: Union[os.PathLike, str], name: Optional[str]):
+    path_exist = os.path.exists(path)
+    if not path_exist:
+        os.mkdir(path)
+    name_exist = os.path.exists(os.path.join(path, name))
+    u_name = name
+    if not name_exist:
+        os.mkdir(os.path.join(path, u_name))
+
+    else:
+        at_try: int = 1
+        while True:
+            try:
+                u_name = name + f'_{at_try}'
+                os.mkdir(os.path.join(path, u_name))
+                break
+            except FileExistsError:
+                at_try += 1
+    return f'{path}/{u_name}'

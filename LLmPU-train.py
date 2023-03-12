@@ -14,7 +14,6 @@ from tqdm.auto import tqdm
 from transformers import T5Tokenizer, AutoTokenizer
 
 from config.config import TQDM_KWARGS
-
 from modules.dataset import DatasetLLmPU
 from modules.modeling_llmpu import LLmPUForConditionalGeneration, LLmPUConfig
 from utils.utils import make2d, count_model_parameters, save_checkpoints, device_info, get_config_by_name, get_memory
@@ -27,6 +26,7 @@ pars.add_argument('--epochs', '--epochs', type=int, default=100)
 pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=False)
 pars.add_argument('--load', '--load', type=bool, default=True)
+pars.add_argument('--out-path', '--out-path', type=str, default='out')
 pars.add_argument('--model', '--model', type=str, default='LLmPU-small')
 
 opt = pars.parse_args()
@@ -64,8 +64,9 @@ def train(m: Optional[LLmPUForConditionalGeneration],
 
 
 def _main(opt):
+    out_path = create_output_path(path=opt.out_path, name=opt.model)
     device_info()
-    board = SummaryWriter(log_dir=f'out/{opt.model}', filename_suffix=f'{opt.model}')
+
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     tokenizer: T5Tokenizer = AutoTokenizer.from_pretrained('tokenizer_model/LLmPU')
     data_frame = pd.read_csv('ipynb/news_summary.csv')
@@ -98,6 +99,7 @@ def _main(opt):
         model = torch.compile(model)
         erutils.fprint('Model Compiled Successfully !')
     mesh = config.mesh
+    board = SummaryWriter(log_dir=f'{out_path}/tensorboard', filename_suffix=f'{opt.model}')
     if opt.train:
         for epoch in range(opt.epochs):
             total_loss = 0
@@ -142,7 +144,7 @@ def _main(opt):
                                  epoch=epoch + 1,
                                  conf=config,
                                  config_name=opt.model,
-                                 name='LLmPU-model.pt')
+                                 name=f'{out_path}/weights/{opt.model}-model.pt')
 
 
 if __name__ == "__main__":
