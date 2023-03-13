@@ -14,8 +14,8 @@ from transformers import BertTokenizer, GPT2Tokenizer
 
 from modules.cross_modules import LLmPConfig
 from modules.modeling_LLMoU import LLMoUConfig
-from modules.modeling_llmpu import LLmPUConfig
-from modules.modelling_llama import LLamaConfig
+from modules.modeling_LLmPU import LLmPUConfig
+from modules.modelling_LLAmA import LLamaConfig
 
 
 class Tokens:
