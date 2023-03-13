@@ -226,10 +226,12 @@ class DatasetLLMoU(Dataset, Tokens):
         self.max_length = max_length
         chosen = data['train']
         till = till if till is not None else len(chosen)
-        tqdm_pr = tqdm(iterable=enumerate(chosen), total=till)
+        tqdm_pr = tqdm(iterable=enumerate(chosen), total=till * 2)
         for ia, dt in tqdm_pr:
+
             string = f'{paragraph} {dt["paragraph"]} {question} {dt["question"]} {agent} {dt["answer"]} {self.eos}'
-            encodings_dict = tokenizer.encode_plus(string, max_length=max_length, truncation=True, return_tensors='pt',
+            encodings_dict = tokenizer.encode_plus(string, max_length=max_length, truncation=True,
+                                                   return_tensors='pt',
                                                    padding="max_length")
             self.attention_mask.append(encodings_dict['attention_mask'])
             self.input_ids.append(encodings_dict['input_ids'])

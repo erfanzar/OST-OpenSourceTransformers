@@ -730,7 +730,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
     elif name == 'LLMoU':
         return LLMoUConfig(
             vocab_size=vocab_size,
-            n_layers=8,
+            n_layers=10,
             n_heads=16,
             epochs=500,
             hidden_size=1024,
@@ -739,7 +739,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
     elif name == 'LLMoU-X':
         return LLMoUConfig(
             vocab_size=vocab_size,
-            n_layers=10,
+            n_layers=14,
             n_heads=8,
             epochs=500,
             hidden_size=1280,
@@ -748,8 +748,8 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
     elif name == 'LLMoU-L':
         return LLMoUConfig(
             vocab_size=vocab_size,
-            n_layers=10,
-            n_heads=8,
+            n_layers=16,
+            n_heads=16,
             epochs=500,
             hidden_size=1536,
             max_sentence_length=1024
