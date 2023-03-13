@@ -29,10 +29,10 @@ class LLmPBlock(nn.Module):
         self.config: LLmPConfig = config
         self.ffd = FeedForward(config)
 
-    def forward(self, hidden: Optional[torch.Tensor], freq: Optional[torch.Tensor],
+    def forward(self, hidden: Optional[torch.Tensor], alibi: Optional[torch.Tensor],
                 attention_mask: Optional[torch.Tensor] = None) -> Optional[torch.Tensor]:
         residual = self.ln1(hidden)
-        hidden = hidden + self.block(residual, freq=freq, attention_mask=attention_mask)
+        hidden = hidden + self.block(residual, alibi=alibi, attention_mask=attention_mask)
         residual = self.ln2(hidden)
         hidden = hidden + self.ffd(residual)
         return hidden

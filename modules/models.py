@@ -5,10 +5,11 @@ from typing import Optional, Tuple, Union, Iterable
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from erutils.lightning import build_alibi_tensor
 
 from utils.utils import HyperParameters
 from .commons import MultiHeadBlock, CasualBlock, Decoder, Encoder, PGTBlock, Conv1D, CC_PGT_Block
-from .cross_modules import LLmPConfig, precompute_frq_cis
+from .cross_modules import LLmPConfig
 from .modeling_LLmP import LLmPBlock, PMSNorm
 
 logger = logging.getLogger(__name__)
@@ -640,8 +641,9 @@ class LLmP(nn.Module):
         self.ln = PMSNorm(config)
         self.dtype = torch.float16
         self.out = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
-        self.freq = precompute_frq_cis(config.hidden_size // config.n_heads, config.max_sentence_length * 2).to(
-            self.dtype)
+        # self.freq = precompute_frq_cis(config.hidden_size // config.n_heads, config.max_sentence_length * 2).to(
+        #     self.dtype)
+        # i dont use freq or rotaty embedding in LLmP anymore
         self.config = config
 
     def forward(self, input_ids: Optional[torch.Tensor], attention_mask: Optional[torch.Tensor],
@@ -663,14 +665,15 @@ class LLmP(nn.Module):
                 attention_mask = attention_mask[:, None, None, :]
         logger.debug(
             f'We Got INPUT ---**--- :  [ input _ids : {input_ids.shape}] [ attention _mask : {attention_mask.shape if attention_mask is not None else None} ]')
-        self.freq = self.freq.to(input_ids.device)
-        chosen_freq = self.freq[:seq_len]
-        logger.debug(f'chosen_freq : {chosen_freq.shape}')
+        # self.freq = self.freq.to(input_ids.device)
+        # chosen_freq = self.freq[:seq_len]
+        # logger.debug(f'chosen_freq : {chosen_freq.shape}')
+        alibi = build_alibi_tensor(attention_mask=attention_mask, dtype=self.dtype, number_of_heads=self.config.n_heads)
         x = self.wte_ln(self.wte(input_ids))
         logger.debug(f'word tokenizing shape ==> : {x.shape}')
         for i, h in enumerate(self.h):
             logger.debug(f'At Block Index  : \033[32m{i}\033[92m')
-            x = h(x, attention_mask=attention_mask, freq=chosen_freq)
+            x = h(x, attention_mask=attention_mask, alibi=alibi)
         logits = self.out(self.ln(x))
         loss = None
         if labels is not None:
