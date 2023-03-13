@@ -645,6 +645,18 @@ class LLmP(nn.Module):
         #     self.dtype)
         # i dont use freq or rotaty embedding in LLmP anymore
         self.config = config
+        self.apply(self._init_weights)
+
+    @staticmethod
+    def _init_weights(module: nn.Module):
+        if isinstance(module, nn.Linear):
+            module.weight.data.normal_(mean=0.0, std=0.002)
+            if module.bias is not None:
+                module.bias.data.zero_()
+        elif isinstance(module, nn.Embedding):
+            module.weight.data.normal_(mean=0.0, std=0.002)
+            if module.padding_idx is not None:
+                module.weight.data[module.padding_idx].zero_()
 
     def forward(self, input_ids: Optional[torch.Tensor], attention_mask: Optional[torch.Tensor],
                 labels: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, Union[torch.Tensor, None]]:

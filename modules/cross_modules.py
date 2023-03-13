@@ -82,10 +82,11 @@ class Attention(nn.Module):
             batch_ * self.local_rank, self.head_dim, seq_len_)
         _, _, key_len_ = key.shape
 
-        attention = alibi.baddbmm(batch1=query, batch2=key, beta=1, alpha=math.sqrt(self.head_dim)).view(batch_,
-                                                                                                         self.local_rank,
-                                                                                                         seq_len_,
-                                                                                                         key_len_)
+        attention = alibi.baddbmm(batch1=query, batch2=key, beta=1, alpha=1 / math.sqrt(self.head_dim)). \
+            view(batch_,
+                 self.local_rank,
+                 seq_len_,
+                 key_len_)
         if self.use_layer_index_scaling:
             attention /= (self.layer_index + 1)
         logger.debug(f'attention : {attention.shape}')
@@ -103,8 +104,9 @@ class FeedForward(nn.Module):
     def __init__(self, config, up: Optional[int] = 4):
         super(FeedForward, self).__init__()
         self.w1 = nn.Linear(config.hidden_size, config.hidden_size * up, bias=False, dtype=config.dtype)
-        self.w2 = nn.Linear(config.hidden_size, config.hidden_size * up, bias=False, dtype=config.dtype)
         self.wo = nn.Linear(config.hidden_size * up, config.hidden_size, bias=False, dtype=config.dtype)
+        self.g = nn.GELU()
+        self.dropout = nn.Dropout(0.1)
 
     def forward(self, x: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
-        return self.wo(nn.functional.gelu(self.w1(x)) * self.w2(x))
+        return self.dropout(self.wo(self.g(self.w1(x)))) + x
