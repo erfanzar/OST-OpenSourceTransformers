@@ -639,8 +639,8 @@ class LLmP(nn.Module):
         self.wte_ln = PMSNorm(config)
         self.h = nn.ModuleList([LLmPBlock(config=config, layer_index=i) for i in range(config.n_layers)])
         self.ln = PMSNorm(config)
-        self.dtype = torch.float16
-        self.out = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        self.dtype = config.dtype
+        self.out = nn.Linear(config.hidden_size, config.vocab_size, bias=False, dtype=config.dtype)
         # self.freq = precompute_frq_cis(config.hidden_size // config.n_heads, config.max_sentence_length * 2).to(
         #     self.dtype)
         # i dont use freq or rotaty embedding in LLmP anymore
@@ -668,7 +668,9 @@ class LLmP(nn.Module):
         # self.freq = self.freq.to(input_ids.device)
         # chosen_freq = self.freq[:seq_len]
         # logger.debug(f'chosen_freq : {chosen_freq.shape}')
-        alibi = build_alibi_tensor(attention_mask=attention_mask, dtype=self.dtype, number_of_heads=self.config.n_heads)
+        alibi = build_alibi_tensor(attention_mask=attention_mask.view(attention_mask.size()[0], -1), dtype=self.dtype,
+                                   number_of_heads=self.config.n_heads)
+
         x = self.wte_ln(self.wte(input_ids))
         logger.debug(f'word tokenizing shape ==> : {x.shape}')
         for i, h in enumerate(self.h):

@@ -22,6 +22,7 @@ class LLmPConfig:
     lr: Optional[float] = 3e-4
     weight_decay: Optional[float] = 2e-1
     epochs: Optional[int] = 100
+    dtype: Optional[torch.dtype] = torch.float32
     hidden_dropout: Optional[float] = 0.1
     embed_dropout: Optional[float] = 0.1
     device: Union[torch.device, str] = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -36,9 +37,9 @@ def precompute_frq_cis(dim: int, end: int, theta: float = 10000.0):
 
 
 class PMSNorm(nn.Module):
-    def __init__(self, config, eps: Optional[float] = 1e-6):
+    def __init__(self, config, eps: Optional[float] = 1e-5):
         super(PMSNorm, self).__init__()
-        self.weight = nn.Parameter(torch.ones(config.hidden_size))
+        self.weight = nn.Parameter(torch.ones(config.hidden_size, dtype=config.dtype))
         self.eps = eps
 
     def norm(self, x: Optional[torch.Tensor]):
@@ -58,10 +59,11 @@ class Attention(nn.Module):
         self.use_layer_index_scaling = config.use_layer_index_scaling
         self.head_dim = config.hidden_size // config.n_heads
         assert config.hidden_size % config.n_heads == 0
-        self.wq = nn.Linear(config.hidden_size, config.n_heads * self.head_dim, bias=False)
-        self.wk = nn.Linear(config.hidden_size, config.n_heads * self.head_dim, bias=False)
-        self.wv = nn.Linear(config.hidden_size, config.n_heads * self.head_dim, bias=False)
-        self.wo = nn.Linear(config.n_heads * self.head_dim, config.hidden_size, bias=False)
+        self.hidden_size = config.hidden_size
+        self.wq = nn.Linear(config.hidden_size, config.n_heads * self.head_dim, bias=False, dtype=config.dtype)
+        self.wk = nn.Linear(config.hidden_size, config.n_heads * self.head_dim, bias=False, dtype=config.dtype)
+        self.wv = nn.Linear(config.hidden_size, config.n_heads * self.head_dim, bias=False, dtype=config.dtype)
+        self.wo = nn.Linear(config.n_heads * self.head_dim, config.hidden_size, bias=False, dtype=config.dtype)
         self.drop = nn.Dropout(0.1)
 
     def forward(self, x: Optional[torch.Tensor], alibi: Optional[torch.Tensor],
@@ -79,6 +81,7 @@ class Attention(nn.Module):
         key = self.wk(x).view(batch_, seq_len_, self.local_rank, self.head_dim).permute(0, 2, 3, 1).view(
             batch_ * self.local_rank, self.head_dim, seq_len_)
         _, _, key_len_ = key.shape
+
         attention = alibi.baddbmm(batch1=query, batch2=key, beta=1, alpha=math.sqrt(self.head_dim)).view(batch_,
                                                                                                          self.local_rank,
                                                                                                          seq_len_,
@@ -92,16 +95,16 @@ class Attention(nn.Module):
             attention += attention_mask[:, :, :, :h]
         attention = nn.functional.softmax(attention, dim=-1)
         attention = self.drop(attention).view(batch_ * self.local_rank, seq_len_, key_len_)
-        comb = torch.bmm(attention, value)
+        comb = torch.bmm(attention, value).view(batch_, -1, self.hidden_size)
         return self.wo(comb)
 
 
 class FeedForward(nn.Module):
     def __init__(self, config, up: Optional[int] = 4):
         super(FeedForward, self).__init__()
-        self.w1 = nn.Linear(config.hidden_size, config.hidden_size * up, bias=False)
-        self.w2 = nn.Linear(config.hidden_size, config.hidden_size * up, bias=False)
-        self.wo = nn.Linear(config.hidden_size * up, config.hidden_size, bias=False)
+        self.w1 = nn.Linear(config.hidden_size, config.hidden_size * up, bias=False, dtype=config.dtype)
+        self.w2 = nn.Linear(config.hidden_size, config.hidden_size * up, bias=False, dtype=config.dtype)
+        self.wo = nn.Linear(config.hidden_size * up, config.hidden_size, bias=False, dtype=config.dtype)
 
     def forward(self, x: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
-        return self.wo(nn.functional.silu(self.w1(x)) * self.w2(x))
+        return self.wo(nn.functional.gelu(self.w1(x)) * self.w2(x))

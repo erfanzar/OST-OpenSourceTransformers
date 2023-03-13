@@ -954,5 +954,4 @@ def _init_weights(module: nn.Module):
         module.weight.data.normal_(mean=0.0, std=0.002)
         if module.padding_idx is not None:
             module.weight.data[module.padding_idx].zero_()
-    elif isinstance(module, LLMoUPMSNorm):
-        module.weight.data.fill_(1.0)
+
