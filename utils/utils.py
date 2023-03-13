@@ -945,13 +945,13 @@ def create_output_path(path: Union[os.PathLike, str], name: Optional[str]):
     return f'{path}/{u_name}'
 
 
-def _init_weights(self, module: nn.Module):
+def _init_weights(module: nn.Module):
     if isinstance(module, nn.Linear):
-        module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+        module.weight.data.normal_(mean=0.0, std=0.002)
         if module.bias is not None:
             module.bias.data.zero_()
     elif isinstance(module, nn.Embedding):
-        module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+        module.weight.data.normal_(mean=0.0, std=0.002)
         if module.padding_idx is not None:
             module.weight.data[module.padding_idx].zero_()
     elif isinstance(module, LLMoUPMSNorm):
