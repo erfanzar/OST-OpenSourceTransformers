@@ -5,6 +5,7 @@ from typing import Union, Optional, Tuple
 
 import torch
 from torch import nn
+from transformers import GenerationMixin
 
 logger = logging.getLogger(__name__)
 
@@ -774,7 +775,7 @@ class LLmPUStack(nn.Module):
 class LLmPUModel(nn.Module):
 
     def __init__(self, config: LLmPUConfig):
-        super().__init__(config)
+        super().__init__()
         self.shared = nn.Embedding(config.vocab_size, config.d_model)
 
         encoder_config = copy.deepcopy(config)
@@ -794,26 +795,6 @@ class LLmPUModel(nn.Module):
         # Model parallel
         self.model_parallel = False
         self.device_map = None
-
-    def parallelize(self, device_map=None):
-        self.device_map = (
-            get_device_map(len(self.encoder.block), range(torch.cuda.device_count()))
-            if device_map is None
-            else device_map
-        )
-        assert_device_map(self.device_map, len(self.encoder.block))
-        self.encoder.parallelize(self.device_map)
-        self.decoder.parallelize(self.device_map)
-        self.model_parallel = True
-
-    def deparallelize(self):
-        self.encoder.deparallelize()
-        self.decoder.deparallelize()
-        self.encoder = self.encoder.to("cpu")
-        self.decoder = self.decoder.to("cpu")
-        self.model_parallel = False
-        self.device_map = None
-        torch.cuda.empty_cache()
 
     def get_input_embeddings(self):
         return self.shared
@@ -911,7 +892,7 @@ class LLmPUModel(nn.Module):
         return decoder_outputs + encoder_outputs
 
 
-class LLmPUForConditionalGeneration(nn.Module):
+class LLmPUForConditionalGeneration(nn.Module, GenerationMixin):
     def __init__(self, config: LLmPUConfig):
         super().__init__()
         self.model_dim = config.d_model
@@ -936,27 +917,6 @@ class LLmPUForConditionalGeneration(nn.Module):
         self.model_parallel = False
         self.device_map = None
 
-    def parallelize(self, device_map=None):
-        self.device_map = (
-            get_device_map(len(self.encoder.block), range(torch.cuda.device_count()))
-            if device_map is None
-            else device_map
-        )
-        assert_device_map(self.device_map, len(self.encoder.block))
-        self.encoder.parallelize(self.device_map)
-        self.decoder.parallelize(self.device_map)
-        self.lm_head = self.lm_head.to(self.decoder.first_device)
-        self.model_parallel = True
-
-    def deparallelize(self):
-        self.encoder.deparallelize()
-        self.decoder.deparallelize()
-        self.encoder = self.encoder.to("cpu")
-        self.decoder = self.decoder.to("cpu")
-        self.lm_head = self.lm_head.to("cpu")
-        self.model_parallel = False
-        self.device_map = None
-        torch.cuda.empty_cache()
 
     def get_input_embeddings(self):
         return self.shared
@@ -995,7 +955,6 @@ class LLmPUForConditionalGeneration(nn.Module):
             use_cache: Optional[bool] = None,
             output_attentions: Optional[bool] = None,
             output_hidden_states: Optional[bool] = None,
-            return_dict: Optional[bool] = None,
     ) -> Union[Tuple[torch.FloatTensor]]:
 
         use_cache = use_cache if use_cache is not None else self.config.use_cache
@@ -1115,10 +1074,8 @@ class LLmPUForConditionalGeneration(nn.Module):
         return self._shift_right(labels)
 
     def _reorder_cache(self, past, beam_idx):
-        # if decoder past is not included in output
-        # speedy decoding is disabled and no need to reorder
+
         if past is None:
-            logger.warning("You might want to consider setting `use_cache=True` to speed up decoding")
             return past
 
         reordered_decoder_past = ()
@@ -1126,7 +1083,6 @@ class LLmPUForConditionalGeneration(nn.Module):
 
             reordered_layer_past_states = ()
             for layer_past_state in layer_past_states:
-                # need to set correct `past` for each of the four key / value states
                 reordered_layer_past_states = reordered_layer_past_states + (
                     layer_past_state.index_select(0, beam_idx.to(layer_past_state.device)),
                 )
@@ -1136,3 +1092,36 @@ class LLmPUForConditionalGeneration(nn.Module):
 
             reordered_decoder_past = reordered_decoder_past + (reordered_layer_past_states,)
         return reordered_decoder_past
+
+    def _validate_model_class(self):
+
+        if not self.can_generate():
+            generate_compatible_mappings = [
+                MODEL_FOR_CAUSAL_LM_MAPPING,
+                MODEL_FOR_CAUSAL_IMAGE_MODELING_MAPPING,
+                MODEL_FOR_VISION_2_SEQ_MAPPING,
+                MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING,
+                MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING,
+            ]
+            generate_compatible_classes = set()
+            for model_mapping in generate_compatible_mappings:
+                supported_models = model_mapping.get(type(self.config), default=None)
+                if supported_models is not None:
+                    generate_compatible_classes.add(supported_models.__name__)
+
+            raise TypeError(exception_message)
+
+    def _validate_model_kwargs(self, model_kwargs: Dict[str, Any]):
+
+        if self.config.is_encoder_decoder:
+            for key in ["decoder_input_ids"]:
+                model_kwargs.pop(key, None)
+
+        unused_model_args = []
+        model_args = set(inspect.signature(self.prepare_inputs_for_generation).parameters)
+
+        if "kwargs" in model_args or "model_kwargs" in model_args:
+            model_args |= set(inspect.signature(self.forward).parameters)
+        for key, value in model_kwargs.items():
+            if value is not None and key not in model_args:
+                unused_model_args.append(key)
