@@ -1,13 +1,89 @@
 import copy
 import logging
 import math
-from typing import Union, Optional, Tuple, Dict, Any
+import os
+from typing import Union, Optional, Tuple, Dict, Any, OrderedDict
 
 import torch
 from torch import nn
-from transformers import GenerationMixin
+from transformers import GenerationMixin, GenerationConfig
 
 logger = logging.getLogger(__name__)
+
+
+class GC:
+    def __init__(self, **kwargs):
+        self.max_length = kwargs.pop("max_length", 20)
+        self.max_new_tokens = kwargs.pop("max_new_tokens", None)
+        self.min_length = kwargs.pop("min_length", 0)
+        self.min_new_tokens = kwargs.pop("min_new_tokens", None)
+        self.early_stopping = kwargs.pop("early_stopping", False)
+        self.max_time = kwargs.pop("max_time", None)
+
+        # Parameters that control the generation strategy used
+        self.do_sample = kwargs.pop("do_sample", False)
+        self.num_beams = kwargs.pop("num_beams", 1)
+        self.num_beam_groups = kwargs.pop("num_beam_groups", 1)
+        self.penalty_alpha = kwargs.pop("penalty_alpha", None)
+        self.use_cache = kwargs.pop("use_cache", True)
+
+        # Parameters for manipulation of the model output logits
+        self.temperature = kwargs.pop("temperature", 1.0)
+        self.top_k = kwargs.pop("top_k", 50)
+        self.top_p = kwargs.pop("top_p", 1.0)
+        self.typical_p = kwargs.pop("typical_p", 1.0)
+        self.epsilon_cutoff = kwargs.pop("epsilon_cutoff", 0.0)
+        self.eta_cutoff = kwargs.pop("eta_cutoff", 0.0)
+        self.diversity_penalty = kwargs.pop("diversity_penalty", 0.0)
+        self.repetition_penalty = kwargs.pop("repetition_penalty", 1.0)
+        self.encoder_repetition_penalty = kwargs.pop("encoder_repetition_penalty", 1.0)
+        self.length_penalty = kwargs.pop("length_penalty", 1.0)
+        self.no_repeat_ngram_size = kwargs.pop("no_repeat_ngram_size", 0)
+        self.bad_words_ids = kwargs.pop("bad_words_ids", None)
+        self.force_words_ids = kwargs.pop("force_words_ids", None)
+        self.renormalize_logits = kwargs.pop("renormalize_logits", False)
+        self.constraints = kwargs.pop("constraints", None)
+        self.forced_bos_token_id = kwargs.pop("forced_bos_token_id", None)
+        self.forced_eos_token_id = kwargs.pop("forced_eos_token_id", None)
+        self.remove_invalid_values = kwargs.pop("remove_invalid_values", False)
+        self.exponential_decay_length_penalty = kwargs.pop("exponential_decay_length_penalty", None)
+        self.suppress_tokens = kwargs.pop("suppress_tokens", None)
+        self.begin_suppress_tokens = kwargs.pop("begin_suppress_tokens", None)
+        self.forced_decoder_ids = kwargs.pop("forced_decoder_ids", None)
+
+        # Parameters that define the output variables of `generate`
+        self.num_return_sequences = kwargs.pop("num_return_sequences", 1)
+        self.output_attentions = kwargs.pop("output_attentions", False)
+        self.output_hidden_states = kwargs.pop("output_hidden_states", False)
+        self.output_scores = kwargs.pop("output_scores", False)
+        self.return_dict_in_generate = kwargs.pop("return_dict_in_generate", False)
+
+        # Special tokens that can be used at generation time
+        self.pad_token_id = kwargs.pop("pad_token_id", None)
+        self.bos_token_id = kwargs.pop("bos_token_id", None)
+        self.eos_token_id = kwargs.pop("eos_token_id", None)
+
+        # Generation parameters exclusive to encoder-decoder models
+        self.encoder_no_repeat_ngram_size = kwargs.pop("encoder_no_repeat_ngram_size", 0)
+        self.decoder_start_token_id = kwargs.pop("decoder_start_token_id", None)
+
+        # Wild card
+        self.generation_kwargs = kwargs.pop("generation_kwargs", {})
+
+        self._from_model_config = kwargs.pop("_from_model_config", False)
+        self._commit_hash = kwargs.pop("_commit_hash", None)
+        # self.transformers_version = kwargs.pop("transformers_version", __version__)
+
+
+class DVS:
+    def __init__(self, type: [torch.device, str] = 'cuda' if torch.has_cuda else 'cpu'):
+        self.type = type
+
+
+class OutputModel(OrderedDict):
+    def __init__(self, **kwargs):
+        super().__init__()
+        self.__dict__.update(**kwargs)
 
 
 class LLmPUConfig:
@@ -60,17 +136,307 @@ class LLmPUConfig:
         self.is_gated_act = act_info[0] == "gated"
 
         if len(act_info) > 1 and act_info[0] != "gated" or len(act_info) > 2:
-            raise ValueError(
-                f"`feed_forward_proj`: {feed_forward_proj} is not a valid activation function of the dense layer."
-                "Please make sure `feed_forward_proj` is of the format `gated-{ACT_FN}` or `{ACT_FN}`, e.g. "
-                "'gated-gelu' or 'relu'"
-            )
+            raise ValueError()
 
         # for backwards compatibility
         if feed_forward_proj == "gated-gelu":
             self.dense_act_fn = "gelu_new"
         for k, v in kwargs.items():
             setattr(self, k, v)
+
+    @property
+    def name_or_path(self) -> str:
+        return getattr(self, "_name_or_path", None)
+
+    @name_or_path.setter
+    def name_or_path(self, value):
+        self._name_or_path = str(value)  # Make sure that name_or_path is a string (for JSON encoding)
+
+    @property
+    def use_return_dict(self) -> bool:
+
+        return self.return_dict and not self.torchscript
+
+    @property
+    def num_labels(self) -> int:
+
+        return len(self.id2label)
+
+    @num_labels.setter
+    def num_labels(self, num_labels: int):
+        if not hasattr(self, "id2label") or self.id2label is None or len(self.id2label) != num_labels:
+            self.id2label = {i: f"LABEL_{i}" for i in range(num_labels)}
+            self.label2id = dict(zip(self.id2label.values(), self.id2label.keys()))
+
+    @classmethod
+    def from_pretrained(cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs) -> "PretrainedConfig":
+
+        config_dict, kwargs = cls.get_config_dict(pretrained_model_name_or_path, **kwargs)
+        if "model_type" in config_dict and hasattr(cls, "model_type") and config_dict["model_type"] != cls.model_type:
+            logger.warning(
+                f"You are using a model of type {config_dict['model_type']} to instantiate a model of type "
+                f"{cls.model_type}. This is not supported for all configurations of models and can yield errors."
+            )
+
+        return cls.from_dict(config_dict, **kwargs)
+
+    @classmethod
+    def get_config_dict(
+            cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs
+    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+
+        original_kwargs = copy.deepcopy(kwargs)
+        # Get config dict associated with the base config file
+        config_dict, kwargs = cls._get_config_dict(pretrained_model_name_or_path, **kwargs)
+        if "_commit_hash" in config_dict:
+            original_kwargs["_commit_hash"] = config_dict["_commit_hash"]
+
+        # That config file may point us toward another config file to use.
+        if "configuration_files" in config_dict:
+            configuration_file = get_configuration_file(config_dict["configuration_files"])
+            config_dict, kwargs = cls._get_config_dict(
+                pretrained_model_name_or_path, _configuration_file=configuration_file, **original_kwargs
+            )
+
+        return config_dict, kwargs
+
+    @classmethod
+    def _get_config_dict(
+            cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs
+    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        cache_dir = kwargs.pop("cache_dir", None)
+        force_download = kwargs.pop("force_download", False)
+        resume_download = kwargs.pop("resume_download", False)
+        proxies = kwargs.pop("proxies", None)
+        use_auth_token = kwargs.pop("use_auth_token", None)
+        local_files_only = kwargs.pop("local_files_only", False)
+        revision = kwargs.pop("revision", None)
+        trust_remote_code = kwargs.pop("trust_remote_code", None)
+        subfolder = kwargs.pop("subfolder", "")
+        from_pipeline = kwargs.pop("_from_pipeline", None)
+        from_auto_class = kwargs.pop("_from_auto", False)
+        commit_hash = kwargs.pop("_commit_hash", None)
+
+        if trust_remote_code is True:
+            logger.warning(
+                "The argument `trust_remote_code` is to be used with Auto classes. It has no effect here and is"
+                " ignored."
+            )
+
+        user_agent = {"file_type": "config", "from_auto_class": from_auto_class}
+        if from_pipeline is not None:
+            user_agent["using_pipeline"] = from_pipeline
+
+        pretrained_model_name_or_path = str(pretrained_model_name_or_path)
+
+        is_local = os.path.isdir(pretrained_model_name_or_path)
+        if os.path.isfile(os.path.join(subfolder, pretrained_model_name_or_path)):
+            # Special case when pretrained_model_name_or_path is a local file
+            resolved_config_file = pretrained_model_name_or_path
+            is_local = True
+        elif is_remote_url(pretrained_model_name_or_path):
+            configuration_file = pretrained_model_name_or_path
+            resolved_config_file = download_url(pretrained_model_name_or_path)
+        else:
+            configuration_file = kwargs.pop("_configuration_file", CONFIG_NAME)
+
+            try:
+                # Load from local folder or from cache or download from model Hub and cache
+                resolved_config_file = cached_file(
+                    pretrained_model_name_or_path,
+                    configuration_file,
+                    cache_dir=cache_dir,
+                    force_download=force_download,
+                    proxies=proxies,
+                    resume_download=resume_download,
+                    local_files_only=local_files_only,
+                    use_auth_token=use_auth_token,
+                    user_agent=user_agent,
+                    revision=revision,
+                    subfolder=subfolder,
+                    _commit_hash=commit_hash,
+                )
+                commit_hash = extract_commit_hash(resolved_config_file, commit_hash)
+            except EnvironmentError:
+
+                raise
+            except Exception:
+
+                raise EnvironmentError(
+
+                )
+
+        try:
+            # Load config dict
+            config_dict = cls._dict_from_json_file(resolved_config_file)
+            config_dict["_commit_hash"] = commit_hash
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            raise EnvironmentError(
+                f"It looks like the config file at '{resolved_config_file}' is not a valid JSON file."
+            )
+
+        if is_local:
+            logger.info(f"loading configuration file {resolved_config_file}")
+        else:
+            logger.info(f"loading configuration file {configuration_file} from cache at {resolved_config_file}")
+
+        return config_dict, kwargs
+
+    @classmethod
+    def from_dict(cls, config_dict: Dict[str, Any], **kwargs) -> "PretrainedConfig":
+
+        return_unused_kwargs = kwargs.pop("return_unused_kwargs", False)
+
+        kwargs.pop("_from_auto", None)
+        kwargs.pop("_from_pipeline", None)
+
+        if "_commit_hash" in kwargs and "_commit_hash" in config_dict:
+            kwargs["_commit_hash"] = config_dict["_commit_hash"]
+
+        config = cls(**config_dict)
+
+        if hasattr(config, "pruned_heads"):
+            config.pruned_heads = dict((int(key), value) for key, value in config.pruned_heads.items())
+
+        if "num_labels" in kwargs and "id2label" in kwargs:
+            num_labels = kwargs["num_labels"]
+            id2label = kwargs["id2label"] if kwargs["id2label"] is not None else []
+            if len(id2label) != num_labels:
+                raise
+        to_remove = []
+        for key, value in kwargs.items():
+            if hasattr(config, key):
+                setattr(config, key, value)
+                if key != "torch_dtype":
+                    to_remove.append(key)
+        for key in to_remove:
+            kwargs.pop(key, None)
+
+        logger.info(f"Model config {config}")
+        if return_unused_kwargs:
+            return config, kwargs
+        else:
+            return config
+
+    @classmethod
+    def from_json_file(cls, json_file: Union[str, os.PathLike]) -> "PretrainedConfig":
+
+        config_dict = cls._dict_from_json_file(json_file)
+        return cls(**config_dict)
+
+    @classmethod
+    def _dict_from_json_file(cls, json_file: Union[str, os.PathLike]):
+        with open(json_file, "r", encoding="utf-8") as reader:
+            text = reader.read()
+        return json.loads(text)
+
+    def __eq__(self, other):
+        return isinstance(other, PretrainedConfig) and (self.__dict__ == other.__dict__)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__} {self.to_json_string()}"
+
+    def to_diff_dict(self) -> Dict[str, Any]:
+
+        config_dict = self.to_dict()
+
+        default_config_dict = PretrainedConfig().to_dict()
+
+        class_config_dict = self.__class__().to_dict() if not self.is_composition else {}
+
+        serializable_config_dict = {}
+
+        for key, value in config_dict.items():
+            if (
+                    key not in default_config_dict
+                    or key == "transformers_version"
+                    or value != default_config_dict[key]
+                    or (key in class_config_dict and value != class_config_dict[key])
+            ):
+                serializable_config_dict[key] = value
+
+        self.dict_torch_dtype_to_str(serializable_config_dict)
+
+        return serializable_config_dict
+
+    def to_dict(self) -> Dict[str, Any]:
+
+        output = copy.deepcopy(self.__dict__)
+        if hasattr(self.__class__, "model_type"):
+            output["model_type"] = self.__class__.model_type
+        if "_auto_class" in output:
+            del output["_auto_class"]
+        if "_commit_hash" in output:
+            del output["_commit_hash"]
+
+        self.dict_torch_dtype_to_str(output)
+
+        return output
+
+    def to_json_string(self, use_diff: bool = True) -> str:
+
+        if use_diff is True:
+            config_dict = self.to_diff_dict()
+        else:
+            config_dict = self.to_dict()
+        return json.dumps(config_dict, indent=2, sort_keys=True) + "\n"
+
+    def to_json_file(self, json_file_path: Union[str, os.PathLike], use_diff: bool = True):
+
+        with open(json_file_path, "w", encoding="utf-8") as writer:
+            writer.write(self.to_json_string(use_diff=use_diff))
+
+    def update(self, config_dict: Dict[str, Any]):
+
+        for key, value in config_dict.items():
+            setattr(self, key, value)
+
+    def update_from_string(self, update_str: str):
+
+        d = dict(x.split("=") for x in update_str.split(","))
+        for k, v in d.items():
+            if not hasattr(self, k):
+                raise ValueError(f"key {k} isn't in the original config dict")
+
+            old_v = getattr(self, k)
+            if isinstance(old_v, bool):
+                if v.lower() in ["true", "1", "y", "yes"]:
+                    v = True
+                elif v.lower() in ["false", "0", "n", "no"]:
+                    v = False
+                else:
+                    raise ValueError(f"can't derive true or false from {v} (key {k})")
+            elif isinstance(old_v, int):
+                v = int(v)
+            elif isinstance(old_v, float):
+                v = float(v)
+            elif not isinstance(old_v, str):
+                raise ValueError(
+                    f"You can only update int, float, bool or string values in the config, got {v} for key {k}"
+                )
+
+            setattr(self, k, v)
+
+    def dict_torch_dtype_to_str(self, d: Dict[str, Any]) -> None:
+
+        if d.get("torch_dtype", None) is not None and not isinstance(d["torch_dtype"], str):
+            d["torch_dtype"] = str(d["torch_dtype"]).split(".")[1]
+        for value in d.values():
+            if isinstance(value, dict):
+                self.dict_torch_dtype_to_str(value)
+
+    @classmethod
+    def register_for_auto_class(cls, auto_class="AutoConfig"):
+
+        if not isinstance(auto_class, str):
+            auto_class = auto_class.__name__
+
+        import transformers.models.auto as auto_module
+
+        if not hasattr(auto_module, auto_class):
+            raise ValueError(f"{auto_class} is not a valid auto class.")
+
+        cls._auto_class = auto_class
 
 
 class LLmPULayerNorm(nn.Module):
@@ -458,17 +824,15 @@ class LLmPUBlock(nn.Module):
             output_attentions=output_attentions,
         )
         hidden_states, present_key_value_state = self_attention_outputs[:2]
-        attention_outputs = self_attention_outputs[2:]  # Keep self-attention outputs and relative position weights
+        attention_outputs = self_attention_outputs[2:]
 
-        # clamp inf values to enable fp16 training
         if hidden_states.dtype == torch.float16 and torch.isinf(hidden_states).any():
             clamp_value = torch.finfo(hidden_states.dtype).max - 1000
             hidden_states = torch.clamp(hidden_states, min=-clamp_value, max=clamp_value)
 
         do_cross_attention = self.is_decoder and encoder_hidden_states is not None
         if do_cross_attention:
-            # the actual query length is unknown for cross attention
-            # if using past key value states. Need to inject it here
+
             if present_key_value_state is not None:
                 query_length = present_key_value_state[0].shape[2]
             else:
@@ -487,24 +851,18 @@ class LLmPUBlock(nn.Module):
             )
             hidden_states = cross_attention_outputs[0]
 
-            # clamp inf values to enable fp16 training
             if hidden_states.dtype == torch.float16 and torch.isinf(hidden_states).any():
                 clamp_value = torch.finfo(hidden_states.dtype).max - 1000
                 hidden_states = torch.clamp(hidden_states, min=-clamp_value, max=clamp_value)
 
-            # Combine self attn and cross attn key value states
             if present_key_value_state is not None:
                 present_key_value_state = present_key_value_state + cross_attention_outputs[1]
 
-            # Keep cross-attention outputs and relative position weights
             attention_outputs = attention_outputs + cross_attention_outputs[2:]
 
-        # Apply Feed Forward layer
         hidden_states = self.layer[-1](hidden_states)
 
-        # clamp inf values to enable fp16 training
         if hidden_states.dtype == torch.float16 and torch.isinf(hidden_states).any():
-            logger.debug('using clamp')
             clamp_value = torch.finfo(hidden_states.dtype).max - 1000
             hidden_states = torch.clamp(hidden_states, min=-clamp_value, max=clamp_value)
 
@@ -515,7 +873,7 @@ class LLmPUBlock(nn.Module):
         else:
             outputs = outputs + attention_outputs
 
-        return outputs  # hidden-states, present_key_value_states, (self-attention position bias), (self-attention weights), (cross-attention position bias), (cross-attention weights)
+        return outputs
 
 
 class LLmPUStack(nn.Module):
@@ -534,7 +892,7 @@ class LLmPUStack(nn.Module):
         self.model_parallel = False
         self.device_map = None
         self.gradient_checkpointing = False
-
+        self.main_input_name = 'input_ids'
     def get_input_embeddings(self):
         return self.embed_tokens
 
@@ -610,20 +968,30 @@ class LLmPUStack(nn.Module):
             past_key_values=None,
             use_cache=None,
             output_attentions=None,
-            **kwargs
+            output_hidden_states=None,
+            return_dict=None,
     ):
 
         use_cache = use_cache if use_cache is not None else self.config.use_cache
-        output_attentions = False
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            True
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        if input_ids is not None:
+        if input_ids is not None and inputs_embeds is not None:
+            err_msg_prefix = "decoder_" if self.is_decoder else ""
+            raise ValueError(
+                f"You cannot specify both {err_msg_prefix}input_ids and {err_msg_prefix}inputs_embeds at the same time"
+            )
+        elif input_ids is not None:
             input_shape = input_ids.size()
             input_ids = input_ids.view(-1, input_shape[-1])
         elif inputs_embeds is not None:
             input_shape = inputs_embeds.size()[:-1]
+        else:
+            err_msg_prefix = "decoder_" if self.is_decoder else ""
+            raise ValueError(f"You have to specify either {err_msg_prefix}input_ids or {err_msg_prefix}inputs_embeds")
 
         if inputs_embeds is None:
             assert self.embed_tokens is not None, "You have to initialize the model with valid token embeddings"
@@ -638,25 +1006,18 @@ class LLmPUStack(nn.Module):
             assert self.is_decoder, f"`use_cache` can only be set to `True` if {self} is used as a decoder"
 
         if attention_mask is None:
-
             attention_mask = torch.ones(batch_size, mask_seq_length, device=inputs_embeds.device)
-            logger.debug(f'attention mask is being created at LLmPUStack : {attention_mask.shape}')
         if self.is_decoder and encoder_attention_mask is None and encoder_hidden_states is not None:
             encoder_seq_length = encoder_hidden_states.shape[1]
             encoder_attention_mask = torch.ones(
                 batch_size, encoder_seq_length, device=inputs_embeds.device, dtype=torch.long
             )
 
-        # initialize past_key_values with `None` if past does not exist
         if past_key_values is None:
             past_key_values = [None] * len(self.block)
 
-        # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
-        # ourselves in which case we just need to make it broadcastable to all heads.
         extended_attention_mask = self.get_extended_attention_mask(attention_mask, input_shape)
 
-        # If a 2D or 3D attention mask is provided for the cross-attention
-        # we need to make broadcastable to [batch_size, num_heads, seq_length, seq_length]
         if self.is_decoder and encoder_hidden_states is not None:
             encoder_batch_size, encoder_sequence_length, _ = encoder_hidden_states.size()
             encoder_hidden_shape = (encoder_batch_size, encoder_sequence_length)
@@ -666,6 +1027,7 @@ class LLmPUStack(nn.Module):
         else:
             encoder_extended_attention_mask = None
 
+        # Prepare head mask if needed
         head_mask = self.get_head_mask(head_mask, self.config.num_layers)
         cross_attn_head_mask = self.get_head_mask(cross_attn_head_mask, self.config.num_layers)
         present_key_value_states = () if use_cache else None
@@ -674,13 +1036,30 @@ class LLmPUStack(nn.Module):
         all_cross_attentions = () if (output_attentions and self.is_decoder) else None
         position_bias = None
         encoder_decoder_position_bias = None
-        logger.debug(f'present_key_value_states : {present_key_value_states}')
+
         hidden_states = self.dropout(inputs_embeds)
 
         for i, (layer_module, past_key_value) in enumerate(zip(self.block, past_key_values)):
             layer_head_mask = head_mask[i]
             cross_attn_layer_head_mask = cross_attn_head_mask[i]
-
+            # Model parallel
+            if self.model_parallel:
+                torch.cuda.set_device(hidden_states.device)
+                # Ensure that attention_mask is always on the same device as hidden_states
+                if attention_mask is not None:
+                    attention_mask = attention_mask.to(hidden_states.device)
+                if position_bias is not None:
+                    position_bias = position_bias.to(hidden_states.device)
+                if encoder_hidden_states is not None:
+                    encoder_hidden_states = encoder_hidden_states.to(hidden_states.device)
+                if encoder_extended_attention_mask is not None:
+                    encoder_extended_attention_mask = encoder_extended_attention_mask.to(hidden_states.device)
+                if encoder_decoder_position_bias is not None:
+                    encoder_decoder_position_bias = encoder_decoder_position_bias.to(hidden_states.device)
+                if layer_head_mask is not None:
+                    layer_head_mask = layer_head_mask.to(hidden_states.device)
+                if cross_attn_layer_head_mask is not None:
+                    cross_attn_layer_head_mask = cross_attn_layer_head_mask.to(hidden_states.device)
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
 
@@ -707,7 +1086,7 @@ class LLmPUStack(nn.Module):
                     encoder_decoder_position_bias,
                     layer_head_mask,
                     cross_attn_layer_head_mask,
-                    None,  # past_key_value is always None with gradient checkpointing
+                    None,
                 )
             else:
                 layer_outputs = layer_module(
@@ -741,22 +1120,36 @@ class LLmPUStack(nn.Module):
                 if self.is_decoder:
                     all_cross_attentions = all_cross_attentions + (layer_outputs[5],)
 
+            if self.model_parallel:
+                for k, v in self.device_map.items():
+                    if i == v[-1] and "cuda:" + str(k) != self.last_device:
+                        hidden_states = hidden_states.to("cuda:" + str(k + 1))
+
         hidden_states = self.final_layer_norm(hidden_states)
         hidden_states = self.dropout(hidden_states)
 
+        # Add last layer
         if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)
 
-        return tuple(
-            v
-            for v in [
-                hidden_states,
-                present_key_value_states,
-                all_hidden_states,
-                all_attentions,
-                all_cross_attentions,
-            ]
-            if v is not None
+        if not return_dict:
+            return tuple(
+                v
+                for v in [
+                    hidden_states,
+                    present_key_value_states,
+                    all_hidden_states,
+                    all_attentions,
+                    all_cross_attentions,
+                ]
+                if v is not None
+            )
+        return OutputModel(
+            last_hidden_state=hidden_states,
+            past_key_values=present_key_value_states,
+            hidden_states=all_hidden_states,
+            attentions=all_attentions,
+            cross_attentions=all_cross_attentions,
         )
 
     def invert_attention_mask(self, encoder_attention_mask: torch.Tensor) -> torch.Tensor:
@@ -790,11 +1183,49 @@ class LLmPUModel(nn.Module):
         decoder_config.num_layers = config.num_decoder_layers
         self.decoder = LLmPUStack(decoder_config, self.shared)
 
-         
-
         # Model parallel
         self.model_parallel = False
         self.device_map = None
+
+    def _init_weights(self, module):
+
+        factor = self.config.initializer_factor
+        if isinstance(module, T5LayerNorm):
+            module.weight.data.fill_(factor * 1.0)
+        elif isinstance(module, (LLmPUModel, LLmPUForConditionalGeneration, LLmPUEncoderModel)):
+
+            module.shared.weight.data.normal_(mean=0.0, std=factor * 1.0)
+            if hasattr(module, "lm_head") and not self.config.tie_word_embeddings:
+                module.lm_head.weight.data.normal_(mean=0.0, std=factor * 1.0)
+        elif isinstance(module, LLmPUDenseActDense):
+
+            module.wi.weight.data.normal_(mean=0.0, std=factor * ((self.config.d_model) ** -0.5))
+            if hasattr(module.wi, "bias") and module.wi.bias is not None:
+                module.wi.bias.data.zero_()
+            module.wo.weight.data.normal_(mean=0.0, std=factor * ((self.config.d_ff) ** -0.5))
+            if hasattr(module.wo, "bias") and module.wo.bias is not None:
+                module.wo.bias.data.zero_()
+        elif isinstance(module, LLmPUDenseGatedActDense):
+            module.wi_0.weight.data.normal_(mean=0.0, std=factor * ((self.config.d_model) ** -0.5))
+            if hasattr(module.wi_0, "bias") and module.wi_0.bias is not None:
+                module.wi_0.bias.data.zero_()
+            module.wi_1.weight.data.normal_(mean=0.0, std=factor * ((self.config.d_model) ** -0.5))
+            if hasattr(module.wi_1, "bias") and module.wi_1.bias is not None:
+                module.wi_1.bias.data.zero_()
+            module.wo.weight.data.normal_(mean=0.0, std=factor * ((self.config.d_ff) ** -0.5))
+            if hasattr(module.wo, "bias") and module.wo.bias is not None:
+                module.wo.bias.data.zero_()
+        elif isinstance(module, LLmPUAttention):
+
+            d_model = self.config.d_model
+            key_value_proj_dim = self.config.d_kv
+            n_heads = self.config.num_heads
+            module.q.weight.data.normal_(mean=0.0, std=factor * ((d_model * key_value_proj_dim) ** -0.5))
+            module.k.weight.data.normal_(mean=0.0, std=factor * (d_model ** -0.5))
+            module.v.weight.data.normal_(mean=0.0, std=factor * (d_model ** -0.5))
+            module.o.weight.data.normal_(mean=0.0, std=factor * ((n_heads * key_value_proj_dim) ** -0.5))
+            if module.has_relative_attention_bias:
+                module.relative_attention_bias.weight.data.normal_(mean=0.0, std=factor * ((d_model) ** -0.5))
 
     def get_input_embeddings(self):
         return self.shared
@@ -832,17 +1263,15 @@ class LLmPUModel(nn.Module):
             output_attentions: Optional[bool] = None,
             output_hidden_states: Optional[bool] = None,
             return_dict: Optional[bool] = None,
-    ) -> Union[Tuple[torch.FloatTensor]]:
+    ) -> Union[Tuple[torch.FloatTensor], OutputModel]:
 
         use_cache = use_cache if use_cache is not None else self.config.use_cache
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         if head_mask is not None and decoder_head_mask is None:
             if self.config.num_layers == self.config.num_decoder_layers:
-                warnings.warn(__HEAD_MASK_WARNING_MSG, FutureWarning)
                 decoder_head_mask = head_mask
 
-        # Encode if needed (training, first prediction pass)
         if encoder_outputs is None:
             encoder_outputs = self.encoder(
                 input_ids=input_ids,
@@ -889,16 +1318,28 @@ class LLmPUModel(nn.Module):
             return_dict=return_dict,
         )
 
-        return decoder_outputs + encoder_outputs
+        if not return_dict:
+            return decoder_outputs + encoder_outputs
+
+        return OutputModel(
+            last_hidden_state=decoder_outputs.last_hidden_state,
+            past_key_values=decoder_outputs.past_key_values,
+            decoder_hidden_states=decoder_outputs.hidden_states,
+            decoder_attentions=decoder_outputs.attentions,
+            cross_attentions=decoder_outputs.cross_attentions,
+            encoder_last_hidden_state=encoder_outputs.last_hidden_state,
+            encoder_hidden_states=encoder_outputs.hidden_states,
+            encoder_attentions=encoder_outputs.attentions,
+        )
 
 
 class LLmPUForConditionalGeneration(nn.Module, GenerationMixin):
-    def __init__(self, config: LLmPUConfig):
+    def __init__(self, config: LLmPUConfig, device: [torch.device, str] = 'cuda' if torch.has_cuda else 'cpu'):
         super().__init__()
         self.model_dim = config.d_model
         self.config = config
         self.shared = nn.Embedding(config.vocab_size, config.d_model)
-
+        self.main_input_name = 'input_ids'
         encoder_config = copy.deepcopy(config)
         encoder_config.is_decoder = False
         encoder_config.use_cache = False
@@ -910,21 +1351,62 @@ class LLmPUForConditionalGeneration(nn.Module, GenerationMixin):
         decoder_config.is_encoder_decoder = False
         decoder_config.num_layers = config.num_decoder_layers
         self.decoder = LLmPUStack(decoder_config, self.shared)
-
+        self.device = DVS(type=device)
         self.lm_head = nn.Linear(config.d_model, config.vocab_size, bias=False)
 
         # Model parallel
         self.model_parallel = False
         self.device_map = None
-
+        self.generation_config = GenerationConfig.from_model_config(config) if self.can_generate() else None
 
     def get_input_embeddings(self):
         return self.shared
+
+    @classmethod
+    def from_model_config(cls, model_config):
+        logger.info(f'model_config :  {model_config}')
+        config_dict = model_config
+        config = cls.from_dict(config_dict, return_unused_kwargs=False)
+
+        for decoder_name in ("decoder", "generator"):
+            if decoder_name in config_dict:
+                default_generation_config = GenerationConfig()
+                decoder_config = config_dict[decoder_name]
+                for attr in config.to_dict().keys():
+                    if attr in decoder_config and getattr(config, attr) == getattr(default_generation_config, attr):
+                        setattr(config, attr, decoder_config[attr])
+
+        config._from_model_config = True
+        return config
+
+    @staticmethod
+    def from_dict(config_dict: Dict[str, Any], **kwargs) -> "GenerationConfig":
+
+        return_unused_kwargs = kwargs.pop("return_unused_kwargs", False)
+
+        kwargs.pop("_from_auto", None)
+        kwargs.pop("_from_pipeline", None)
+
+        if "_commit_hash" in kwargs and "_commit_hash" in config_dict:
+            kwargs["_commit_hash"] = config_dict["_commit_hash"]
+
+        config = GC(**config_dict)
+        unused_kwargs = config.update(**kwargs)
+
+        logger.info(f"Generate config {config}")
+        if return_unused_kwargs:
+            return config, unused_kwargs
+        else:
+            return config
 
     def set_input_embeddings(self, new_embeddings):
         self.shared = new_embeddings
         self.encoder.set_input_embeddings(new_embeddings)
         self.decoder.set_input_embeddings(new_embeddings)
+
+    @staticmethod
+    def can_generate():
+        return True
 
     def set_output_embeddings(self, new_embeddings):
         self.lm_head = new_embeddings
@@ -955,8 +1437,9 @@ class LLmPUForConditionalGeneration(nn.Module, GenerationMixin):
             use_cache: Optional[bool] = None,
             output_attentions: Optional[bool] = None,
             output_hidden_states: Optional[bool] = None,
-    ) -> Union[Tuple[torch.FloatTensor]]:
-
+            return_dict: Optional[bool] = True
+    ) -> Union[Tuple[torch.FloatTensor], Any]:
+        logger.info(f'return_dict : {return_dict}')
         use_cache = use_cache if use_cache is not None else self.config.use_cache
         return_dict = True
 
@@ -965,17 +1448,8 @@ class LLmPUForConditionalGeneration(nn.Module, GenerationMixin):
                 warnings.warn(__HEAD_MASK_WARNING_MSG, FutureWarning)
                 decoder_head_mask = head_mask
 
-        logger.debug(f'encoder Status : ' + str(dict(
-            input_ids=input_ids.shape,
-            attention_mask=attention_mask.shape,
-            inputs_embeds=inputs_embeds,
-            head_mask=head_mask,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
-        )))
-
         if encoder_outputs is None:
+            # Convert encoder inputs in embeddings if needed
             encoder_outputs = self.encoder(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
@@ -985,8 +1459,12 @@ class LLmPUForConditionalGeneration(nn.Module, GenerationMixin):
                 output_hidden_states=output_hidden_states,
                 return_dict=return_dict,
             )
+            hidden_states = encoder_outputs[0]
+        elif return_dict and isinstance(encoder_outputs, OutputModel):
 
-        hidden_states = encoder_outputs[0]
+            last_hidden_state = encoder_outputs.last_hidden_state
+            hidden_states = encoder_outputs.hidden_states
+            # attentions = encoder_outputs.attention
 
         if self.model_parallel:
             torch.cuda.set_device(self.decoder.first_device)
@@ -995,20 +1473,21 @@ class LLmPUForConditionalGeneration(nn.Module, GenerationMixin):
             # get decoder inputs from shifting lm labels to the right
             logger.debug('using shift labels')
             decoder_input_ids = self._shift_right(labels)
-        logger.debug(f'decoder Status : ' + str(dict(
-            input_ids=decoder_input_ids.shape,
-            attention_mask=decoder_attention_mask,
-            inputs_embeds=decoder_inputs_embeds,
-            past_key_values=past_key_values,
-            encoder_hidden_states=hidden_states.shape,
-            encoder_attention_mask=attention_mask.shape,
-            head_mask=decoder_head_mask,
-            cross_attn_head_mask=cross_attn_head_mask,
-            use_cache=use_cache,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
-        )))
+
+        # logger.debug(f'decoder Status : ' + str(dict(
+        #     input_ids=decoder_input_ids.shape,
+        #     attention_mask=decoder_attention_mask,
+        #     inputs_embeds=decoder_inputs_embeds,
+        #     past_key_values=past_key_values,
+        #     encoder_hidden_states=hidden_states.shape,
+        #     encoder_attention_mask=attention_mask.shape,
+        #     head_mask=decoder_head_mask,
+        #     cross_attn_head_mask=cross_attn_head_mask,
+        #     use_cache=use_cache,
+        #     output_attentions=output_attentions,
+        #     output_hidden_states=output_hidden_states,
+        #     return_dict=return_dict,
+        # )))
 
         decoder_outputs = self.decoder(
             input_ids=decoder_input_ids,
@@ -1025,8 +1504,7 @@ class LLmPUForConditionalGeneration(nn.Module, GenerationMixin):
             return_dict=return_dict,
         )
 
-        sequence_output = decoder_outputs[0]
-
+        sequence_output = decoder_outputs[0] if not return_dict else decoder_outputs.last_hidden_state
         logger.debug(f'self.config.tie_word_embeddings : {self.config.tie_word_embeddings}')
 
         if self.config.tie_word_embeddings:
@@ -1038,9 +1516,24 @@ class LLmPUForConditionalGeneration(nn.Module, GenerationMixin):
         if labels is not None:
             loss_fct = nn.CrossEntropyLoss(ignore_index=-100)
             loss = loss_fct(lm_logits.view(-1, lm_logits.size(-1)), labels.view(-1))
-
+        print(f'lm_logits : {lm_logits}')
+        print(f'decoder_outputs : {decoder_outputs}')
+        print(f'encoder_outputs : {encoder_outputs}')
         output = (lm_logits,) + decoder_outputs[1:] + encoder_outputs
-        return ((loss,) + output) if loss is not None else output
+        if not return_dict:
+            return ((loss,) + output) if loss is not None else output
+        else:
+            return Seq2SeqLMOutput(
+                loss=loss,
+                logits=lm_logits,
+                past_key_values=decoder_outputs.past_key_values,
+                decoder_hidden_states=decoder_outputs.hidden_states,
+                decoder_attentions=decoder_outputs.attentions,
+                cross_attentions=decoder_outputs.cross_attentions,
+                encoder_last_hidden_state=encoder_outputs.last_hidden_state,
+                encoder_hidden_states=encoder_outputs.hidden_states,
+                encoder_attentions=encoder_outputs.attentions,
+            )
 
     def prepare_inputs_for_generation(
             self,
@@ -1092,36 +1585,3 @@ class LLmPUForConditionalGeneration(nn.Module, GenerationMixin):
 
             reordered_decoder_past = reordered_decoder_past + (reordered_layer_past_states,)
         return reordered_decoder_past
-
-    def _validate_model_class(self):
-
-        if not self.can_generate():
-            generate_compatible_mappings = [
-                MODEL_FOR_CAUSAL_LM_MAPPING,
-                MODEL_FOR_CAUSAL_IMAGE_MODELING_MAPPING,
-                MODEL_FOR_VISION_2_SEQ_MAPPING,
-                MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING,
-                MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING,
-            ]
-            generate_compatible_classes = set()
-            for model_mapping in generate_compatible_mappings:
-                supported_models = model_mapping.get(type(self.config), default=None)
-                if supported_models is not None:
-                    generate_compatible_classes.add(supported_models.__name__)
-
-            raise TypeError(exception_message)
-
-    def _validate_model_kwargs(self, model_kwargs: Dict[str, Any]):
-
-        if self.config.is_encoder_decoder:
-            for key in ["decoder_input_ids"]:
-                model_kwargs.pop(key, None)
-
-        unused_model_args = []
-        model_args = set(inspect.signature(self.prepare_inputs_for_generation).parameters)
-
-        if "kwargs" in model_args or "model_kwargs" in model_args:
-            model_args |= set(inspect.signature(self.forward).parameters)
-        for key, value in model_kwargs.items():
-            if value is not None and key not in model_args:
-                unused_model_args.append(key)
