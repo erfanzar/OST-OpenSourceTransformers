@@ -6,19 +6,13 @@ from typing import Union, Optional, Tuple, Dict, Any, OrderedDict
 
 import torch
 from torch import nn
+from torch.utils.checkpoint import checkpoint
 from transformers import GenerationMixin, GenerationConfig
-from transformers.modeling_outputs import BaseModelOutput, BaseModelOutputWithPastAndCrossAttentions
+from erutils.lightning import BaseModelOutput, BaseModelOutputWithPastAndCrossAttentions, ModelOutput
 
 logger = logging.getLogger(__name__)
 
 
-def fields(class_or_instance):
-    try:
-        fields = getattr(class_or_instance, _FIELDS)
-    except AttributeError:
-        raise TypeError('must be called with a dataclass type or instance')
-
-    return tuple(f for f in fields.values() if f._field_type is _FIELD)
 class GC:
     def __init__(self, **kwargs):
         self.max_length = kwargs.pop("max_length", 20)
@@ -86,97 +80,6 @@ class GC:
 class DVS:
     def __init__(self, type: [torch.device, str] = 'cuda' if torch.has_cuda else 'cpu'):
         self.type = type
-
-
-class OutputModel(OrderedDict):
-    def __init__(self, **kwargs):
-        super().__init__()
-        self.__dict__.update(**kwargs)
-
-    def __post_init__(self):
-        class_fields = fields(self)
-
-        if not len(class_fields):
-            raise ValueError(f"{self.__class__.__name__} has no fields.")
-        if not all(field.default is None for field in class_fields[1:]):
-            raise ValueError(f"{self.__class__.__name__} should not have more than one required field.")
-
-        first_field = getattr(self, class_fields[0].name)
-        other_fields_are_none = all(getattr(self, field.name) is None for field in class_fields[1:])
-
-        if other_fields_are_none and not is_tensor(first_field):
-            if isinstance(first_field, dict):
-                iterator = first_field.items()
-                first_field_iterator = True
-            else:
-                try:
-                    iterator = iter(first_field)
-                    first_field_iterator = True
-                except TypeError:
-                    first_field_iterator = False
-
-            # if we provided an iterator as first field and the iterator is a (key, value) iterator
-            # set the associated fields
-            if first_field_iterator:
-                for idx, element in enumerate(iterator):
-                    if (
-                            not isinstance(element, (list, tuple))
-                            or not len(element) == 2
-                            or not isinstance(element[0], str)
-                    ):
-                        if idx == 0:
-                            # If we do not have an iterator of key/values, set it as attribute
-                            self[class_fields[0].name] = first_field
-                        else:
-                            # If we have a mixed iterator, raise an error
-                            raise ValueError(
-                                f"Cannot set key/value for {element}. It needs to be a tuple (key, value)."
-                            )
-                        break
-                    setattr(self, element[0], element[1])
-                    if element[1] is not None:
-                        self[element[0]] = element[1]
-            elif first_field is not None:
-                self[class_fields[0].name] = first_field
-        else:
-            for field in class_fields:
-                v = getattr(self, field.name)
-                if v is not None:
-                    self[field.name] = v
-
-    def __delitem__(self, *args, **kwargs):
-        raise Exception(f"You cannot use ``__delitem__`` on a {self.__class__.__name__} instance.")
-
-    def setdefault(self, *args, **kwargs):
-        raise Exception(f"You cannot use ``setdefault`` on a {self.__class__.__name__} instance.")
-
-    def pop(self, *args, **kwargs):
-        raise Exception(f"You cannot use ``pop`` on a {self.__class__.__name__} instance.")
-
-    def update(self, *args, **kwargs):
-        raise Exception(f"You cannot use ``update`` on a {self.__class__.__name__} instance.")
-
-    def __getitem__(self, k):
-        if isinstance(k, str):
-            inner_dict = {k: v for (k, v) in self.items()}
-            return inner_dict[k]
-        else:
-            return self.to_tuple()[k]
-
-    def __setattr__(self, name, value):
-        if name in self.keys() and value is not None:
-            super().__setitem__(name, value)
-        super().__setattr__(name, value)
-
-    def __setitem__(self, key, value):
-
-        super().__setitem__(key, value)
-
-        super().__setattr__(key, value)
-
-    def to_tuple(self) -> Tuple[Any]:
-
-        return tuple(self[k] for k in self.keys())
 
 
 class LLmPUConfig:
@@ -986,6 +889,7 @@ class LLmPUStack(nn.Module):
         self.device_map = None
         self.gradient_checkpointing = False
         self.main_input_name = 'input_ids'
+
     def get_input_embeddings(self):
         return self.embed_tokens
 
@@ -1282,9 +1186,9 @@ class LLmPUModel(nn.Module):
     def _init_weights(self, module):
 
         factor = self.config.initializer_factor
-        if isinstance(module, T5LayerNorm):
+        if isinstance(module, LLmPULayerNorm):
             module.weight.data.fill_(factor * 1.0)
-        elif isinstance(module, (LLmPUModel, LLmPUForConditionalGeneration, LLmPUEncoderModel)):
+        elif isinstance(module, (LLmPUModel, LLmPUForConditionalGeneration)):
 
             module.shared.weight.data.normal_(mean=0.0, std=factor * 1.0)
             if hasattr(module, "lm_head") and not self.config.tie_word_embeddings:
@@ -1355,7 +1259,7 @@ class LLmPUModel(nn.Module):
             output_attentions: Optional[bool] = None,
             output_hidden_states: Optional[bool] = None,
             return_dict: Optional[bool] = None,
-    ) -> Union[Tuple[torch.FloatTensor], OutputModel]:
+    ) -> Union[Tuple[torch.FloatTensor], BaseModelOutput]:
 
         use_cache = use_cache if use_cache is not None else self.config.use_cache
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
@@ -1413,7 +1317,7 @@ class LLmPUModel(nn.Module):
         if not return_dict:
             return decoder_outputs + encoder_outputs
 
-        return OutputModel(
+        return BaseModelOutput(
             last_hidden_state=decoder_outputs.last_hidden_state,
             past_key_values=decoder_outputs.past_key_values,
             decoder_hidden_states=decoder_outputs.hidden_states,
@@ -1537,7 +1441,7 @@ class LLmPUForConditionalGeneration(nn.Module, GenerationMixin):
 
         if head_mask is not None and decoder_head_mask is None:
             if self.config.num_layers == self.config.num_decoder_layers:
-                warnings.warn(__HEAD_MASK_WARNING_MSG, FutureWarning)
+
                 decoder_head_mask = head_mask
 
         if encoder_outputs is None:
@@ -1598,7 +1502,7 @@ class LLmPUForConditionalGeneration(nn.Module, GenerationMixin):
             output = (lm_logits,) + decoder_outputs[1:] + encoder_outputs
             return ((loss,) + output) if loss is not None else output
         else:
-            return OutputModel(
+            return BaseModelOutput(
                 loss=loss,
                 logits=lm_logits,
                 past_key_values=decoder_outputs.past_key_values,

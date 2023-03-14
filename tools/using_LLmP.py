@@ -1,3 +1,6 @@
+import os
+
+os.chdir('/'.join(os.getcwd().split('\\')[:-1]))
 import argparse
 
 import torch.utils.data
