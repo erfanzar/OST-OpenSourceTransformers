@@ -15,10 +15,10 @@ from tqdm.auto import tqdm
 from transformers import GPT2Tokenizer, AutoTokenizer
 
 from config.config import TQDM_KWARGS
-from modules.dataset import DatasetLLmP
+from modules.dataset import DatasetLLmPChat
 from modules.models import LLmP, LLmPConfig
 from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info, get_memory, count_model_parameters, \
-    create_output_path, _init_weights
+    create_output_path
 
 torch.manual_seed(42)
 torch.backends.cudnn.benchmark = True
@@ -31,8 +31,8 @@ pars.add_argument('--compile', '--compile', type=bool, default=True)
 pars.add_argument('--weight', '--weight', type=str, default=None)
 pars.add_argument('--out-path', '--out-path', type=str, default='out')
 pars.add_argument('--model', '--model', type=str, default='LLmP-ML')
-pars.add_argument('--data-src', '--data-src', type=str, default='HF-fka/awesome-chatgpt-prompts')
-
+pars.add_argument('--data-src', '--data-src', type=str, default='data/convai.json')
+# HF-kilt_tasks//eli5
 options = pars.parse_args()
 
 logger = logging.getLogger(__name__)
@@ -67,6 +67,8 @@ def train(input_ids: Optional[Tensor],
 
 
 def main(opt):
+    # task = 'Explain like im 5 :'
+    task = 'Conversation :'
     if opt.weight is None:
         out_path = create_output_path(path=opt.out_path, name=opt.model)
         if not os.path.exists(os.path.join(out_path, 'weights')):
@@ -99,7 +101,7 @@ def main(opt):
     parameters: LLmPConfig = get_config_by_name(opt.model)
     tokenizer: GPT2Tokenizer = AutoTokenizer.from_pretrained('tokenizer_model/LLmP-C')
 
-    dataset = DatasetLLmP(data=data, max_length=parameters.max_sentence_length, tokenizer=tokenizer)
+    dataset = DatasetLLmPChat(data=data, max_length=128, tokenizer=tokenizer, task=task)
     parameters.vocab_size = dataset.tokenizer.vocab_size
 
     parameters.vocab_size += 7
@@ -115,7 +117,6 @@ def main(opt):
 
     model = LLmP(config=parameters).to(parameters.device) if opt.weight is not None else LLmP(config=parameters).to(
         'cpu')
-    model.apply(_init_weights)
     optimizer_kwargs = dict(lr=parameters.lr, weight_decay=parameters.weight_decay)
     optimizer = torch.optim.AdamW(model.parameters(), **optimizer_kwargs)
     model_parameters_size: typing.Optional[float] = count_model_parameters(model)
@@ -133,11 +134,13 @@ def main(opt):
     if opt.compile:
         model = torch.compile(model)
         fprint(f"Model Compiled Successfully")
-    board = SummaryWriter(log_dir=f'{out_path}/tensorboard', filename_suffix=f'{opt.model}')
+    if opt.train:
+        board = SummaryWriter(log_dir=f'{out_path}/tensorboard', filename_suffix=f'{opt.model}')
     at = 0
 
-    question = 'Linux ' + dataset.agent
+    # question = task + '\n How do muscles grow?' + dataset.agent
     model = model.to(device=parameters.device)
+    question = task + '\n hello how are you ?' + dataset.agent
 
     if opt.train:
         logger.info('TRAIN IS ABOUT TO START')
@@ -159,13 +162,16 @@ def main(opt):
                         tk, _ = inter_q(question, tokenizer=tokenizer)
                         tk = tk.to(parameters.device)
                         cals = []
-                        for pred in model.generate(tokens=tk, pad_id=tokenizer.pad_token_id,
-                                                   attention_mask=None,
-                                                   eos_id=tokenizer.eos_token_id):
-                            cals.append(pred)
-                        cals = torch.cat(cals, dim=-1)
-                        cals = cals.to('cpu')
-                        awn = tokenizer.decode(cals[0])
+                        try:
+                            for pred in model.generate(tokens=tk, pad_id=tokenizer.pad_token_id,
+                                                       attention_mask=None,
+                                                       eos_id=tokenizer.eos_token_id):
+                                cals.append(pred)
+                            cals = torch.cat(cals, dim=-1)
+                            cals = cals.to('cpu')
+                            awn = tokenizer.decode(cals[0])
+                        except:
+                            awn = 'error'
                         del cals
 
                         board.add_scalar('train/Loss', scalar_value=loss.item(), global_step=at)
@@ -180,10 +186,29 @@ def main(opt):
 
                 print()
                 save_checkpoints(model=model.state_dict(), optimizer=optimizer.state_dict(),
-                                 epochs=parameters.epochs,at=at,
+                                 epochs=parameters.epochs, at=at,
                                  epoch=epoch + 1, config=opt.model,
                                  name=f'{out_path}/weights/{opt.model}-model.pt')
                 progress_bar.write('==> MODEL SAVED SUCCESSFULLY')
+
+    else:
+        with tqdm(range(1), **TQDM_KWARGS,
+                  total=1) as progress_bar:
+            for i in progress_bar:
+                (input_ids_t, attention_mask) = dataset.__getitem__(i)
+                logger.debug(f'\033[1;94m input_ids_t    : {input_ids_t.shape}')
+                logger.debug(f'\033[1;94m attention_mask : {attention_mask.shape}')
+
+                loss, loss_avg = train(input_ids=input_ids_t, targets=input_ids_t, network=model,
+                                       optim=optimizer,
+                                       loss_average=torch.tensor(0.0).float(), device=parameters.device,
+                                       attention_mask=attention_mask)
+
+                free_gpu, used_gpu, total_gpu = get_memory(0)
+
+                progress_bar.set_postfix(device=parameters.device,
+                                         loss_avg=(loss_avg / (i + 1)),
+                                         loss=loss.item(), free_GPU=free_gpu, used_GPU=used_gpu)
 
 
 if __name__ == "__main__":

@@ -663,7 +663,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_heads=8,
             epochs=500,
             hidden_size=512,
-            max_sentence_length=128
+
         )
     elif name == 'LLmP-ML':
         return LLmPConfig(
@@ -672,7 +672,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_heads=16,
             epochs=500,
             hidden_size=768,
-            max_sentence_length=128
+
         )
     elif name == 'LLmP':
         return LLmPConfig(
@@ -716,7 +716,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_heads=8,
             epochs=500,
             hidden_size=768,
-            max_sentence_length=128
+
         )
     elif name == 'LLMoU-ML':
         return LLMoUConfig(
@@ -725,7 +725,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_heads=16,
             epochs=500,
             hidden_size=768,
-            max_sentence_length=128
+
         )
     elif name == 'LLMoU':
         return LLMoUConfig(

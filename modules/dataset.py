@@ -98,7 +98,7 @@ class DatasetLLama(Dataset, Tokens):
 
 
 class DatasetLLmP(Dataset, Tokens):
-    def __init__(self, data: Union[dict[List], str],
+    def __init__(self, data: Union[dict[List], str], task: str,
                  tokenizer: Optional[transformers.GPT2Tokenizer], max_length: Optional[int] = 256,
                  till: Optional[int] = 5000):
         self.tokenizer = tokenizer
@@ -119,7 +119,7 @@ class DatasetLLmP(Dataset, Tokens):
         till = till if till is not None else len(chosen)
         tqdm_pr = tqdm(iterable=enumerate(chosen), total=till)
         for ia, dt in tqdm_pr:
-            string = f'{dt["act"]}{agent}{dt["prompt"]}{self.eos}'
+            string = f'{task}\n{dt["input"]}{agent}{dt["output"]["answer"]}{self.eos}'
             encodings_dict = tokenizer.encode_plus(string, max_length=max_length, truncation=True, return_tensors='pt',
                                                    padding="max_length")
             self.attention_mask.append(encodings_dict['attention_mask'])
@@ -144,9 +144,10 @@ class DatasetLLmP(Dataset, Tokens):
         )
         return enc_trg
 
+
 class DatasetLLmPChat(Dataset, Tokens):
-    def __init__(self, data: Union[os.PathLike, str],
-                 tokenizer: Optional[transformers.GPT2Tokenizer], max_length: Optional[int] = 256):
+    def __init__(self, data: Union[os.PathLike, str], task: str,
+                 tokenizer: Optional[transformers.GPT2Tokenizer], max_length: Optional[int] = 128):
         self.tokenizer = tokenizer
         # tokenizer.add_special_tokens(
         #     {'pad_token': self.pad, 'eos_token': self.eos, 'bos_token': self.sos}
@@ -169,11 +170,12 @@ class DatasetLLmPChat(Dataset, Tokens):
         preprocessed_data = []
         for c in tqdm_pr:
             try:
-                preprocessed_data.append(self.sos + conv[c] + '<LLmP> :' + conv[c + 1] + self.eos)
+                preprocessed_data.append(task + '\n' + conv[c] + '<LLmP> :' + conv[c + 1] + self.eos)
             except IndexError:
                 pass
         tqdm_pr = tqdm(iterable=preprocessed_data)
         for string in tqdm_pr:
+
             encodings_dict = tokenizer.encode_plus(string, max_length=max_length, truncation=True, return_tensors='pt',
                                                    padding="max_length")
             self.attention_mask.append(encodings_dict['attention_mask'])

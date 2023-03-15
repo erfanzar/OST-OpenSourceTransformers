@@ -11,18 +11,15 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class LLmPConfig:
-    eps: Optional[float] = 1e-6
+    eps: Optional[float] = 1e-5
     hidden_size: Optional[int] = 1200
-    use_layer_index_scaling: Optional[bool] = True
+    use_layer_index_scaling: Optional[bool] = False
     n_heads: Optional[int] = 12
     n_layers: Optional[int] = 14
     vocab_size: Optional[int] = None
-    max_sentence_length: Optional[int] = 512
-    max_batch_size: Optional[int] = 32
     lr: Optional[float] = 3e-4
     weight_decay: Optional[float] = 2e-1
     epochs: Optional[int] = 100
-    dtype: Optional[torch.dtype] = torch.float32
     hidden_dropout: Optional[float] = 0.1
     embed_dropout: Optional[float] = 0.1
     device: Union[torch.device, str] = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -39,7 +36,7 @@ def precompute_frq_cis(dim: int, end: int, theta: float = 10000.0):
 class PMSNorm(nn.Module):
     def __init__(self, config, eps: Optional[float] = 1e-5):
         super(PMSNorm, self).__init__()
-        self.weight = nn.Parameter(torch.ones(config.hidden_size, dtype=config.dtype))
+        self.weight = nn.Parameter(torch.ones(config.hidden_size))
         self.eps = eps
 
     def norm(self, x: Optional[torch.Tensor]):
@@ -60,10 +57,10 @@ class Attention(nn.Module):
         self.head_dim = config.hidden_size // config.n_heads
         assert config.hidden_size % config.n_heads == 0
         self.hidden_size = config.hidden_size
-        self.wq = nn.Linear(config.hidden_size, config.n_heads * self.head_dim, bias=False, dtype=config.dtype)
-        self.wk = nn.Linear(config.hidden_size, config.n_heads * self.head_dim, bias=False, dtype=config.dtype)
-        self.wv = nn.Linear(config.hidden_size, config.n_heads * self.head_dim, bias=False, dtype=config.dtype)
-        self.wo = nn.Linear(config.n_heads * self.head_dim, config.hidden_size, bias=False, dtype=config.dtype)
+        self.wq = nn.Linear(config.hidden_size, config.n_heads * self.head_dim, bias=False)
+        self.wk = nn.Linear(config.hidden_size, config.n_heads * self.head_dim, bias=False)
+        self.wv = nn.Linear(config.hidden_size, config.n_heads * self.head_dim, bias=False)
+        self.wo = nn.Linear(config.n_heads * self.head_dim, config.hidden_size, bias=False)
         self.drop = nn.Dropout(0.1)
 
     def forward(self, x: Optional[torch.Tensor], alibi: Optional[torch.Tensor],
@@ -103,8 +100,8 @@ class Attention(nn.Module):
 class FeedForward(nn.Module):
     def __init__(self, config, up: Optional[int] = 4):
         super(FeedForward, self).__init__()
-        self.w1 = nn.Linear(config.hidden_size, config.hidden_size * up, bias=False, dtype=config.dtype)
-        self.wo = nn.Linear(config.hidden_size * up, config.hidden_size, bias=False, dtype=config.dtype)
+        self.w1 = nn.Linear(config.hidden_size, config.hidden_size * up, bias=False)
+        self.wo = nn.Linear(config.hidden_size * up, config.hidden_size, bias=False)
         self.g = nn.GELU()
         self.dropout = nn.Dropout(0.1)
 

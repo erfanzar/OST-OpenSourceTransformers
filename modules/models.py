@@ -639,13 +639,13 @@ class LLmP(nn.Module):
         self.wte_ln = PMSNorm(config)
         self.h = nn.ModuleList([LLmPBlock(config=config, layer_index=i) for i in range(config.n_layers)])
         self.ln = PMSNorm(config)
-        self.dtype = config.dtype
-        self.out = nn.Linear(config.hidden_size, config.vocab_size, bias=False, dtype=config.dtype)
+
+        self.out = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         # self.freq = precompute_frq_cis(config.hidden_size // config.n_heads, config.max_sentence_length * 2).to(
         #     self.dtype)
         # i dont use freq or rotaty embedding in LLmP anymore
         self.config = config
-        self.apply(self._init_weights)
+        # self.apply(self._init_weights)
 
     @staticmethod
     def _init_weights(module: nn.Module):
@@ -662,15 +662,15 @@ class LLmP(nn.Module):
                 labels: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, Union[torch.Tensor, None]]:
         batch, seq_len = input_ids.shape
         if attention_mask is not None:
-            attention_mask = attention_mask.to(input_ids.device, dtype=self.dtype)
-            attention_mask = (1.0 - attention_mask) * torch.finfo(self.dtype).min
+            attention_mask = attention_mask.to(torch.float32)
+            # attention_mask = (1.0 - attention_mask) * torch.finfo(attention_mask.dtype).min
             if attention_mask.ndim == 3:
                 attention_mask = attention_mask[:, None, :, :]
             if attention_mask.ndim == 2:
                 attention_mask = attention_mask[:, None, None, :]
         else:
-            attention_mask = torch.ones(input_ids.shape).to(input_ids.device, dtype=self.dtype)
-            attention_mask = (1.0 - attention_mask) * torch.finfo(self.dtype).min
+            attention_mask = torch.ones(input_ids.shape).to(torch.float32)
+            # attention_mask = (1.0 - attention_mask) * torch.finfo(attention_mask.dtype).min
             if attention_mask.ndim == 3:
                 attention_mask = attention_mask[:, None, :, :]
             if attention_mask.ndim == 2:
@@ -680,8 +680,10 @@ class LLmP(nn.Module):
         # self.freq = self.freq.to(input_ids.device)
         # chosen_freq = self.freq[:seq_len]
         # logger.debug(f'chosen_freq : {chosen_freq.shape}')
-        alibi = build_alibi_tensor(attention_mask=attention_mask.view(attention_mask.size()[0], -1), dtype=self.dtype,
-                                   number_of_heads=self.config.n_heads)
+        attention_mask = attention_mask.to(input_ids.device)
+        alibi = build_alibi_tensor(attention_mask=attention_mask.view(attention_mask.size()[0], -1),
+                                   dtype=attention_mask.dtype,
+                                   n_heads=self.config.n_heads).to(input_ids.device)
 
         x = self.wte_ln(self.wte(input_ids))
         logger.debug(f'word tokenizing shape ==> : {x.shape}')

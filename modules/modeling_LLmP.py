@@ -22,7 +22,6 @@ def sample_top_p(probs, p):
 class LLmPBlock(nn.Module):
     def __init__(self, config: Optional[LLmPConfig], layer_index: Optional[int] = None):
         super(LLmPBlock, self).__init__()
-        self.dropout = nn.Dropout(config.hidden_dropout)
         self.block = Attention(config=config, layer_index=layer_index)
         self.ln1 = PMSNorm(config)
         self.ln2 = PMSNorm(config)
