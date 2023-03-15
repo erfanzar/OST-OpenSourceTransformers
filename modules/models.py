@@ -727,7 +727,7 @@ class LLmP(nn.Module):
                                                      value=pad_id)
         # attention_mask = None
         for i in range(max_gen_len):
-            tokens = tokens[:, -self.config.max_sentence_length:]
+            # tokens = tokens[:, :]
             logits, _ = self.forward(tokens, attention_mask)
             logits = logits[:, -1, :]
             if temperature > 0:

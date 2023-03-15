@@ -127,6 +127,12 @@ def main(opt):
         model.load_state_dict(checkpoints['model'])
         model = model.to(parameters.device)
         optimizer.load_state_dict(checkpoints['optimizer'])
+        start_epoch = checkpoints['epoch']
+        at = checkpoints['at']
+        del checkpoints
+    else:
+        start_epoch = 0
+        at = 0
     fprint(
         f'Model Loaded With {model_parameters_size} Million Parameters' if opt.weight is not None
         else f'Model Created With {model_parameters_size} Million Parameters')
@@ -136,7 +142,6 @@ def main(opt):
         fprint(f"Model Compiled Successfully")
     if opt.train:
         board = SummaryWriter(log_dir=f'{out_path}/tensorboard', filename_suffix=f'{opt.model}')
-    at = 0
 
     # question = task + '\n How do muscles grow?' + dataset.agent
     model = model.to(device=parameters.device)
@@ -144,7 +149,7 @@ def main(opt):
 
     if opt.train:
         logger.info('TRAIN IS ABOUT TO START')
-        for epoch in range(checkpoints['epoch'] if opt.weight is not None else 0, parameters.epochs):
+        for epoch in range(start_epoch, parameters.epochs):
             loss_avg = 0
             with tqdm(enumerate(dataloader), **TQDM_KWARGS,
                       total=math.ceil(dataset.__len__() // parameters.batch_size)) as progress_bar:
@@ -159,19 +164,19 @@ def main(opt):
 
                     free_gpu, used_gpu, total_gpu = get_memory(0)
                     if ((i + 1) % 50) == 0:
-                        tk, _ = inter_q(question, tokenizer=tokenizer)
+                        tk, _ = inter_q(question, tokenizer=dataset.tokenizer)
                         tk = tk.to(parameters.device)
                         cals = []
                         try:
-                            for pred in model.generate(tokens=tk, pad_id=tokenizer.pad_token_id,
+                            for pred in model.generate(tokens=tk, pad_id=dataset.tokenizer.pad_token_id,
                                                        attention_mask=None,
-                                                       eos_id=tokenizer.eos_token_id):
+                                                       eos_id=dataset.tokenizer.eos_token_id):
                                 cals.append(pred)
                             cals = torch.cat(cals, dim=-1)
                             cals = cals.to('cpu')
-                            awn = tokenizer.decode(cals[0])
+                            awn = dataset.tokenizer.decode(cals[0])
                         except:
-                            awn = 'error'
+                            awn = 'EMPTY'
                         del cals
 
                         board.add_scalar('train/Loss', scalar_value=loss.item(), global_step=at)
