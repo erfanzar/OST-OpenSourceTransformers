@@ -110,11 +110,7 @@ class DatasetLLmP(Dataset, Tokens):
             os.mkdir('tokenizer_model/LLmP-C')
         agent = '<LLmP> :'
         self.agent = agent
-        paragraph = 'paragraph:'
-        question = 'question:'
         tokenizer.add_tokens(agent)
-        tokenizer.add_tokens(paragraph)
-        tokenizer.add_tokens(question)
         tokenizer.save_pretrained('tokenizer_model/LLmP-C')
         self.attention_mask = []
         self.input_ids = []
@@ -123,7 +119,7 @@ class DatasetLLmP(Dataset, Tokens):
         till = till if till is not None else len(chosen)
         tqdm_pr = tqdm(iterable=enumerate(chosen), total=till)
         for ia, dt in tqdm_pr:
-            string = f'{paragraph} {dt["paragraph"]} {question} {dt["question"]} {agent} {dt["answer"]} {self.eos}'
+            string = f'{dt["act"]}{agent}{dt["prompt"]}{self.eos}'
             encodings_dict = tokenizer.encode_plus(string, max_length=max_length, truncation=True, return_tensors='pt',
                                                    padding="max_length")
             self.attention_mask.append(encodings_dict['attention_mask'])

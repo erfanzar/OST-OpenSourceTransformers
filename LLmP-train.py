@@ -31,7 +31,7 @@ pars.add_argument('--compile', '--compile', type=bool, default=True)
 pars.add_argument('--weight', '--weight', type=str, default=None)
 pars.add_argument('--out-path', '--out-path', type=str, default='out')
 pars.add_argument('--model', '--model', type=str, default='LLmP-ML')
-pars.add_argument('--data-src', '--data-src', type=str, default='HF-super_glue/multirc')
+pars.add_argument('--data-src', '--data-src', type=str, default='HF-fka/awesome-chatgpt-prompts')
 
 options = pars.parse_args()
 
@@ -87,8 +87,8 @@ def main(opt):
         data = opt.data_src
     elif opt.data_src.startswith('HF-'):
         name = opt.data_src.replace('HF-', '')
-        if '/' in name:
-            model_name = name.split('/')
+        if '//' in name:
+            model_name = name.split('//')
             data = load_dataset(model_name[0], model_name[1])
         else:
             data = load_dataset(name)
@@ -136,7 +136,7 @@ def main(opt):
     board = SummaryWriter(log_dir=f'{out_path}/tensorboard', filename_suffix=f'{opt.model}')
     at = 0
 
-    question = 'paragraph: my name is erfan question: what is my name ?' + dataset.agent
+    question = 'Linux ' + dataset.agent
     model = model.to(device=parameters.device)
 
     if opt.train:
