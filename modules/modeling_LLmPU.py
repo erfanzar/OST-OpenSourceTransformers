@@ -3,7 +3,7 @@ import logging
 import math
 import os
 from typing import Union, Optional, Tuple, Dict, Any, OrderedDict
-
+import json
 import torch
 from torch import nn
 from torch.utils.checkpoint import checkpoint
@@ -188,11 +188,6 @@ class LLmPUConfig:
             original_kwargs["_commit_hash"] = config_dict["_commit_hash"]
 
         # That config file may point us toward another config file to use.
-        if "configuration_files" in config_dict:
-            configuration_file = get_configuration_file(config_dict["configuration_files"])
-            config_dict, kwargs = cls._get_config_dict(
-                pretrained_model_name_or_path, _configuration_file=configuration_file, **original_kwargs
-            )
 
         return config_dict, kwargs
 
@@ -225,58 +220,7 @@ class LLmPUConfig:
 
         pretrained_model_name_or_path = str(pretrained_model_name_or_path)
 
-        is_local = os.path.isdir(pretrained_model_name_or_path)
-        if os.path.isfile(os.path.join(subfolder, pretrained_model_name_or_path)):
-            # Special case when pretrained_model_name_or_path is a local file
-            resolved_config_file = pretrained_model_name_or_path
-            is_local = True
-        elif is_remote_url(pretrained_model_name_or_path):
-            configuration_file = pretrained_model_name_or_path
-            resolved_config_file = download_url(pretrained_model_name_or_path)
-        else:
-            configuration_file = kwargs.pop("_configuration_file", CONFIG_NAME)
-
-            try:
-                # Load from local folder or from cache or download from model Hub and cache
-                resolved_config_file = cached_file(
-                    pretrained_model_name_or_path,
-                    configuration_file,
-                    cache_dir=cache_dir,
-                    force_download=force_download,
-                    proxies=proxies,
-                    resume_download=resume_download,
-                    local_files_only=local_files_only,
-                    use_auth_token=use_auth_token,
-                    user_agent=user_agent,
-                    revision=revision,
-                    subfolder=subfolder,
-                    _commit_hash=commit_hash,
-                )
-                commit_hash = extract_commit_hash(resolved_config_file, commit_hash)
-            except EnvironmentError:
-
-                raise
-            except Exception:
-
-                raise EnvironmentError(
-
-                )
-
-        try:
-            # Load config dict
-            config_dict = cls._dict_from_json_file(resolved_config_file)
-            config_dict["_commit_hash"] = commit_hash
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            raise EnvironmentError(
-                f"It looks like the config file at '{resolved_config_file}' is not a valid JSON file."
-            )
-
-        if is_local:
-            logger.info(f"loading configuration file {resolved_config_file}")
-        else:
-            logger.info(f"loading configuration file {configuration_file} from cache at {resolved_config_file}")
-
-        return config_dict, kwargs
+        return None, kwargs
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any], **kwargs) -> "PretrainedConfig":
@@ -314,46 +258,8 @@ class LLmPUConfig:
         else:
             return config
 
-    @classmethod
-    def from_json_file(cls, json_file: Union[str, os.PathLike]) -> "PretrainedConfig":
-
-        config_dict = cls._dict_from_json_file(json_file)
-        return cls(**config_dict)
-
-    @classmethod
-    def _dict_from_json_file(cls, json_file: Union[str, os.PathLike]):
-        with open(json_file, "r", encoding="utf-8") as reader:
-            text = reader.read()
-        return json.loads(text)
-
-    def __eq__(self, other):
-        return isinstance(other, PretrainedConfig) and (self.__dict__ == other.__dict__)
-
     def __repr__(self):
-        return f"{self.__class__.__name__} {self.to_json_string()}"
-
-    def to_diff_dict(self) -> Dict[str, Any]:
-
-        config_dict = self.to_dict()
-
-        default_config_dict = PretrainedConfig().to_dict()
-
-        class_config_dict = self.__class__().to_dict() if not self.is_composition else {}
-
-        serializable_config_dict = {}
-
-        for key, value in config_dict.items():
-            if (
-                    key not in default_config_dict
-                    or key == "transformers_version"
-                    or value != default_config_dict[key]
-                    or (key in class_config_dict and value != class_config_dict[key])
-            ):
-                serializable_config_dict[key] = value
-
-        self.dict_torch_dtype_to_str(serializable_config_dict)
-
-        return serializable_config_dict
+        return f"{self.__class__.__name__} {self.__dict__}"
 
     def to_dict(self) -> Dict[str, Any]:
 
@@ -368,19 +274,6 @@ class LLmPUConfig:
         self.dict_torch_dtype_to_str(output)
 
         return output
-
-    def to_json_string(self, use_diff: bool = True) -> str:
-
-        if use_diff is True:
-            config_dict = self.to_diff_dict()
-        else:
-            config_dict = self.to_dict()
-        return json.dumps(config_dict, indent=2, sort_keys=True) + "\n"
-
-    def to_json_file(self, json_file_path: Union[str, os.PathLike], use_diff: bool = True):
-
-        with open(json_file_path, "w", encoding="utf-8") as writer:
-            writer.write(self.to_json_string(use_diff=use_diff))
 
     def update(self, config_dict: Dict[str, Any]):
 
@@ -1441,7 +1334,6 @@ class LLmPUForConditionalGeneration(nn.Module, GenerationMixin):
 
         if head_mask is not None and decoder_head_mask is None:
             if self.config.num_layers == self.config.num_decoder_layers:
-
                 decoder_head_mask = head_mask
 
         if encoder_outputs is None:

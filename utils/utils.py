@@ -449,7 +449,28 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
         self.device: str = kwargs.pop('device', 'cuda' if torch.cuda.is_available() else 'cpu')
         self.weight_decay: float = kwargs.pop('weight_decay', 2e-1, )
     """
-    models_name = ['PGT', 'LLmP', 'LLmPU', 'LLMoP', 'LLama']
+    models_name = ['PGT-S',
+                   'PGT-M',
+                   'PGT-X',
+                   'PGT-LX',
+                   'PGT-LXX',
+                   'LLama',
+                   'LLmP-S',
+                   'LLmP-ML',
+                   'LLmP',
+                   'LLmP-X',
+                   'LLmP-L',
+                   'LLmP-LX',
+                   'LLMoU-S',
+                   'LLMoU-ML',
+                   'LLMoU',
+                   'LLMoU-X',
+                   'LLMoU-L',
+                   'LLMoU-LX'
+                   'LLmPU-base',
+                   'LLmPU-S',
+                   'LLmPU-L',
+                   'LLmPU-LX', ]
 
     if name == 'PGT-S':
         return PGTConfig(
