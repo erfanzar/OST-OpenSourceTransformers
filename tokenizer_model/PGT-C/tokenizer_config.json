@@ -19,7 +19,7 @@
   },
   "errors": "replace",
   "model_max_length": 1024,
-  "name_or_path": "tokenizer_model/LLmp-C",
+  "name_or_path": "tokenizer_model/PGT-C",
   "pad_token": {
     "__type": "AddedToken",
     "content": "<|pad|>",

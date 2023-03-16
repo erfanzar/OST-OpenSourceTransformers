@@ -220,7 +220,7 @@ class PGT(nn.Module):
             hidden = block(
                 hidden,
                 attention_mask=attention_mask,
-                head_mask=h_m
+                heads_mask=h_m
             )
             logger.debug(f'BEFORE BLOCK NUMBER {i} hidden : {hidden.shape} STATUS [PASS]')
         hidden = self.fc(self.ln(hidden))
