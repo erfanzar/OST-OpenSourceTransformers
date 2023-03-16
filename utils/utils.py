@@ -483,7 +483,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
         )
     elif name == 'PGT-M':
         return PGTConfig(
-            n_layers=12,
+            n_layers=14,
             n_heads=8,
             epochs=500,
             hidden_size=1024,
@@ -492,7 +492,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
         )
     elif name == 'PGT-X':
         return PGTConfig(
-            n_layers=12,
+            n_layers=18,
             n_heads=12,
             epochs=500,
             hidden_size=1536,

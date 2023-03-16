@@ -34,6 +34,7 @@ if __name__ == "__main__":
     for model in models_name:
 
         config = get_config_by_name(model, vocab_size=50274)
+        config.device = 'cpu'
         if model.startswith('LLmPU'):
             m = LLmPUForConditionalGeneration(config)
         elif model.startswith('LLMoU'):
