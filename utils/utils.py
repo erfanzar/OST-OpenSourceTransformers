@@ -528,7 +528,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             vocab_size=vocab_size,
             max_batch_size=3,
             n_layers=18,
-            n_heads=12,
+            n_heads=16,
             hidden_size=4096,
             max_sentence_length=256
         )
