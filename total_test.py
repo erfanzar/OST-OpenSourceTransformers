@@ -32,8 +32,8 @@ models_name = ['PGT-S',
 
 if __name__ == "__main__":
     for model in models_name:
-        print(model)
-        config = get_config_by_name(model)
+
+        config = get_config_by_name(model, vocab_size=50274)
         if model.startswith('LLmPU'):
             m = LLmPUForConditionalGeneration(config)
         elif model.startswith('LLMoU'):

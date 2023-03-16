@@ -536,7 +536,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
     elif name == 'LLmP-ML':
         return LLmPConfig(
             vocab_size=vocab_size,
-            n_layers=8,
+            n_layers=14,
             n_heads=16,
             epochs=500,
             hidden_size=768,
@@ -545,7 +545,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
     elif name == 'LLmP':
         return LLmPConfig(
             vocab_size=vocab_size,
-            n_layers=8,
+            n_layers=24,
             n_heads=16,
             epochs=500,
             hidden_size=1024,
@@ -554,8 +554,8 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
     elif name == 'LLmP-X':
         return LLmPConfig(
             vocab_size=vocab_size,
-            n_layers=10,
-            n_heads=8,
+            n_layers=36,
+            n_heads=16,
             epochs=500,
             hidden_size=1280,
 
@@ -563,8 +563,8 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
     elif name == 'LLmP-L':
         return LLmPConfig(
             vocab_size=vocab_size,
-            n_layers=10,
-            n_heads=8,
+            n_layers=32,
+            n_heads=32,
             epochs=500,
             hidden_size=1536,
 
@@ -572,7 +572,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
     elif name == 'LLmP-LX':
         return LLmPConfig(
             vocab_size=vocab_size,
-            n_layers=18,
+            n_layers=32,
             n_heads=16,
             hidden_size=2048,
 
@@ -589,7 +589,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
     elif name == 'LLMoU-ML':
         return LLMoUConfig(
             vocab_size=vocab_size,
-            n_layers=8,
+            n_layers=14,
             n_heads=16,
             epochs=500,
             hidden_size=768,
@@ -598,7 +598,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
     elif name == 'LLMoU':
         return LLMoUConfig(
             vocab_size=vocab_size,
-            n_layers=10,
+            n_layers=16,
             n_heads=16,
             epochs=500,
             hidden_size=1024,
@@ -607,7 +607,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
     elif name == 'LLMoU-X':
         return LLMoUConfig(
             vocab_size=vocab_size,
-            n_layers=14,
+            n_layers=24,
             n_heads=8,
             epochs=500,
             hidden_size=1280,
@@ -616,7 +616,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
     elif name == 'LLMoU-L':
         return LLMoUConfig(
             vocab_size=vocab_size,
-            n_layers=16,
+            n_layers=32,
             n_heads=16,
             epochs=500,
             hidden_size=1536,
@@ -625,15 +625,15 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
     elif name == 'LLMoU-LX':
         return LLMoUConfig(
             vocab_size=vocab_size,
-            n_layers=18,
+            n_layers=34,
             n_heads=16,
             hidden_size=2048,
             max_sentence_length=1024
         )
     elif name == 'LLmPU-base':
-        L = {"d_ff": 1024,
-             "d_kv": 32,
-             "d_model": 512,
+        L = {"d_ff": 128 * 20,
+             "d_kv": 32 * 3,
+             "d_model": 128 * 14,
              "decoder_start_token_id": 0,
              "dropout_rate": 0.1,
              "eos_token_id": 1,
@@ -662,9 +662,9 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
         )
 
     elif name == 'LLmPU-S':
-        L = {"d_ff": 1792,
-             "d_kv": 32,
-             "d_model": 256,
+        L = {"d_ff": 128 * 14,
+             "d_kv": 32 * 2,
+             "d_model": 128 * 8,
              "decoder_start_token_id": 0,
              "dropout_rate": 0.1,
              "eos_token_id": 1,
@@ -691,9 +691,9 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             **L
         )
     elif name == 'LLmPU-L':
-        L = {"d_ff": 2048,
-             "d_kv": 64,
-             "d_model": 768,
+        L = {"d_ff": 128 * 24,
+             "d_kv": 32 * 3,
+             "d_model": 128 * 14,
              "decoder_start_token_id": 0,
              "dropout_rate": 0.1,
              "eos_token_id": 1,
@@ -720,9 +720,9 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             **L
         )
     elif name == 'LLmPU-LX':
-        L = {"d_ff": 2048,
-             "d_kv": 64,
-             "d_model": 768,
+        L = {"d_ff": 6144,
+             "d_kv": 128,
+             "d_model": 2048,
              "decoder_start_token_id": 0,
              "dropout_rate": 0.1,
              "eos_token_id": 1,
