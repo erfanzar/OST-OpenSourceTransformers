@@ -3,6 +3,7 @@ from typing import Dict, Tuple, Any
 from typing import Optional
 
 import torch
+import math
 from torch import nn
 from torch.optim.optimizer import Optimizer
 
@@ -30,7 +31,50 @@ class PGTConfig:
     weight_decay: Optional[float] = 2e-1
     initializer_range: Optional[float] = 0.02
     lr: Optional[float] = 3e-4
+    rotary_pct: Optional[float] = 0.25
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    use_parallel_residual: Optional[bool] = True
+    silu: Optional[bool] = False
+
+
+class RotaryEmbedding(torch.nn.Module):
+    def __init__(self, dim, max_position_embeddings, base=10000, device=None):
+        super().__init__()
+        inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float().to(device) / dim))
+        self.register_buffer("inv_freq", inv_freq)
+        self.max_seq_len_cached = max_position_embeddings
+        t = torch.arange(self.max_seq_len_cached, device=self.inv_freq.device, dtype=self.inv_freq.dtype)
+        freqs = torch.einsum("i,j->ij", t, self.inv_freq)
+
+        emb = torch.cat((freqs, freqs), dim=-1)
+        self.cos_cached = emb.cos()[None, None, :, :]
+        self.sin_cached = emb.sin()[None, None, :, :]
+
+    def forward(self, x, seq_len=None):
+        if seq_len > self.max_seq_len_cached:
+            self.max_seq_len_cached = seq_len
+            t = torch.arange(self.max_seq_len_cached, device=x.device, dtype=self.inv_freq.dtype)
+            freqs = torch.einsum("i,j->ij", t, self.inv_freq)
+
+            emb = torch.cat((freqs, freqs), dim=-1).to(x.device)
+            self.cos_cached = emb.cos()[None, None, :, :]
+            self.sin_cached = emb.sin()[None, None, :, :]
+        return self.cos_cached[:seq_len, ...].to(x.device), self.sin_cached[:seq_len, ...].to(x.device)
+
+
+def rotate_half(x):
+    """Rotates half the hidden dims of the input."""
+    x1 = x[..., : x.shape[-1] // 2]
+    x2 = x[..., x.shape[-1] // 2:]
+    return torch.cat((-x2, x1), dim=-1)
+
+
+def apply_rotary_pos_emb(q, k, cos, sin, offset: int = 0):
+    cos = cos[..., offset: q.shape[-2] + offset, :]
+    sin = sin[..., offset: q.shape[-2] + offset, :]
+    q_embed = (q * cos) + (rotate_half(q) * sin)
+    k_embed = (k * cos) + (rotate_half(k) * sin)
+    return q_embed, k_embed
 
 
 class PMSNorm(nn.Module):
@@ -54,30 +98,31 @@ class PGTAttention(nn.Module):
         self.layer_idx = layer_idx
         self.hidden_size = config.hidden_size
         self.n_heads = config.n_heads
-        self.num_div = self.hidden_size // self.n_heads
+        self.head_size = self.hidden_size // self.n_heads
         self.scale_attn_by_layer_idx = config.scale_attn_by_layer_idx
         assert self.hidden_size // self.n_heads != 0
         self.c_attn = nn.Linear(self.hidden_size, self.hidden_size * 3, bias=False)
         self.c_proj = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
         self.residual_norm = PMSNorm(config)
         self.attn_dropout = nn.Dropout(config.attention_dropout)
+        self.rotary_dims = int(self.head_size * config.rotary_pct)
         self.register_buffer('bias', torch.tril(
             torch.ones(config.max_sentence_length, config.max_sentence_length, dtype=torch.uint8,
                        device=config.device).view(1, 1,
                                                   config.max_sentence_length,
                                                   config.max_sentence_length)))
-
+        self.rope = RotaryEmbedding(self.rotary_dims, config.max_sentence_length)
         self.register_buffer('masked_bias', torch.tensor(float(-1e5)))
 
     def _split_heads(self, tensor: Optional[torch.Tensor]):
-        new_shape = tensor.size()[:-1] + (self.n_heads, self.num_div)
+        new_shape = tensor.size()[:-1] + (self.n_heads, self.head_size)
 
         tensor = tensor.view(new_shape)
         return tensor
 
     def _merge_heads(self, tensor: Optional[torch.Tensor]):
         tensor = tensor.permute(0, 2, 1, 3).contiguous()
-        new_shape = tensor.size()[:-2] + (self.n_heads * self.num_div,)
+        new_shape = tensor.size()[:-2] + (self.n_heads * self.head_size,)
         return tensor.view(new_shape)
 
     def _attn(self, query, key, value, attention_mask, head_mask):
@@ -107,8 +152,22 @@ class PGTAttention(nn.Module):
     def forward(self, hidden_state: Optional[torch.Tensor], attention_mask=None, head_mask=None):
         query, key, value = self.c_attn(hidden_state).split(self.hidden_size, dim=len(hidden_state.shape) - 1)
         query = self._split_heads(query).permute(0, 2, 1, 3)
-        key = self._split_heads(key).permute(0, 2, 3, 1)
+        key = self._split_heads(key).permute(0, 2, 1, 3)
         value = self._split_heads(value).permute(0, 2, 1, 3)
+
+        query_rot = query[..., : self.rotary_ndims]
+        query_pass = query[..., self.rotary_ndims:]
+        key_rot = key[..., : self.rotary_ndims]
+        key_pass = key[..., self.rotary_ndims:]
+
+        seq_len = key.shape[-2]
+        offset = 0
+
+        cos, sin = self.rotary_emb(value, seq_len=seq_len)
+        query, key = apply_rotary_pos_emb(query_rot, key_rot, cos, sin, offset=offset)
+        query = torch.cat((query, query_pass), dim=-1)
+        key = torch.cat((key, key_pass), dim=-1)
+
         attn_output = self.residual_norm(
             self._attn(query=query, key=key, value=value, attention_mask=attention_mask, head_mask=head_mask))
         attn_output = (self.c_proj(self._merge_heads(attn_output)))
@@ -121,7 +180,7 @@ class PGTFeedForward(nn.Module):
         self.c_op = nn.Linear(config.hidden_size, config.hidden_size * config.intermediate_size, bias=False)
         self.c_proj = nn.Linear(config.hidden_size * config.intermediate_size, config.hidden_size, bias=False)
         self.dropout = nn.Dropout(config.residual_dropout)
-        self.act = nn.functional.silu
+        self.act = nn.functional.silu if config.silu else nn.GELU()
 
     def forward(self, hidden_state):
         hidden_state = self.c_op(hidden_state)
@@ -136,17 +195,28 @@ class PGTBlock(nn.Module):
         super(PGTBlock, self).__init__()
 
         self.ln = PMSNorm(config)
+        self.post_ln = PMSNorm(config)
         self.h = PGTAttention(config=config, layer_idx=layer_idx_1)
         self.mlp = PGTFeedForward(config)
+        self.use_parallel_residual = config.use_parallel_residual
 
     def forward(self,
                 hidden_state: Optional[torch.FloatTensor],
                 attention_mask: Optional[torch.FloatTensor] = None,
                 heads_mask: Optional[torch.FloatTensor] = None):
-        residual_normed = self.ln(hidden_state)
-        attn = self.h(residual_normed, attention_mask=attention_mask, heads_mask=heads_mask) + residual_normed
-        hidden_state = self.mlp(attn)
-        return hidden_state
+
+        attn = self.h(self.ln(hidden_state), attention_mask=attention_mask, heads_mask=heads_mask)
+        if self.use_parallel_residual:
+            # pseudocode:
+            # x = x + attn(ln1(x)) + mlp(ln2(x))
+            out = hidden_state + attn + self.mlp(self.post_ln(hidden_state))
+        else:
+            # pseudocode:
+            # x = x + attn(ln1(x))
+            # x = x + mlp(ln2(x))
+            out = attn + self.mlp(self.post_ln(attn))
+
+        return out
 
 
 Eps2 = Tuple[float, float]

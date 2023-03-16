@@ -195,7 +195,7 @@ class PGT(nn.Module):
         super(PGT, self).__init__()
         self.config: PGTConfig = config
         self.wte = nn.Embedding(config.vocab_size, config.hidden_size)
-        self.wpe = nn.Embedding(config.max_sentence_length, config.hidden_size)
+
         self.ln = PMSNorm(config)
         self.transformer = nn.ModuleList(
             [PGTBlock(config, layer_idx_1=i) for i in range(config.n_layers)]
@@ -208,10 +208,8 @@ class PGT(nn.Module):
                 attention_mask: Optional[torch.Tensor] = None,
                 head_mask: Optional[torch.Tensor] = None,
                 labels: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
-        b, s = input_ids.shape
-        wte = self.wte(input_ids)
-        wpe = self.wpe(torch.arange(0, s, dtype=torch.long, device=input_ids.device))
-        hidden = self.ln(wte + wpe)
+
+        hidden = self.ln(self.wte(input_ids))
         if head_mask is None:
             head_mask = [None] * self.config.n_layers
         assert len(head_mask) == len(self.transformer)
