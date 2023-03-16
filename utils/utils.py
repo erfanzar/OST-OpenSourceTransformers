@@ -510,7 +510,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             vocab_size=vocab_size
         )
     elif name == 'PGT-LXX':
-        prp = torch.cuda.get_device_properties("cuda") if torch.has_cuda else None
+        prp = torch.cuda.get_device_properties("cuda") if torch.cuda.is_available() else None
         print(f'\033[1;32mWarning You Loading the Largest Model on {prp.name} : {prp.total_memory / 1e9} GB')
         return PGTConfig(
             n_layers=34,
