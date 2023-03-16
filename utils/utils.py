@@ -6,6 +6,7 @@ from typing import Union, Optional
 import psutil
 import torch
 import tqdm
+from datasets import load_dataset
 from erutils import fprint
 from torch import nn
 from torch.utils.data import Dataset
@@ -15,6 +16,7 @@ from transformers import BertTokenizer, GPT2Tokenizer
 from modules.cross_modules import LLmPConfig
 from modules.modeling_LLMoU import LLMoUConfig
 from modules.modeling_LLmPU import LLmPUConfig
+from modules.modeling_PGT import PGTConfig
 from modules.modelling_LLAmA import LLamaConfig
 
 
@@ -337,72 +339,6 @@ class GPT2Dataset(Dataset, Tokens):
         return enc_trg
 
 
-class PGTConfig:
-    attribute_map = {
-        "hidden_size": "n_embd",
-        "max_position_embeddings": "n_positions",
-        "num_attention_heads": "n_head",
-        "num_hidden_layers": "n_layer",
-    }
-
-    def __init__(
-            self,
-            vocab_size=50257,
-            n_positions=1024,
-            n_embd=768,
-            n_layer=12,
-            n_head=12,
-            n_inner=None,
-            activation_function="gelu_new",
-            resid_pdrop=0.1,
-            embd_pdrop=0.1,
-            attn_pdrop=0.1,
-            layer_norm_epsilon=1e-5,
-            initializer_range=0.02,
-            summary_type="cls_index",
-            summary_use_proj=True,
-            summary_activation=None,
-            summary_proj_to_labels=True,
-            summary_first_dropout=0.1,
-            scale_attn_weights=True,
-            use_cache=True,
-            bos_token_id=50256,
-            eos_token_id=50256,
-            scale_attn_by_inverse_layer_idx=False,
-            reorder_and_upcast_attn=False,
-            **kwargs,
-    ):
-        self.vocab_size = vocab_size
-        self.n_positions = n_positions
-        self.n_embd = n_embd
-        self.n_layer = n_layer
-        self.n_head = n_head
-        self.n_inner = n_inner
-        self.activation_function = activation_function
-        self.resid_pdrop = resid_pdrop
-        self.embd_pdrop = embd_pdrop
-        self.attn_pdrop = attn_pdrop
-        self.layer_norm_epsilon = layer_norm_epsilon
-        self.initializer_range = initializer_range
-        self.summary_type = summary_type
-        self.summary_use_proj = summary_use_proj
-        self.summary_activation = summary_activation
-        self.summary_first_dropout = summary_first_dropout
-        self.summary_proj_to_labels = summary_proj_to_labels
-        self.scale_attn_weights = scale_attn_weights
-        self.use_cache = use_cache
-        self.scale_attn_by_inverse_layer_idx = scale_attn_by_inverse_layer_idx
-        self.reorder_and_upcast_attn = reorder_and_upcast_attn
-
-        self.bos_token_id = bos_token_id
-        self.eos_token_id = eos_token_id
-
-        self.bos_token_id = kwargs.pop("bos_token_id", None)
-        self.pad_token_id = kwargs.pop("pad_token_id", None)
-        self.eos_token_id = kwargs.pop("eos_token_id", None)
-        self.sep_token_id = kwargs.pop("sep_token_id", None)
-
-
 class HyperParameters(object):
     def __init__(self, **kwargs):
         self.model_type: typing.Optional[str] = kwargs.pop('model_type', 'PGT-s')
@@ -485,7 +421,7 @@ def make2d(tensor) -> typing.Optional[torch.Tensor]:
 
 def get_config_by_name(name: str, vocab_size: int = 5000,
                        device: str = 'cuda' if torch.cuda.is_available() else 'cpu') -> typing.Union[
-    HyperParameters, LLamaConfig, LLmPConfig, LLmPUConfig, LLMoUConfig]:
+    HyperParameters, LLamaConfig, LLmPConfig, LLmPUConfig, LLMoUConfig, PGTConfig]:
     """
     :param device: device for model
     :param vocab_size: vocab_size
@@ -513,139 +449,50 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
         self.device: str = kwargs.pop('device', 'cuda' if torch.cuda.is_available() else 'cpu')
         self.weight_decay: float = kwargs.pop('weight_decay', 2e-1, )
     """
-    models_name = ['PGT-Cs', 'PGT-As', 'PGT-s', 'PGT-m', 'PGT-x', 'PGT-l', 'PGT-A', 'PGT-J-small', 'PGT-J-medium',
-                   'PGT-J-large', 'PGT-J-X', 'LLama', 'LLmP', 'LLmP-small', 'LLmPU-small']
-    if name == 'PGT-Cs':
-        return HyperParameters(
-            model_type=name,
-            num_embedding=360,
-            num_heads=10,
-            epochs=1000,
-            num_layers=8,
-            device=device,
-            vocab_size=vocab_size,
-            chunk=184,
-            lr=3e-4,
-            use_mask=True
-        )
-    if name == 'PGT-As':
-        return HyperParameters(
-            model_type=name,
-            num_embedding=720,
-            num_heads=12,
-            epochs=1000,
-            num_layers=12,
-            device=device,
-            vocab_size=vocab_size,
-            chunk=256,
-            lr=3e-4,
-            use_mask=True
-        )
-    elif name == 'PGT-s':
-        return HyperParameters(
-            model_type=name,
-            num_embedding=256,
-            num_heads=8,
-            num_layers=4,
-            device=device,
-            vocab_size=vocab_size,
-            chunk=64,
-            use_mask=True
-        )
-    elif name == 'PGT-m':
-        return HyperParameters(
-            model_type=name,
-            num_embedding=512,
-            num_heads=8,
-            num_layers=8,
-            device=device,
-            vocab_size=vocab_size,
-            chunk=184,
-            use_mask=True
-        )
-    elif name == 'PGT-x':
-        return HyperParameters(
-            model_type=name,
-            num_embedding=512,
-            num_heads=16,
-            num_layers=14,
-            device=device,
-            vocab_size=vocab_size,
-            chunk=256,
-            use_mask=True
-        )
-    elif name == 'PGT-l':
+    models_name = ['PGT', 'LLmP', 'LLmPU', 'LLMoP', 'LLama']
 
-        return HyperParameters(
-            model_type=name,
-            num_embedding=728,
-            num_heads=14,
-            num_layers=20,
-            epochs=1000,
-            device=device,
-            vocab_size=vocab_size,
-            chunk=184,
-            lr=3e-4,
-            use_mask=True
+    if name == 'PGT-S':
+        return PGTConfig(
+            n_layers=10,
+            n_heads=12,
+            epochs=500,
+            hidden_size=768,
+            max_sentence_length=256
         )
-    elif name == 'PGT-A':
+    elif name == 'PGT-M':
+        return PGTConfig(
+            n_layers=12,
+            n_heads=8,
+            epochs=500,
+            hidden_size=1024,
+            max_sentence_length=512
+        )
+    elif name == 'PGT-X':
+        return PGTConfig(
+            n_layers=12,
+            n_heads=12,
+            epochs=500,
+            hidden_size=1536,
+            max_sentence_length=512
+        )
+    elif name == 'PGT-LX':
+
+        return PGTConfig(
+            n_layers=24,
+            n_heads=16,
+            epochs=500,
+            hidden_size=1792,
+            max_sentence_length=768
+        )
+    elif name == 'PGT-LXX':
         prp = torch.cuda.get_device_properties("cuda")
         print(f'\033[1;32mWarning You Loading the Largest Model on {prp.name} : {prp.total_memory / 1e9} GB')
-        return HyperParameters(
-            model_type=name,
-            num_embedding=1024,
-            num_heads=32,
-            num_layers=48,
-            epochs=1000,
-            device=device,
-            vocab_size=vocab_size,
-            chunk=184,
-            lr=3e-4,
-            use_mask=True
-        )
-    elif name == 'PGT-J-S':
-        return HyperParameters(
-            model_type=name,
-            num_embedding=512,
-            num_heads=16,
-            num_layers=10,
-            device=device,
-            vocab_size=vocab_size,
-            chunk=256,
-            use_mask=True
-        )
-    elif name == 'PGT-J-M':
-        return HyperParameters(
-            model_type=name,
-            num_embedding=512,
-            num_heads=16,
-            num_layers=18,
-            device=device,
-            vocab_size=vocab_size,
-            chunk=256,
-            use_mask=True
-        )
-    elif name == 'PGT-J-L':
-        return HyperParameters(
-            model_type=name,
-            num_embedding=984,
-            num_heads=24,
-            num_layers=16,
-            device=device,
-            vocab_size=vocab_size,
-            chunk=256,
-            use_mask=True
-        )
-    elif name == 'PGT-J-X':
-        return HyperParameters(
-            model_type=name,
-            num_embedding=1712,
-            num_heads=107,
-            num_layers=38,
-            device=device,
-            vocab_size=vocab_size,
-            chunk=256,
-            use_mask=True
+        return PGTConfig(
+            n_layers=34,
+            n_heads=16,
+            epochs=500,
+            hidden_size=2048,
+            max_sentence_length=2000
         )
     elif name == 'LLama':
         return LLamaConfig(
@@ -681,7 +528,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_heads=16,
             epochs=500,
             hidden_size=1024,
-            max_sentence_length=256
+
         )
     elif name == 'LLmP-X':
         return LLmPConfig(
@@ -690,7 +537,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_heads=8,
             epochs=500,
             hidden_size=1280,
-            max_sentence_length=256
+
         )
     elif name == 'LLmP-L':
         return LLmPConfig(
@@ -699,7 +546,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_heads=8,
             epochs=500,
             hidden_size=1536,
-            max_sentence_length=1024
+
         )
     elif name == 'LLmP-LX':
         return LLmPConfig(
@@ -707,7 +554,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_layers=18,
             n_heads=16,
             hidden_size=2048,
-            max_sentence_length=1024
+
         )
     elif name == 'LLMoU-S':
         return LLMoUConfig(
@@ -955,3 +802,21 @@ def _init_weights(module: nn.Module):
         if module.padding_idx is not None:
             module.weight.data[module.padding_idx].zero_()
 
+
+def get_data(data_src):
+    if data_src.endswith('.txt'):
+        data = open(data_src, 'r', encoding='utf8').read().split()
+    elif data_src.endswith('.json'):
+        data = data_src
+    elif data_src.startswith('HF-'):
+        name = data_src.replace('HF-', '')
+        if '//' in name:
+            model_name = name.split('//')
+            data = load_dataset(model_name[0], model_name[1])
+        else:
+            data = load_dataset(name)
+
+    else:
+        data = None
+        raise ValueError()
+    return data

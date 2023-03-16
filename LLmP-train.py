@@ -7,7 +7,6 @@ from typing import Optional, Union, Tuple
 
 import erutils
 import torch.utils.data
-from datasets import load_dataset
 from erutils.loggers import fprint
 from torch import Tensor
 from torch.utils.tensorboard import SummaryWriter
@@ -18,7 +17,7 @@ from config.config import TQDM_KWARGS
 from modules.dataset import DatasetLLmPChat
 from modules.models import LLmP, LLmPConfig
 from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info, get_memory, count_model_parameters, \
-    create_output_path
+    create_output_path, get_data
 
 torch.manual_seed(42)
 torch.backends.cudnn.benchmark = True
@@ -83,21 +82,7 @@ def main(opt):
         else:
             raise ValueError('weight must contain path to .pt file')
     device_info()
-    if opt.data_src.endswith('.txt'):
-        data = open(opt.data_src, 'r', encoding='utf8').read().split()
-    elif opt.data_src.endswith('.json'):
-        data = opt.data_src
-    elif opt.data_src.startswith('HF-'):
-        name = opt.data_src.replace('HF-', '')
-        if '//' in name:
-            model_name = name.split('//')
-            data = load_dataset(model_name[0], model_name[1])
-        else:
-            data = load_dataset(name)
-
-    else:
-        data = None
-        raise ValueError()
+    data = get_data(opt.data_src)
     parameters: LLmPConfig = get_config_by_name(opt.model)
     tokenizer: GPT2Tokenizer = AutoTokenizer.from_pretrained('tokenizer_model/LLmP-C')
 

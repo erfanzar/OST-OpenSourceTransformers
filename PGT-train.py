@@ -5,11 +5,10 @@ from typing import Optional, Union
 
 import erutils
 import torch.utils.data
-from datasets import load_dataset
 from erutils.loggers import fprint
 from tqdm.auto import tqdm
 
-from modules.models import PGT
+from modules.models import PGT, Adafactor, PGTConfig
 from utils.utils import DatasetPGTC, make2d, save_checkpoints, get_config_by_name, device_info, get_memory
 
 Tensor = torch.Tensor
@@ -17,119 +16,163 @@ torch.backends.cudnn.benchmark = True
 
 pars = argparse.ArgumentParser()
 
-pars.add_argument('--batch', '--batch', type=int, default=2)
+pars.add_argument('--batch', '--batch', type=int, default=1)
 pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
 pars.add_argument('--weight', '--weight', type=str, default=None)
+pars.add_argument('--out-path', '--out-path', type=str, default='out')
 pars.add_argument('--model', '--model', type=str, default='PGT-As')
 pars.add_argument('--data-src', '--data-src', type=str, default='HF-wikitext/wikitext-103-raw-v1')
 
 options = pars.parse_args()
 
 
+def inter_q(question: Optional[str], tokenizer: GPT2Tokenizer) \
+        -> Tuple[torch.Tensor, torch.Tensor]:
+    out = tokenizer.encode_plus(question, return_tensors='pt')
+    return out['input_ids'], out['attention_mask']
+
+
+def train(input_ids: Optional[Tensor],
+          targets: Optional[Tensor],
+          attention_mask: Optional[Tensor],
+          network: Optional[LLmP.forward],
+          optim: Optional[Adafactor],
+          loss_average: Optional[Tensor],
+          device: Union[torch.device, str]) -> [typing.Union[torch.Tensor],
+                                                typing.Union[torch.Tensor]]:
+    labels: Optional[Tensor] = make2d(targets.type(torch.long).to(device))
+    input_ids: Optional[Tensor] = make2d(input_ids.type(torch.long).to(device))
+    logger.debug('RUNNING TRAIN FUNCTION IN MAIN THREAD ')
+    _, loss = network(input_ids=input_ids, labels=labels, attention_mask=attention_mask)
+
+    loss_average += loss.item()
+    optim.zero_grad(set_to_none=True)
+    loss.backward()
+    optim.step()
+    return loss, loss_average
+
+
 def main(opt):
-    def train(input_ids: Optional[Tensor],
-              targets: Optional[Tensor],
-              attention_mask: Optional[Tensor],
-              network: Optional[PGT],
-              optim: Optional[torch.optim.AdamW],
-              loss_function: Optional[torch.nn.CrossEntropyLoss],
-              loss_average: Optional[Tensor],
-              device: Union[torch.device, str]) -> [typing.Union[torch.Tensor],
-                                                    typing.Union[torch.Tensor]]:
-        targets: Optional[Tensor] = make2d(targets.type(torch.long).to(device))
-        input_ids: Optional[Tensor] = make2d(input_ids.type(torch.long).to(device))
-        attention_mask: Optional[Tensor] = make2d(attention_mask.to(device))
-        predict = network(inputs=input_ids,
-                          attention_mask=attention_mask)
-        optim.zero_grad(set_to_none=True)
-
-        shift_logits = predict[..., :-1, :].contiguous()
-        shift_labels = targets[..., 1:].contiguous()
-
-        loss_prediction = loss_function(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
-
-        loss_average += loss_prediction.item()
-        loss_prediction.backward()
-        optim.step()
-        return loss_prediction, loss_average
-
-    device_info()
-    if not opt.data_src.startswith('HF-'):
-        data = open(opt.data_src, 'r', encoding='utf8').read().split('<|endoftext|>')
+    task = 'Conversation :'
+    if opt.weight is None:
+        out_path = create_output_path(path=opt.out_path, name=opt.model)
+        if not os.path.exists(os.path.join(out_path, 'weights')):
+            os.mkdir(os.path.join(out_path, 'weights'))
     else:
-        name = opt.data_src.replace('HF-', '')
-        if '/' in name:
-            model_name = name.split('/')
-            data = load_dataset(model_name[0], model_name[1])
+        if opt.weight.endswith('.pt'):
+            out_path = opt.weight.split('/')
+            if 'weights' in out_path:
+                out_path = os.path.join(*(p for p in out_path[:-2]))
+            else:
+                out_path = os.path.join(*(p for p in out_path[:-1]))
         else:
-            data = load_dataset(name)
-        data = data["train"]['text']
-        selected = int(len(data) * 0.1)
-        data = data[:selected]
-    parameters = get_config_by_name(opt.model)
-    dataset = DatasetPGTC(data=data, chunk=parameters.chunk)
-    parameters.vocab_size = dataset.vocab_size
-    parameters.vocab_size += 2
-    # parameters.device = 'cpu'
-    parameters.data_path = opt.data_src
+            raise ValueError('weight must contain path to .pt file')
+    device_info()
+    data = get_data(opt.data_src)
+    config: PGTConfig = get_config_by_name(opt.model)
+    dataset = DatasetPGTC(data=data, chunk=config.chunk)
+    config.vocab_size = dataset.vocab_size
+    config.vocab_size += 2
+    # config.device = 'cpu'
+    config.data_path = opt.data_src
 
-    parameters.batch_size = opt.batch
-    dataloader = torch.utils.data.DataLoader(dataset=dataset, batch_size=parameters.batch_size, num_workers=4,
+    config.batch_size = opt.batch
+    dataloader = torch.utils.data.DataLoader(dataset=dataset, batch_size=config.batch_size, num_workers=4,
                                              pin_memory=True)
-    erutils.loggers.show_hyper_parameters(parameters)
+    erutils.loggers.show_hyper_parameters(config)
 
     fprint('Loading Model ...' if opt.load else 'Creating Model ...')
 
-    model = PGT(config=parameters).to(parameters.device) if opt.load else PGT(config=parameters).to('cpu')
-    optimizer = model.configure_optimizer(parameters)
+    model = PGT(config=config).to(config.device) if opt.load else PGT(config=config).to('cpu')
+    optimizer = Adafactor(model.parameters(), config.lr)
     model_parameters_size: typing.Optional[float] = sum(p.numel() for p in model.parameters()) / 1e6
 
     checkpoints = torch.load('model.pt', 'cpu') if opt.load else None
 
     if checkpoints is not None:
         model.load_state_dict(checkpoints['model'])
-        model = model.to(parameters.device)
+        model = model.to(config.device)
         optimizer.load_state_dict(checkpoints['optimizer'])
     fprint(
         f'Model Loaded With {model_parameters_size} Million Parameters' if opt.load
         else f'Model Created With {model_parameters_size} Million Parameters')
-    criterion = torch.nn.CrossEntropyLoss()
 
     if opt.compile:
         model = torch.compile(model)
         fprint(f"Model Compiled Successfully")
-
-    question = dataset.encode('USER: hello how are you ?').to(parameters.device)
-    question = question['input_ids'].to(parameters.device)
-    model = model.to(device=parameters.device)
     if opt.train:
-
-        for epoch in range(checkpoints['epoch'] if opt.load else 0, parameters.epochs):
+        board = SummaryWriter(log_dir=f'{out_path}/tensorboard', filename_suffix=f'{opt.model}')
+    question = dataset.encode('USER: hello how are you ?').to(config.device)
+    question = question['input_ids'].to(config.device)
+    model = model.to(device=config.device)
+    if opt.train:
+        logger.info('TRAIN IS ABOUT TO START')
+        for epoch in range(start_epoch, parameters.epochs):
             loss_avg = 0
-            with tqdm(enumerate(dataloader), colour='white',
+            with tqdm(enumerate(dataloader), **TQDM_KWARGS,
                       total=math.ceil(dataset.__len__() // parameters.batch_size)) as progress_bar:
-                for i, (input_ids_t, attention_mask_t) in progress_bar:
-                    loss, loss_avg = train(input_ids=input_ids_t, targets=input_ids_t, network=model, optim=optimizer,
-                                           attention_mask=attention_mask_t,
-                                           loss_average=loss_avg, loss_function=criterion, device=parameters.device)
+                for i, (input_ids_t, attention_mask) in progress_bar:
+                    logger.debug(f'\033[1;94m input_ids_t    : {input_ids_t.shape}')
+                    logger.debug(f'\033[1;94m attention_mask : {attention_mask.shape}')
+
+                    loss, loss_avg = train(input_ids=input_ids_t, targets=input_ids_t, network=model,
+                                           optim=optimizer,
+                                           loss_average=loss_avg, device=parameters.device,
+                                           attention_mask=attention_mask)
+
                     free_gpu, used_gpu, total_gpu = get_memory(0)
+                    if ((i + 1) % 50) == 0:
+                        tk, _ = inter_q(question, tokenizer=dataset.tokenizer)
+                        tk = tk.to(parameters.device)
+                        cals = []
+                        try:
+                            for pred in model.generate(tokens=tk, pad_id=dataset.tokenizer.pad_token_id,
+                                                       attention_mask=None,
+                                                       eos_id=dataset.tokenizer.eos_token_id):
+                                cals.append(pred)
+                            cals = torch.cat(cals, dim=-1)
+                            cals = cals.to('cpu')
+                            awn = dataset.tokenizer.decode(cals[0])
+                        except:
+                            awn = 'EMPTY'
+                        del cals
+
+                        board.add_scalar('train/Loss', scalar_value=loss.item(), global_step=at)
+                        board.add_scalar('train/avg-Loss', scalar_value=(loss_avg / (i + 1)),
+                                         global_step=at)
+                        board.add_text('train/Context', f'{question}', global_step=at)
+                        board.add_text('train/GeneratedResponse', f'{awn}', global_step=at)
+                    at += 1
                     progress_bar.set_postfix(epoch=f'[{epoch}/{parameters.epochs}]', device=parameters.device,
                                              loss_avg=(loss_avg / (i + 1)),
                                              loss=loss.item(), free_GPU=free_gpu, used_GPU=used_gpu)
 
                 print()
                 save_checkpoints(model=model.state_dict(), optimizer=optimizer.state_dict(),
-                                 epochs=parameters.epochs,at=at,
+                                 epochs=parameters.epochs, at=at,
                                  epoch=epoch + 1, config=opt.model,
-                                 name='model.pt')
+                                 name=f'{out_path}/weights/{opt.model}-model.pt')
                 progress_bar.write('==> MODEL SAVED SUCCESSFULLY')
-                predictions = model.generate(idx=question, eos=dataset.tokenizer.eos_token_id,
-                                             generate=256
 
-                                             )
-                progress_bar.write(f'QUESTION : {dataset.decode(question)}')
-                progress_bar.write(f'PREDICTION : {dataset.decode(predictions)}')
+    else:
+        with tqdm(range(1), **TQDM_KWARGS,
+                  total=1) as progress_bar:
+            for i in progress_bar:
+                (input_ids_t, attention_mask) = dataset.__getitem__(i)
+                logger.debug(f'\033[1;94m input_ids_t    : {input_ids_t.shape}')
+                logger.debug(f'\033[1;94m attention_mask : {attention_mask.shape}')
+
+                loss, loss_avg = train(input_ids=input_ids_t, targets=input_ids_t, network=model,
+                                       optim=optimizer,
+                                       loss_average=torch.tensor(0.0).float(), device=parameters.device,
+                                       attention_mask=attention_mask)
+
+                free_gpu, used_gpu, total_gpu = get_memory(0)
+
+                progress_bar.set_postfix(device=parameters.device,
+                                         loss_avg=(loss_avg / (i + 1)),
+                                         loss=loss.item(), free_GPU=free_gpu, used_GPU=used_gpu)
 
 
 if __name__ == "__main__":

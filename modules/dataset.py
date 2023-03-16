@@ -252,3 +252,58 @@ class DatasetLLMoU(Dataset, Tokens):
             truncation=True
         )
         return enc_trg
+
+
+class DatasetPGTChat(Dataset, Tokens):
+    def __init__(self, data: Union[os.PathLike, str], task: str,
+                 tokenizer: Optional[transformers.GPT2Tokenizer], max_length: Optional[int] = 128):
+        self.tokenizer = tokenizer
+        self.agent = '<PGT> :'
+        tokenizer.add_special_tokens(
+            {'pad_token': self.pad, 'eos_token': self.eos, 'bos_token': self.sos}
+        )
+        if not os.path.exists('tokenizer_model/PGT-C'):
+            os.mkdir('tokenizer_model/PGT-C')
+        tokenizer.add_tokens(self.agent)
+        tokenizer.save_pretrained('tokenizer_model/PGT-C')
+        self.attention_mask = []
+
+        self.input_ids = []
+        self.max_length = max_length
+        data = json.load(open(data, 'r'))
+        conv = []
+        for S in data:
+            for c in S['dialog']:
+                conv.append(c['text'])
+        tqdm_pr = tqdm(iterable=range(len(conv)))
+        tqdm_pr.set_description('Cleaning Data ')
+        preprocessed_data = []
+        for c in tqdm_pr:
+            try:
+                preprocessed_data.append(task + '\n' + conv[c] + self.agent + conv[c + 1] + self.eos)
+            except IndexError:
+                pass
+        tqdm_pr = tqdm(iterable=preprocessed_data)
+        for string in tqdm_pr:
+            encodings_dict = tokenizer.encode_plus(string, max_length=max_length, truncation=True, return_tensors='pt',
+                                                   padding="max_length")
+            self.attention_mask.append(encodings_dict['attention_mask'])
+            self.input_ids.append(encodings_dict['input_ids'])
+
+    def __len__(self):
+        return len(self.input_ids)
+
+    def __getitem__(self, idx):
+        return self.input_ids[idx], self.attention_mask[idx]
+
+    def encode(self, text):
+        enc_trg = self.tokenizer.encode_plus(
+            text=text,
+            max_length=self.max_length,
+            padding='do_not_pad',
+            add_special_tokens=True,
+            return_attention_mask=True,
+            return_tensors='pt',
+            truncation=True
+        )
+        return enc_trg
