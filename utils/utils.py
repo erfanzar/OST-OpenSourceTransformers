@@ -483,8 +483,8 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
         )
     elif name == 'PGT-M':
         return PGTConfig(
-            n_layers=14,
-            n_heads=8,
+            n_layers=18,
+            n_heads=12,
             epochs=500,
             hidden_size=1024,
             max_sentence_length=512,
@@ -492,8 +492,8 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
         )
     elif name == 'PGT-X':
         return PGTConfig(
-            n_layers=18,
-            n_heads=12,
+            n_layers=28,
+            n_heads=16,
             epochs=500,
             hidden_size=1536,
             max_sentence_length=512,
@@ -502,10 +502,10 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
     elif name == 'PGT-LX':
 
         return PGTConfig(
-            n_layers=24,
-            n_heads=16,
+            n_layers=34,
+            n_heads=32,
             epochs=500,
-            hidden_size=1792,
+            hidden_size=2048,
             max_sentence_length=768,
             vocab_size=vocab_size
         )
@@ -513,10 +513,10 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
         prp = torch.cuda.get_device_properties("cuda") if torch.cuda.is_available() else None
         print(f'\033[1;32mWarning You Loading the Largest Model on {prp.name} : {prp.total_memory / 1e9} GB')
         return PGTConfig(
-            n_layers=34,
-            n_heads=16,
+            n_layers=64,
+            n_heads=32,
             epochs=500,
-            hidden_size=2048,
+            hidden_size=4096,
             max_sentence_length=2000,
             vocab_size=vocab_size
         )
@@ -524,9 +524,9 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
         return LLamaConfig(
             vocab_size=vocab_size,
             max_batch_size=3,
-            n_layers=8,
-            n_heads=8,
-            hidden_size=768,
+            n_layers=18,
+            n_heads=12,
+            hidden_size=4096,
             max_sentence_length=256
         )
     elif name == 'LLmP-S':
@@ -535,16 +535,16 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_layers=10,
             n_heads=8,
             epochs=500,
-            hidden_size=512,
+            hidden_size=768,
 
         )
     elif name == 'LLmP-ML':
         return LLmPConfig(
             vocab_size=vocab_size,
-            n_layers=14,
+            n_layers=18,
             n_heads=16,
             epochs=500,
-            hidden_size=768,
+            hidden_size=1024,
 
         )
     elif name == 'LLmP':
@@ -553,7 +553,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_layers=24,
             n_heads=16,
             epochs=500,
-            hidden_size=1024,
+            hidden_size=1536,
 
         )
     elif name == 'LLmP-X':
@@ -562,7 +562,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_layers=36,
             n_heads=16,
             epochs=500,
-            hidden_size=1280,
+            hidden_size=1792,
 
         )
     elif name == 'LLmP-L':
@@ -571,15 +571,15 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_layers=32,
             n_heads=32,
             epochs=500,
-            hidden_size=1536,
+            hidden_size=2048,
 
         )
     elif name == 'LLmP-LX':
         return LLmPConfig(
             vocab_size=vocab_size,
-            n_layers=32,
-            n_heads=16,
-            hidden_size=2048,
+            n_layers=48,
+            n_heads=32,
+            hidden_size=4096,
 
         )
     elif name == 'LLMoU-S':
@@ -594,46 +594,46 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
     elif name == 'LLMoU-ML':
         return LLMoUConfig(
             vocab_size=vocab_size,
-            n_layers=14,
+            n_layers=18,
             n_heads=16,
             epochs=500,
-            hidden_size=768,
+            hidden_size=1024,
 
         )
     elif name == 'LLMoU':
         return LLMoUConfig(
             vocab_size=vocab_size,
-            n_layers=16,
+            n_layers=26,
             n_heads=16,
             epochs=500,
-            hidden_size=1024,
+            hidden_size=1536,
             max_sentence_length=256
         )
     elif name == 'LLMoU-X':
         return LLMoUConfig(
             vocab_size=vocab_size,
-            n_layers=24,
-            n_heads=8,
+            n_layers=34,
+            n_heads=32,
             epochs=500,
-            hidden_size=1280,
+            hidden_size=2048,
             max_sentence_length=256
         )
     elif name == 'LLMoU-L':
         return LLMoUConfig(
             vocab_size=vocab_size,
-            n_layers=32,
-            n_heads=16,
+            n_layers=48,
+            n_heads=32,
             epochs=500,
-            hidden_size=1536,
+            hidden_size=2048,
             max_sentence_length=1024
         )
     elif name == 'LLMoU-LX':
         return LLMoUConfig(
             vocab_size=vocab_size,
-            n_layers=34,
-            n_heads=16,
+            n_layers=52,
+            n_heads=32,
             hidden_size=2048,
-            max_sentence_length=1024
+            max_sentence_length=2048
         )
     elif name == 'LLmPU-base':
         L = {"d_ff": 128 * 20,
