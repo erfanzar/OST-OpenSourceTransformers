@@ -10,11 +10,12 @@ from erutils.lightning import build_alibi_tensor
 from .commons import MultiHeadBlock, CasualBlock, Decoder, Encoder
 from .cross_modules import LLmPConfig
 from .modeling_LLmP import LLmPBlock, PMSNorm
-from .modeling_PGT import PGTConfig, PGTBlock,Adafactor
+from .modeling_PGT import PGTConfig, PGTBlock, Adafactor
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['PTTDecoder', 'PTT', 'PTTGenerative', 'PGT', 'PGT_J', 'LLmP', 'LLmPBlock', 'LLmPConfig']
+__all__ = ['PTTDecoder', 'PTT', 'PTTGenerative', 'PGT', 'PGT_J', 'LLmP', 'LLmPBlock', 'LLmPConfig', 'Adafactor',
+           'PGTConfig']
 
 
 class PTTDecoder(nn.Module):
@@ -194,7 +195,7 @@ class PGT(nn.Module):
         super(PGT, self).__init__()
         self.config: PGTConfig = config
         self.wte = nn.Embedding(config.vocab_size, config.hidden_size)
-        self.wpe = nn.Embedding(config.vocab_size, config.max_sentence_length)
+        self.wpe = nn.Embedding(config.max_sentence_length, config.hidden_size)
         self.ln = PMSNorm(config)
         self.transformer = nn.ModuleList(
             [PGTBlock(config, layer_idx_1=i) for i in range(config.n_layers)]

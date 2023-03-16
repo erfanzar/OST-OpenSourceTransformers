@@ -19,9 +19,12 @@ class PGTConfig:
     n_heads: Optional[int] = 8
     n_layers: Optional[int] = 12
     epochs: Optional[int] = 100
+    scale_attn_by_layer_idx: Optional[bool] = True
     vocab_size: Optional[int] = -1
     max_sentence_length: Optional[int] = 512
     hidden_dropout: Optional[float] = 0.1
+    intermediate_size: Optional[int] = 4
+    residual_dropout: Optional[float] = 0.1
     training: Optional[bool] = True
     attention_dropout: Optional[float] = 0.1
     weight_decay: Optional[float] = 2e-1
@@ -49,22 +52,22 @@ class PGTAttention(nn.Module):
     def __init__(self, config: PGTConfig, layer_idx=None):
         super(PGTAttention, self).__init__()
         self.layer_idx = layer_idx
-        self.embedding = config.num_embedding
+        self.hidden_size = config.hidden_size
         self.n_heads = config.n_heads
-        self.num_div = self.embedding // self.n_heads
+        self.num_div = self.hidden_size // self.n_heads
         self.scale_attn_by_layer_idx = config.scale_attn_by_layer_idx
-        assert self.embedding % self.n_heads != 0
-        self.c_attn = nn.Linear(self.embedding, self.embedding * 3, bias=False)
-        self.c_proj = nn.Linear(self.embedding, self.embedding, bias=False)
+        assert self.hidden_size // self.n_heads != 0
+        self.c_attn = nn.Linear(self.hidden_size, self.hidden_size * 3, bias=False)
+        self.c_proj = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
         self.residual_norm = PMSNorm(config)
-        self.attn_dropout = nn.Dropout(config.attn_dropout)
+        self.attn_dropout = nn.Dropout(config.attention_dropout)
         self.register_buffer('bias', torch.tril(
             torch.ones(config.max_sentence_length, config.max_sentence_length, dtype=torch.uint8,
                        device=config.device).view(1, 1,
                                                   config.max_sentence_length,
                                                   config.max_sentence_length)))
-        lowest = torch.finfo(torch.float32).min
-        self.register_buffer('masked_bias', lowest)
+
+        self.register_buffer('masked_bias', torch.tensor(float(-1e5)))
 
     def _split_heads(self, tensor: Optional[torch.Tensor]):
         new_shape = tensor.size()[:-1] + (self.n_heads, self.num_div)
@@ -102,7 +105,7 @@ class PGTAttention(nn.Module):
         return attn_weight
 
     def forward(self, hidden_state: Optional[torch.Tensor], attention_mask=None, head_mask=None):
-        query, key, value = self.c_attn(hidden_state).split(self.embedding, dim=len(hidden_state.shape) - 1)
+        query, key, value = self.c_attn(hidden_state).split(self.hidden_size, dim=len(hidden_state.shape) - 1)
         query = self._split_heads(query).permute(0, 2, 1, 3)
         key = self._split_heads(key).permute(0, 2, 3, 1)
         value = self._split_heads(value).permute(0, 2, 1, 3)
@@ -115,8 +118,8 @@ class PGTAttention(nn.Module):
 class PGTFeedForward(nn.Module):
     def __init__(self, config: PGTConfig):
         super(PGTFeedForward, self).__init__()
-        self.c_op = nn.Linear(config.num_embedding, config.num_embedding * config.intermediate_size, bias=False)
-        self.c_proj = nn.Linear(config.num_embedding * config.intermediate_size, config.num_embedding, bias=False)
+        self.c_op = nn.Linear(config.hidden_size, config.hidden_size * config.intermediate_size, bias=False)
+        self.c_proj = nn.Linear(config.hidden_size * config.intermediate_size, config.hidden_size, bias=False)
         self.dropout = nn.Dropout(config.residual_dropout)
         self.act = nn.functional.silu
 
@@ -154,12 +157,12 @@ class Adafactor(Optimizer):
 
     def __init__(
             self,
-            params: Params,
-            lr: OptFloat = None,
+            params,
+            lr=None,
             eps2: Eps2 = (1e-30, 1e-3),
             clip_threshold: float = 1.0,
             decay_rate: float = -0.8,
-            beta1: OptFloat = None,
+            beta1=None,
             weight_decay: float = 0.0,
             scale_parameter: bool = True,
             relative_step: bool = True,
@@ -185,7 +188,7 @@ class Adafactor(Optimizer):
         )
         super(Adafactor, self).__init__(params, defaults)
 
-    def _get_lr(self, param_group: ParamGroup, param_state: State) -> float:
+    def _get_lr(self, param_group: ParamGroup, param_state) -> float:
         rel_step_sz = param_group['lr']
         if param_group['relative_step']:
             min_step = (
@@ -223,7 +226,7 @@ class Adafactor(Optimizer):
         c_factor = exp_avg_sq_col.unsqueeze(-2).rsqrt()
         torch.mul(r_factor, c_factor, out=output)
 
-    def step(self, closure: OptLossClosure = None) -> OptFloat:
+    def step(self, closure=None):
         r"""Performs a single optimization step.
 
         Arguments:
