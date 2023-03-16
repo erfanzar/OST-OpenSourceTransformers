@@ -478,7 +478,8 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_heads=12,
             epochs=500,
             hidden_size=768,
-            max_sentence_length=256
+            max_sentence_length=256,
+            vocab_size=vocab_size
         )
     elif name == 'PGT-M':
         return PGTConfig(
@@ -486,7 +487,8 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_heads=8,
             epochs=500,
             hidden_size=1024,
-            max_sentence_length=512
+            max_sentence_length=512,
+            vocab_size=vocab_size
         )
     elif name == 'PGT-X':
         return PGTConfig(
@@ -494,7 +496,8 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_heads=12,
             epochs=500,
             hidden_size=1536,
-            max_sentence_length=512
+            max_sentence_length=512,
+            vocab_size=vocab_size
         )
     elif name == 'PGT-LX':
 
@@ -503,7 +506,8 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_heads=16,
             epochs=500,
             hidden_size=1792,
-            max_sentence_length=768
+            max_sentence_length=768,
+            vocab_size=vocab_size
         )
     elif name == 'PGT-LXX':
         prp = torch.cuda.get_device_properties("cuda")
@@ -513,7 +517,8 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_heads=16,
             epochs=500,
             hidden_size=2048,
-            max_sentence_length=2000
+            max_sentence_length=2000,
+            vocab_size=vocab_size
         )
     elif name == 'LLama':
         return LLamaConfig(
