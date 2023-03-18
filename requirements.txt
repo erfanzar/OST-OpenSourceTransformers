@@ -3,8 +3,8 @@ jaxlib
 einops
 equinox
 optax
-torch~=1.13.1
-erutils~=1.1.2
+torch~=2.0.0
+erutils~=1.1.3
 transformers~=4.27.1
 beautifulsoup4~=4.11.1
 psutil~=5.9.4
