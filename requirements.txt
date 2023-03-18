@@ -1,5 +1,16 @@
-jax
+jax~=0.4.1
 jaxlib
 einops
 equinox
 optax
+torch~=1.13.1
+erutils~=1.1.2
+transformers~=4.27.1
+beautifulsoup4~=4.11.1
+psutil~=5.9.4
+tqdm~=4.64.1
+datasets~=2.9.0
+dataset~=1.6.0
+packaging~=22.0
+numpy~=1.23.5
+pandas~=1.5.2

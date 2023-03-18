@@ -13,7 +13,7 @@ from tqdm.auto import tqdm
 from transformers import GPT2Tokenizer
 
 from modules.dataset import DatasetLLama
-from modules.modeling_LLAmA import LLamaModel, LLamaConfig, Tokens
+from modules import LLamaModel, LLamaConfig, Tokens
 from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info, get_memory, _init_weights
 
 torch.backends.cudnn.benchmark = True
