@@ -213,7 +213,7 @@ def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] 
     return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
 
 
-class LLMoFCDecoderLayer(nn.Module):
+class LLMoFCBlock(nn.Module):
     def __init__(self, config: LLMoFCConfig):
         super().__init__()
         self.hidden_size = config.hidden_size
@@ -273,7 +273,7 @@ class LLMoFCModel(nn.Module):
         self.vocab_size = config.vocab_size
 
         self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)
-        self.layers = nn.ModuleList([LLMoFCDecoderLayer(config) for _ in range(config.num_hidden_layers)])
+        self.layers = nn.ModuleList([LLMoFCBlock(config) for _ in range(config.num_hidden_layers)])
         self.norm = LLMoFCRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
         self.gradient_checkpointing = False
@@ -299,7 +299,7 @@ class LLMoFCModel(nn.Module):
 
     @staticmethod
     def _set_gradient_checkpointing(module, value=False):
-        if isinstance(module, (LLMoFCDecoderLayer)):
+        if isinstance(module, (LLMoFCBlock)):
             module.gradient_checkpointing = value
 
     def _prepare_decoder_attention_mask(self, attention_mask, input_shape, inputs_embeds, past_key_values_length):
