@@ -19,6 +19,17 @@ class Tokens:
     atn_end = '<|ETN|>'
 
 
+class LLMoFCTokens:
+    eos = '</s>'
+    pad = '<pad>'
+    sos = '</s>'
+
+
+class ManualDataSet:
+    def pre_processing(self, inp):
+        return NotImplemented
+
+
 class DatasetLLmPU(Dataset):
     def __init__(self, tokenizer, source_len, target_len, source_text, target_text):
         self.tokenizer = tokenizer
@@ -59,7 +70,7 @@ class DatasetLLmPU(Dataset):
 
 class DatasetLLama(Dataset, Tokens):
     def __init__(self, data: Optional[List[str]],
-                 tokenizer: Optional[transformers.GPT2Tokenizer], max_length: Optional[int] = 768):
+                 tokenizer: Optional[transformers.PreTrainedTokenizer], max_length: Optional[int] = 768):
         self.tokenizer = tokenizer
 
         self.input_ids = []
@@ -99,7 +110,7 @@ class DatasetLLama(Dataset, Tokens):
 
 class DatasetLLmP(Dataset, Tokens):
     def __init__(self, data: Union[dict[List], str], task: str,
-                 tokenizer: Optional[transformers.GPT2Tokenizer], max_length: Optional[int] = 256,
+                 tokenizer: Optional[transformers.PreTrainedTokenizer], max_length: Optional[int] = 256,
                  till: Optional[int] = 5000):
         self.tokenizer = tokenizer
 
@@ -126,6 +137,7 @@ class DatasetLLmP(Dataset, Tokens):
             self.input_ids.append(encodings_dict['input_ids'])
             if ia == till:
                 break
+
     def __len__(self):
         return len(self.input_ids)
 
@@ -147,7 +159,7 @@ class DatasetLLmP(Dataset, Tokens):
 
 class DatasetLLmPChat(Dataset, Tokens):
     def __init__(self, data: Union[os.PathLike, str], task: str,
-                 tokenizer: Optional[transformers.GPT2Tokenizer], max_length: Optional[int] = 128):
+                 tokenizer: Optional[transformers.PreTrainedTokenizer], max_length: Optional[int] = 128):
         self.tokenizer = tokenizer
         # tokenizer.add_special_tokens(
         #     {'pad_token': self.pad, 'eos_token': self.eos, 'bos_token': self.sos}
@@ -175,7 +187,6 @@ class DatasetLLmPChat(Dataset, Tokens):
                 pass
         tqdm_pr = tqdm(iterable=preprocessed_data)
         for string in tqdm_pr:
-
             encodings_dict = tokenizer.encode_plus(string, max_length=max_length, truncation=True, return_tensors='pt',
                                                    padding="max_length")
             self.attention_mask.append(encodings_dict['attention_mask'])
@@ -200,9 +211,54 @@ class DatasetLLmPChat(Dataset, Tokens):
         return enc_trg
 
 
+class DatasetLLMoFC(Dataset, LLMoFCTokens, ManualDataSet):
+    def __init__(self, data: List[dict],
+                 tokenizer: Optional[transformers.PreTrainedTokenizer], max_length: Optional[int] = 128):
+        self.tokenizer = tokenizer
+        self.attention_mask = []
+        self.input_ids = []
+        self.max_length = max_length
+        preprocessed_data = []
+        for dict_ in tqdm(data):
+            q = dict_['instruction']
+            a = dict_['output']
+            string = self.sos + q + self.sos + a + self.eos
+            preprocessed_data.append(string)
+        tqdm_pr = tqdm(iterable=preprocessed_data)
+        for string in tqdm_pr:
+            encodings_dict = tokenizer.encode_plus(string, max_length=max_length, truncation=True, return_tensors='pt',
+                                                   padding="max_length")
+            self.attention_mask.append(encodings_dict['attention_mask'])
+            self.input_ids.append(encodings_dict['input_ids'])
+
+    def __len__(self):
+        return len(self.input_ids)
+
+    def __getitem__(self, idx):
+        return self.input_ids[idx], self.attention_mask[idx]
+
+    def pre_processing(self, inp):
+
+        return self.tokenizer.encode_plus(self.sos + inp + self.sos, max_length=self.max_length, truncation=True,
+                                          return_tensors='pt',
+                                          padding="max_length")
+
+    def encode(self, text):
+        enc_trg = self.tokenizer.encode_plus(
+            text=text,
+            max_length=self.max_length,
+            padding='do_not_pad',
+            add_special_tokens=True,
+            return_attention_mask=True,
+            return_tensors='pt',
+            truncation=True
+        )
+        return enc_trg
+
+
 class DatasetLLMoU(Dataset, Tokens):
     def __init__(self, data: Union[dict[List], str],
-                 tokenizer: Optional[transformers.GPT2Tokenizer], max_length: Optional[int] = 256,
+                 tokenizer: Optional[transformers.PreTrainedTokenizer], max_length: Optional[int] = 256,
                  till: Optional[int] = 5000):
         self.tokenizer = tokenizer
 
@@ -235,6 +291,7 @@ class DatasetLLMoU(Dataset, Tokens):
             self.input_ids.append(encodings_dict['input_ids'])
             if ia == till:
                 break
+
     def __len__(self):
         return len(self.input_ids)
 
@@ -256,7 +313,7 @@ class DatasetLLMoU(Dataset, Tokens):
 
 class DatasetPGTChat(Dataset, Tokens):
     def __init__(self, data: Union[os.PathLike, str], task: str,
-                 tokenizer: Optional[transformers.GPT2Tokenizer], max_length: Optional[int] = 128):
+                 tokenizer: Optional[transformers.PreTrainedTokenizer], max_length: Optional[int] = 128):
         self.tokenizer = tokenizer
         self.agent = '<PGT> :'
         tokenizer.add_special_tokens(

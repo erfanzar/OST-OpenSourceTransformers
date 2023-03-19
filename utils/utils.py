@@ -1,3 +1,4 @@
+import json
 import os
 import time
 import typing
@@ -13,11 +14,7 @@ from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 from transformers import BertTokenizer, GPT2Tokenizer
 
-from modules.cross_modules import LLmPConfig
-from modules.modeling_LLMoU import LLMoUConfig
-from modules.modeling_LLmPU import LLmPUConfig
-from modules.modeling_PGT import PGTConfig
-from modules.modelling_LLAmA import LLamaConfig
+from modules import LLMoFCConfig, LLamaConfig, PGTConfig, LLmPConfig, LLMoUConfig, LLmPUConfig
 
 
 class Tokens:
@@ -421,7 +418,7 @@ def make2d(tensor) -> typing.Optional[torch.Tensor]:
 
 def get_config_by_name(name: str, vocab_size: int = 5000,
                        device: str = 'cuda' if torch.cuda.is_available() else 'cpu') -> typing.Union[
-    HyperParameters, LLamaConfig, LLmPConfig, LLmPUConfig, LLMoUConfig, PGTConfig]:
+    HyperParameters, LLamaConfig, LLmPConfig, LLmPUConfig, LLMoUConfig, PGTConfig, LLMoFCConfig]:
     """
     :param device: device for model
     :param vocab_size: vocab_size
@@ -836,7 +833,7 @@ def get_data(data_src):
     if data_src.endswith('.txt'):
         data = open(data_src, 'r', encoding='utf8').read().split()
     elif data_src.endswith('.json'):
-        data = data_src
+        data = json.load(open(data_src, 'r', encoding='utf8'))
     elif data_src.startswith('HF-'):
         name = data_src.replace('HF-', '')
         if '//' in name:

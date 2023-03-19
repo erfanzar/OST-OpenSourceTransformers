@@ -11,7 +11,7 @@ from erutils.loggers import fprint
 from torch import Tensor
 from torch.utils.tensorboard import SummaryWriter
 from tqdm.auto import tqdm
-from transformers import GPT2Tokenizer, AutoTokenizer
+from transformers import PreTrainedTokenizer, AutoTokenizer
 
 from config.config import TQDM_KWARGS
 from modules.dataset import DatasetLLmPChat
@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.CRITICAL)
 
 
-def inter_q(question: Optional[str], tokenizer: GPT2Tokenizer) \
+def inter_q(question: Optional[str], tokenizer: PreTrainedTokenizer) \
         -> Tuple[torch.Tensor, torch.Tensor]:
     out = tokenizer.encode_plus(question, return_tensors='pt')
     return out['input_ids'], out['attention_mask']
@@ -84,7 +84,7 @@ def main(opt):
     device_info()
     data = get_data(opt.data_src)
     parameters: LLmPConfig = get_config_by_name(opt.model)
-    tokenizer: GPT2Tokenizer = AutoTokenizer.from_pretrained('tokenizer_model/LLmP-C')
+    tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained('tokenizer_model/LLmP-C')
 
     dataset = DatasetLLmPChat(data=data, max_length=128, tokenizer=tokenizer, task=task)
     parameters.vocab_size = dataset.tokenizer.vocab_size

@@ -34,3 +34,10 @@ def html_data(url: str):
     text = '[SEP]'.join(chunk for chunk in chunks if chunk)
     print(text)
 
+
+def collect_product():
+    ...
+
+
+if __name__ == "__main__":
+    collect_product()

@@ -12,7 +12,7 @@ from erutils.loggers import show_hyper_parameters
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm.auto import tqdm
-from transformers import T5Tokenizer, AutoTokenizer
+from transformers import PreTrainedTokenizer, AutoTokenizer
 
 from config.config import TQDM_KWARGS
 from modules.dataset import DatasetLLmPU
@@ -82,7 +82,7 @@ def _main(opt):
     device_info()
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    tokenizer: T5Tokenizer = AutoTokenizer.from_pretrained('tokenizer_model/LLmPU')
+    tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained('tokenizer_model/LLmPU')
     data_frame = pd.read_csv('ipynb/news_summary.csv')
     data_frame["text"] = "summarize: " + data_frame["text"]
     data_frame = data_frame[0:500]

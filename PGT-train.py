@@ -10,7 +10,7 @@ import torch.utils.data
 from erutils.loggers import fprint
 from torch.utils.tensorboard import SummaryWriter
 from tqdm.auto import tqdm
-from transformers import AutoTokenizer, GPT2Tokenizer
+from transformers import AutoTokenizer, PreTrainedTokenizer
 
 from config.config import TQDM_KWARGS
 from modules.dataset import DatasetPGTChat
@@ -79,7 +79,7 @@ def main(opt):
     device_info()
     data = get_data(opt.data_src)
     config: PGTConfig = get_config_by_name(opt.model)
-    tokenizer: GPT2Tokenizer = AutoTokenizer.from_pretrained('tokenizer_model/PGT-C')
+    tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained('tokenizer_model/PGT-C')
     dataset = DatasetPGTChat(data=data, max_length=config.max_sentence_length, task=task, tokenizer=tokenizer)
     config.vocab_size = dataset.tokenizer.vocab_size
     config.vocab_size += 8

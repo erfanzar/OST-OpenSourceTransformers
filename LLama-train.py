@@ -3,18 +3,20 @@ import logging
 import math
 import typing
 from typing import Optional, Union
-
+import os
 import erutils
 import torch.utils.data
+import transformers
 from datasets import load_dataset
 from erutils.loggers import fprint
 from torch import Tensor
 from tqdm.auto import tqdm
-from transformers import GPT2Tokenizer
-
+from transformers import PreTrainedTokenizer, AutoTokenizer
+from torch.utils.tensorboard import SummaryWriter
 from modules.dataset import DatasetLLama
 from modules import LLamaModel, LLamaConfig, Tokens
-from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info, get_memory, _init_weights
+from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info, get_memory, _init_weights, \
+    create_output_path
 
 torch.backends.cudnn.benchmark = True
 
@@ -94,8 +96,8 @@ def main(opt):
     board = SummaryWriter(log_dir=f'{out_path}/tensorboard', filename_suffix=f'{opt.model}')
 
     parameters: LLamaConfig = get_config_by_name(opt.model)
-    tokenizer: GPT2Tokenizer = GPT2Tokenizer.from_pretrained('gpt2-medium', bos_token=Tokens.eos,
-                                                             pad_token=Tokens.pad, sos_token=Tokens.sos)
+    tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained('gpt2-medium', bos_token=Tokens.eos,
+                                                                   pad_token=Tokens.pad, sos_token=Tokens.sos)
     dataset = DatasetLLama(data=data, max_length=parameters.max_sentence_length, tokenizer=tokenizer)
     parameters.vocab_size = dataset.tokenizer.vocab_size
     parameters.vocab_size += 2
