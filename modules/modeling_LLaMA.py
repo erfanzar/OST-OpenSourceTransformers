@@ -9,6 +9,7 @@ from torch import nn
 from transformers import GPT2Tokenizer
 
 from .dataset import Tokens
+import pytorch_lightning as pl
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ class LLamaConfig:
     device: Union[torch.device, str] = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
-class PMSNorm(nn.Module):
+class PMSNorm(pl.LightningModule):
     def __init__(self, config: LLamaConfig):
         super(PMSNorm, self).__init__()
         self.weight = nn.Parameter(torch.ones(config.hidden_size))
@@ -75,7 +76,7 @@ def rotary_embedding(xq: Optional[torch.Tensor], xk: Optional[torch.Tensor],
     return xq_out.type_as(xq), xk_out.type_as(xk)
 
 
-class FeedForward(nn.Module):
+class FeedForward(pl.LightningModule):
     def __init__(self, config: LLamaConfig):
         super(FeedForward, self).__init__()
         self.w1 = nn.Linear(config.hidden_size, config.hidden_size * 4, bias=False)
@@ -86,7 +87,7 @@ class FeedForward(nn.Module):
         return self.wo(nn.functional.silu(self.w1(x)) * self.w2(x))
 
 
-class LLamaAttention(nn.Module):
+class LLamaAttention(pl.LightningModule):
     def __init__(self, config: LLamaConfig):
         super(LLamaAttention, self).__init__()
         self.local_rank = config.n_heads // 1
@@ -148,7 +149,7 @@ class LLamaAttention(nn.Module):
         return self.wo(comb)
 
 
-class LLamaBlock(nn.Module):
+class LLamaBlock(pl.LightningModule):
     def __init__(self, config: LLamaConfig, layer_id: int):
         super(LLamaBlock, self).__init__()
         self.layer_id: int = layer_id
@@ -176,7 +177,7 @@ def sample_top_p(probs, p):
     return next_token
 
 
-class LLamaModel(nn.Module):
+class LLamaModel(pl.LightningModule):
     def __init__(self, config: LLamaConfig):
         super().__init__()
         self.config = config

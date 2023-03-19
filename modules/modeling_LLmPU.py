@@ -6,6 +6,7 @@ from typing import Union, Optional, Tuple, Dict, Any, OrderedDict
 import json
 import torch
 from torch import nn
+import pytorch_lightning as pl
 from torch.utils.checkpoint import checkpoint
 from transformers import GenerationMixin, GenerationConfig
 from erutils.lightning import BaseModelOutput, BaseModelOutputWithPastAndCrossAttentions, ModelOutput
@@ -328,7 +329,7 @@ class LLmPUConfig:
         cls._auto_class = auto_class
 
 
-class LLmPULayerNorm(nn.Module):
+class LLmPULayerNorm(pl.LightningModule):
     def __init__(self, hidden_size, eps=1e-6):
         super().__init__()
         self.weight = nn.Parameter(torch.ones(hidden_size))
@@ -344,7 +345,7 @@ class LLmPULayerNorm(nn.Module):
         return self.weight * hidden_states
 
 
-class LLmPUDenseActDense(nn.Module):
+class LLmPUDenseActDense(pl.LightningModule):
     def __init__(self, config: LLmPUConfig):
         super().__init__()
         self.wi = nn.Linear(config.d_model, config.d_ff, bias=False)
@@ -362,7 +363,7 @@ class LLmPUDenseActDense(nn.Module):
         return hidden_states
 
 
-class LLmPUDenseGatedActDense(nn.Module):
+class LLmPUDenseGatedActDense(pl.LightningModule):
     def __init__(self, config: LLmPUConfig):
         super().__init__()
         self.wi_0 = nn.Linear(config.d_model, config.d_ff, bias=False)
@@ -384,7 +385,7 @@ class LLmPUDenseGatedActDense(nn.Module):
         return hidden_states
 
 
-class LLmPULayerFF(nn.Module):
+class LLmPULayerFF(pl.LightningModule):
     def __init__(self, config: LLmPUConfig):
         super().__init__()
         if config.is_gated_act:
@@ -402,7 +403,7 @@ class LLmPULayerFF(nn.Module):
         return hidden_states
 
 
-class LLmPUAttention(nn.Module):
+class LLmPUAttention(pl.LightningModule):
     def __init__(self, config: LLmPUConfig, has_relative_attention_bias=False):
         super().__init__()
         self.is_decoder = config.is_decoder
@@ -591,7 +592,7 @@ class LLmPUAttention(nn.Module):
         return outputs
 
 
-class LLmPULayerSelfAttention(nn.Module):
+class LLmPULayerSelfAttention(pl.LightningModule):
     def __init__(self, config, has_relative_attention_bias=False):
         super().__init__()
         self.SelfAttention = LLmPUAttention(config, has_relative_attention_bias=has_relative_attention_bias)
@@ -623,7 +624,7 @@ class LLmPULayerSelfAttention(nn.Module):
         return outputs
 
 
-class LLmPULayerCrossAttention(nn.Module):
+class LLmPULayerCrossAttention(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
         self.EncDecAttention = LLmPUAttention(config, has_relative_attention_bias=False)
@@ -659,7 +660,7 @@ class LLmPULayerCrossAttention(nn.Module):
         return outputs
 
 
-class LLmPUBlock(nn.Module):
+class LLmPUBlock(pl.LightningModule):
     def __init__(self, config, has_relative_attention_bias=False):
         super().__init__()
         self.is_decoder = config.is_decoder
@@ -765,7 +766,7 @@ class LLmPUBlock(nn.Module):
         return outputs
 
 
-class LLmPUStack(nn.Module):
+class LLmPUStack(pl.LightningModule):
     def __init__(self, config, embed_tokens=None):
         super().__init__()
         self.dtype = torch.float16
@@ -1054,7 +1055,7 @@ class LLmPUStack(nn.Module):
         return encoder_extended_attention_mask
 
 
-class LLmPUModel(nn.Module):
+class LLmPUModel(pl.LightningModule):
 
     def __init__(self, config: LLmPUConfig):
         super().__init__()
@@ -1222,7 +1223,7 @@ class LLmPUModel(nn.Module):
         )
 
 
-class LLmPUForConditionalGeneration(nn.Module, GenerationMixin):
+class LLmPUForConditionalGeneration(pl.LightningModule, GenerationMixin):
     def __init__(self, config: LLmPUConfig, device: [torch.device, str] = 'cuda' if torch.has_cuda else 'cpu'):
         super().__init__()
         self.model_dim = config.d_model

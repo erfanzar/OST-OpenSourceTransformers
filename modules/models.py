@@ -1,6 +1,7 @@
 import logging
-import typing
+
 from typing import Optional, Tuple, Union, Iterable
+import pytorch_lightning as pl
 
 import torch
 import torch.nn as nn
@@ -18,7 +19,7 @@ __all__ = ['PGT', 'LLmP', 'LLmPBlock', 'LLmPConfig', 'Adafactor',
            'PGTConfig']
 
 
-class PGT(nn.Module):
+class PGT(pl.LightningModule):
     def __init__(self, config: PGTConfig):
         super(PGT, self).__init__()
         self.config: PGTConfig = config
@@ -75,7 +76,7 @@ class PGT(nn.Module):
                 yield next_index
 
 
-class LLmP(nn.Module):
+class LLmP(pl.LightningModule):
     def __init__(self, config: LLmPConfig):
         super(LLmP, self).__init__()
         self.wte = nn.Embedding(config.vocab_size, config.hidden_size)
@@ -91,7 +92,7 @@ class LLmP(nn.Module):
         # self.apply(self._init_weights)
 
     @staticmethod
-    def _init_weights(module: nn.Module):
+    def _init_weights(module: pl.LightningModule):
         if isinstance(module, nn.Linear):
             module.weight.data.normal_(mean=0.0, std=0.002)
             if module.bias is not None:

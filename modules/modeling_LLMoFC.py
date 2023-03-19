@@ -7,6 +7,7 @@ from typing import List, Optional, Tuple, Union
 import torch
 import torch.utils.checkpoint
 from torch import nn
+import pytorch_lightning as pl
 import logging
 from dataclasses import dataclass
 
@@ -16,9 +17,9 @@ logger = logging.get_logger(__name__)
 @dataclass
 class LLMoFCConfig:
     initializer_range: float = 0.02
-    hidden_size: int = 4096
-    intermediate_size: int = 10240
-    num_hidden_layers: int = 16
+    hidden_size: int = 768
+    intermediate_size: int = 2048
+    num_hidden_layers: int = 4
     rms_norm_eps: int = 1e-6
     vocab_size: int = -1
     num_attention_heads: int = 32
@@ -33,7 +34,7 @@ class LLMoFCConfig:
     epochs: int = 500
 
 
-class LLMoFCRMSNorm(nn.Module):
+class LLMoFCRMSNorm(pl.LightningModule):
     def __init__(self, hidden_size, eps=1e-6):
         super().__init__()
         self.weight = nn.Parameter(torch.ones(hidden_size))
@@ -45,7 +46,7 @@ class LLMoFCRMSNorm(nn.Module):
         return self.weight * hidden_states
 
 
-class LLMoFCRotaryEmbedding(torch.nn.Module):
+class LLMoFCRotaryEmbedding(pl.LightningModule):
     def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None):
         super().__init__()
         inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float().to(device) / dim))
@@ -87,7 +88,7 @@ def apply_rotary_pos_emb(q, k, cos, sin, offset: int = 0):
     return q_embed, k_embed
 
 
-class LLMoFCMLP(nn.Module):
+class LLMoFCMLP(pl.LightningModule):
     def __init__(
             self,
             hidden_size: int,
@@ -105,7 +106,7 @@ class LLMoFCMLP(nn.Module):
         return self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
 
 
-class LLMoFCAttention(nn.Module):
+class LLMoFCAttention(pl.LightningModule):
 
     def __init__(self, hidden_size: int, num_heads: int):
         super().__init__()
@@ -217,7 +218,7 @@ def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] 
     return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
 
 
-class LLMoFCBlock(nn.Module):
+class LLMoFCBlock(pl.LightningModule):
     def __init__(self, config: LLMoFCConfig):
         super().__init__()
         self.hidden_size = config.hidden_size
@@ -269,7 +270,7 @@ class LLMoFCBlock(nn.Module):
         return outputs
 
 
-class LLMoFCModel(nn.Module):
+class LLMoFCModel(pl.LightningModule):
 
     def __init__(self, config: LLMoFCConfig):
         super().__init__(config)
@@ -402,7 +403,7 @@ class LLMoFCModel(nn.Module):
         return tuple(v for v in [hidden_states, next_cache, all_hidden_states, all_self_attns] if v is not None)
 
 
-class LLMoFCForCausalLM(nn.Module):
+class LLMoFCForCausalLM(pl.LightningModule):
     def __init__(self, config):
         super().__init__(config)
         self.model = LLMoFCModel(config)

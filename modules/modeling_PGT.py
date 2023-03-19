@@ -6,6 +6,7 @@ import torch
 import math
 from torch import nn
 from torch.optim.optimizer import Optimizer
+import pytorch_lightning as pl
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ class PGTConfig:
     silu: Optional[bool] = False
 
 
-class RotaryEmbedding(torch.nn.Module):
+class RotaryEmbedding(torch.pl.LightningModule):
     def __init__(self, dim, max_position_embeddings, base=10000, device=None):
         super().__init__()
         inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float().to(device) / dim))
@@ -77,7 +78,7 @@ def apply_rotary_pos_emb(q, k, cos, sin, offset: int = 0):
     return q_embed, k_embed
 
 
-class PMSNorm(nn.Module):
+class PMSNorm(pl.LightningModule):
     def __init__(self, config: PGTConfig, eps: Optional[float] = 1e-5):
         super(PMSNorm, self).__init__()
         self.weight = nn.Parameter(torch.ones(config.hidden_size))
@@ -92,7 +93,7 @@ class PMSNorm(nn.Module):
         return x * self.weight
 
 
-class PGTAttention(nn.Module):
+class PGTAttention(pl.LightningModule):
     def __init__(self, config: PGTConfig, layer_idx=None):
         super(PGTAttention, self).__init__()
         self.layer_idx = layer_idx
@@ -174,7 +175,7 @@ class PGTAttention(nn.Module):
         return attn_output
 
 
-class PGTFeedForward(nn.Module):
+class PGTFeedForward(pl.LightningModule):
     def __init__(self, config: PGTConfig):
         super(PGTFeedForward, self).__init__()
         self.c_op = nn.Linear(config.hidden_size, config.hidden_size * config.intermediate_size, bias=False)
@@ -190,7 +191,7 @@ class PGTFeedForward(nn.Module):
         return hidden_state
 
 
-class PGTBlock(nn.Module):
+class PGTBlock(pl.LightningModule):
     def __init__(self, config: PGTConfig, layer_idx_1=None):
         super(PGTBlock, self).__init__()
 
