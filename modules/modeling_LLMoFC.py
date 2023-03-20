@@ -282,7 +282,7 @@ class LLMoFCModel(pl.LightningModule):
         self.norm = LLMoFCRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
         self.gradient_checkpointing = False
-
+        self.config = config
         self.apply(self._init_weights)
 
     def get_input_embeddings(self):
@@ -304,7 +304,7 @@ class LLMoFCModel(pl.LightningModule):
 
     @staticmethod
     def _set_gradient_checkpointing(module, value=False):
-        if isinstance(module, (LLMoFCBlock)):
+        if isinstance(module, LLMoFCBlock):
             module.gradient_checkpointing = value
 
     def _prepare_decoder_attention_mask(self, attention_mask, input_shape, inputs_embeds, past_key_values_length):
@@ -329,29 +329,15 @@ class LLMoFCModel(pl.LightningModule):
             self,
             input_ids: torch.LongTensor = None,
             attention_mask: Optional[torch.Tensor] = None,
-            past_key_values: Optional[List[torch.FloatTensor]] = None,
-            inputs_embeds: Optional[torch.FloatTensor] = None,
-            use_cache: Optional[bool] = None,
-            output_attentions: Optional[bool] = None,
-            output_hidden_states: Optional[bool] = None,
 
     ):
-
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
-        )
-        use_cache = use_cache if use_cache is not None else self.config.use_cache
 
         batch_size, seq_lengthgth = input_ids.shape
 
         seq_lengthgth_with_past = seq_lengthgth
         past_key_values_length = 0
-        if past_key_values is not None:
-            past_key_values_length = past_key_values[0][0].shape[2]
-            seq_lengthgth_with_past = seq_lengthgth_with_past + past_key_values_length
-        if inputs_embeds is None:
-            inputs_embeds = self.embed_tokens(input_ids)
+
+        inputs_embeds = self.embed_tokens(input_ids)
 
         if attention_mask is None:
             attention_mask = torch.ones(
@@ -363,44 +349,18 @@ class LLMoFCModel(pl.LightningModule):
 
         hidden_states = inputs_embeds
 
-        if self.training:
-            if use_cache:
-                use_cache = False
-
-        all_hidden_states = () if output_hidden_states else None
-        all_self_attns = () if output_attentions else None
-        c_cache = () if use_cache else None
-
-        for idx, decoder_layer in enumerate(self.layers):
-            if output_hidden_states:
-                all_hidden_states += (hidden_states,)
-
-            past_key_value = past_key_values[idx] if past_key_values is not None else None
-
-            layer_outputs = decoder_layer(
+        for idx, block in enumerate(self.layers):
+            layer_outputs = block(
                 hidden_states,
                 attention_mask=attention_mask,
-                past_key_value=past_key_value,
-                output_attentions=output_attentions,
-                use_cache=use_cache,
+
             )
 
             hidden_states = layer_outputs[0]
 
-            if use_cache:
-                c_cache += (layer_outputs[2 if output_attentions else 1],)
-
-            if output_attentions:
-                all_self_attns += (layer_outputs[1],)
-
         hidden_states = self.norm(hidden_states)
 
-        if output_hidden_states:
-            all_hidden_states += (hidden_states,)
-
-        next_cache = c_cache if use_cache else None
-
-        return tuple(v for v in [hidden_states, next_cache, all_hidden_states, all_self_attns] if v is not None)
+        return hidden_states
 
 
 class LLMoFCForCausalLM(pl.LightningModule):
@@ -422,32 +382,12 @@ class LLMoFCForCausalLM(pl.LightningModule):
             self,
             input_ids: torch.LongTensor = None,
             attention_mask: Optional[torch.Tensor] = None,
-            past_key_values: Optional[List[torch.FloatTensor]] = None,
-            inputs_embeds: Optional[torch.FloatTensor] = None,
             labels: Optional[torch.LongTensor] = None,
-            use_cache: Optional[bool] = None,
-            output_attentions: Optional[bool] = None,
-            output_hidden_states: Optional[bool] = None,
-            return_dict: Optional[bool] = None,
     ):
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
-        )
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        outputs = self.model(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            past_key_values=past_key_values,
-            inputs_embeds=inputs_embeds,
-            use_cache=use_cache,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
-        )
+        outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, )
 
-        hidden_states = outputs[0]
+        hidden_states = outputs
         logits = self.lm_head(hidden_states)
 
         loss = None
@@ -458,8 +398,7 @@ class LLMoFCForCausalLM(pl.LightningModule):
             loss_fct = nn.CrossEntropyLoss()
             loss = loss_fct(shift_logits.view(-1, self.config.vocab_size), shift_labels.view(-1))
 
-        output = (logits,) + outputs[1:]
-        return (loss,) + output if loss is not None else output
+        return loss, logits
 
     def prepare_inputs_for_generation(
             self, input_ids, past_key_values=None, attention_mask=None, inputs_embeds=None, **kwargs
@@ -497,7 +436,7 @@ class LLMoFCForCausalLM(pl.LightningModule):
         targets, input_ids, attention_mask = train_batch
         labels: Optional[Tensor] = make2d(targets.type(torch.long))
         input_ids: Optional[Tensor] = make2d(input_ids.type(torch.long))
-        logger.debug('RUNNING TRAIN FUNCTION IN MAIN THREAD ')
-        _, loss = self.forward(input_ids=input_ids, labels=labels, attention_mask=attention_mask)
+
+        loss, _ = self.forward(input_ids=input_ids, labels=labels, attention_mask=attention_mask)
         self.log('train_loss', loss)
         return loss
