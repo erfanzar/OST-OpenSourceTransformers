@@ -13,7 +13,7 @@ import pytorch_lightning as pl
 import logging
 from dataclasses import dataclass
 
-logger = logging.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 @dataclass
