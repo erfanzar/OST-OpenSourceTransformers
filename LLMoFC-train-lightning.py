@@ -50,9 +50,13 @@ def main(opt):
     fprint('Loading Model ...' if opt.weight else 'Creating Model ...')
 
     model = LLMoFCForCausalLM(config=parameters)
+    # trainer = pl.Trainer(accelerator="tpu", devices=8, max_epochs=50)
+    # trainer = pl.Trainer(accelerator="gpu", max_epochs=50)
+    # trainer.fit(model, train_dataloaders=dataloader)
     trainer = pl.Trainer(accelerator="tpu", devices=8, max_epochs=2)
+
+    trainer.fit(model, train_dataloaders=dataloader, ckpt_path='out-a')
     trainer.save_checkpoint('CKPT.pt')
-    trainer.fit(model, train_dataloaders=dataloader,ckpt_path='out-a')
 
 
 if __name__ == "__main__":
