@@ -22,7 +22,7 @@ pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
 pars.add_argument('--weight', '--weight', type=str, default=None)
 pars.add_argument('--out-path', '--out-path', type=str, default='out')
-pars.add_argument('--model', '--model', type=str, default='LLMoFC-S')
+pars.add_argument('--model', '--model', type=str, default='LLMoFC-ML')
 pars.add_argument('--data-src', '--data-src', type=str, default='data/alpaca_data.json')
 # HF-kilt_tasks//eli5
 options = pars.parse_args()
@@ -40,7 +40,7 @@ def main(opt):
     tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained('tokenizer_model/BASE')
     tokenizer.add_special_tokens({'pad_token': '[PAD]'})
     dataset = DatasetLLMoFC(data=data, max_length=parameters.max_sentence_length, tokenizer=tokenizer)
-    parameters.vocab_size = dataset.tokenizer.vocab_size
+    parameters.vocab_size = dataset.tokenizer.vocab_size + 1
     parameters.data_path = opt.data_src
 
     parameters.batch_size = opt.batch

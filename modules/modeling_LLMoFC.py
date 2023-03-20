@@ -275,7 +275,7 @@ class LLMoFCBlock(pl.LightningModule):
 class LLMoFCModel(pl.LightningModule):
 
     def __init__(self, config: LLMoFCConfig):
-        super().__init__(config)
+        super(LLMoFCModel, self).__init__()
         self.padding_idx = config.pad_token_id
         self.vocab_size = config.vocab_size
 
@@ -407,7 +407,7 @@ class LLMoFCModel(pl.LightningModule):
 
 class LLMoFCForCausalLM(pl.LightningModule):
     def __init__(self, config):
-        super().__init__(config)
+        super(LLMoFCForCausalLM, self).__init__()
         self.model = LLMoFCModel(config)
 
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
