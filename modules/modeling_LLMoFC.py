@@ -178,6 +178,7 @@ class LLMoFCAttention(pl.LightningModule):
 
         if attention_mask is not None:
             assert attention_mask.size() == (bsz, 1, q_len, kv_seq_length)
+
             attn_weights = attn_weights + attention_mask
             attn_weights = torch.max(attn_weights, torch.tensor(torch.finfo(attn_weights.dtype).min))
 
@@ -208,6 +209,7 @@ def _make_causal_mask(input_ids_shape: torch.Size, dtype: torch.dtype, past_key_
 
 
 def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] = None):
+
     bsz, src_len = mask.size()
     tgt_len = tgt_len if tgt_len is not None else src_len
 
@@ -316,7 +318,7 @@ class LLMoFCModel(pl.LightningModule):
             )
 
         if attention_mask is not None:
-            expanded_attn_mask = _expand_mask(attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1])
+            expanded_attn_mask = _expand_mask(attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1]).to(combined_attention_mask)
             combined_attention_mask = (
                 expanded_attn_mask if combined_attention_mask is None else expanded_attn_mask + combined_attention_mask
             )
@@ -341,12 +343,13 @@ class LLMoFCModel(pl.LightningModule):
             attention_mask = torch.ones(
                 (batch_size, seq_lengthgth_with_past), dtype=torch.bool, device=inputs_embeds.device
             )
+        attention_mask = make2d(attention_mask)
         attention_mask = self._prepare_decoder_attention_mask(
             attention_mask, (batch_size, seq_lengthgth), inputs_embeds, past_key_values_length
         )
 
         hidden_states = inputs_embeds
-
+        attention_mask=attention_mask.to(hidden_states)
         for idx, block in enumerate(self.layers):
             layer_outputs = block(
                 hidden_states,
@@ -433,7 +436,8 @@ class LLMoFCForCausalLM(pl.LightningModule):
         targets = input_ids.detach()
         labels: Optional[Tensor] = make2d(targets.type(torch.long))
         input_ids: Optional[Tensor] = make2d(input_ids.type(torch.long))
+        attention_mask: Optional[Tensor] = make2d(attention_mask).to(input_ids)
 
         loss, _ = self.forward(input_ids=input_ids, labels=labels, attention_mask=attention_mask)
-        self.log('train_loss', loss, on_step=True, on_epoch=True)
+        self.log('train_loss', loss, on_step=True, on_epoch=True,prog_bar=True)
         return loss
