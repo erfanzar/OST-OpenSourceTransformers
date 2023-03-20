@@ -797,14 +797,19 @@ def print_config(config: typing.Optional[HyperParameters]) -> None:
 
 
 def device_info() -> None:
-    prp = torch.cuda.get_device_properties("cuda")
-    memory = psutil.virtual_memory()
-    free, total_gpu = torch.cuda.mem_get_info('cuda:0')
-    used_gpu = total_gpu - free
-    fprint(
-        f'DEVICES : [ {torch.cuda.get_device_name()} ] | [ Free : {free / 1e9} GB ] | [ Used : {used_gpu / 1e9} GB ] | '
-        f'[ Total : {total_gpu / 1e9} GB ]\n'
-        f'RAM : [ Free : {memory.free / 1e9} GB ] | [ Total : {memory.total / 1e9} GB ]')
+    if torch.cuda.is_available():
+        prp = torch.cuda.get_device_properties("cuda")
+        memory = psutil.virtual_memory()
+        free, total_gpu = torch.cuda.mem_get_info('cuda:0')
+        used_gpu = total_gpu - free
+        fprint(
+            f'DEVICES : [ {torch.cuda.get_device_name()} ] | [ Free : {free / 1e9} GB ] | [ Used : {used_gpu / 1e9} GB ] | '
+            f'[ Total : {total_gpu / 1e9} GB ]\n'
+            f'RAM : [ Free : {memory.free / 1e9} GB ] | [ Total : {memory.total / 1e9} GB ]')
+    else:
+        memory = psutil.virtual_memory()
+
+        fprint(f'RAM : [ Free : {memory.free / 1e9} GB ] | [ Total : {memory.total / 1e9} GB ]')
 
 
 def get_memory(index: int) -> typing.Tuple[float, float, float]:
