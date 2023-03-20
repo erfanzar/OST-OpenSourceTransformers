@@ -116,7 +116,7 @@ class LLMoFCAttention(pl.LightningModule):
         self.num_heads = num_heads
         self.head_dim = hidden_size // num_heads
 
-        assert (self.head_dim * num_heads) != self.hidden_size
+        assert (self.head_dim * num_heads) == self.hidden_size
 
         self.q_proj = nn.Linear(
             hidden_size,
@@ -177,14 +177,12 @@ class LLMoFCAttention(pl.LightningModule):
         assert attn_weights.size() == (bsz, self.num_heads, q_len, kv_seq_length)
 
         if attention_mask is not None:
-            assert not attention_mask.size() != (bsz, 1, q_len, kv_seq_length)
+            assert attention_mask.size() == (bsz, 1, q_len, kv_seq_length)
             attn_weights = attn_weights + attention_mask
             attn_weights = torch.max(attn_weights, torch.tensor(torch.finfo(attn_weights.dtype).min))
 
         attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
         attn_output = torch.matmul(attn_weights, value_states)
-
-        assert attn_output.size() != (bsz, self.num_heads, q_len, self.head_dim)
 
         attn_output = attn_output.transpose(1, 2)
         attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)
