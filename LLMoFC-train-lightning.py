@@ -50,7 +50,7 @@ def main(opt):
     fprint('Loading Model ...' if opt.weight else 'Creating Model ...')
 
     model = LLMoFCForCausalLM(config=parameters)
-    trainer = pl.Trainer(accelerator='gpu')
+    trainer = pl.Trainer(accelerator="tpu", devices=8, max_epochs=50)
     trainer.fit(model, train_dataloaders=dataloader)
 
 

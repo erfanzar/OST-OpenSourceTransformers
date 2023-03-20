@@ -366,6 +366,7 @@ class LLMoFCForCausalLM(pl.LightningModule):
         super(LLMoFCForCausalLM, self).__init__()
         self.model = LLMoFCModel(config)
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        self.config = config
 
     def get_input_embeddings(self):
         return self.model.embed_tokens
@@ -428,10 +429,11 @@ class LLMoFCForCausalLM(pl.LightningModule):
         return optimizer
 
     def training_step(self, train_batch, batch_idx) -> STEP_OUTPUT:
-        targets, input_ids, attention_mask = train_batch
+        input_ids, attention_mask = train_batch
+        targets = input_ids.detach()
         labels: Optional[Tensor] = make2d(targets.type(torch.long))
         input_ids: Optional[Tensor] = make2d(input_ids.type(torch.long))
 
         loss, _ = self.forward(input_ids=input_ids, labels=labels, attention_mask=attention_mask)
-        self.log('train_loss', loss)
+        self.log('train_loss', loss, on_step=True, on_epoch=True)
         return loss
