@@ -38,7 +38,7 @@ def main(opt):
     parameters: LLMoFCConfig = get_config_by_name(opt.model)
 
     tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained('tokenizer_model/BASE')
-
+    tokenizer.add_special_tokens({'pad_token': '[PAD]'})
     dataset = DatasetLLMoFC(data=data, max_length=parameters.max_sentence_length, tokenizer=tokenizer)
     parameters.vocab_size = dataset.tokenizer.vocab_size
     parameters.data_path = opt.data_src
