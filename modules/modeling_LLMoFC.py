@@ -2,11 +2,13 @@
  [right Llama implementation (at least what I got from paper) is in modelling_LLaMA.py]"""
 
 import math
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, Any
 
 import torch
 import torch.utils.checkpoint
-from torch import nn
+from erutils import make2d
+from pytorch_lightning.utilities.types import STEP_OUTPUT
+from torch import nn, Tensor
 import pytorch_lightning as pl
 import logging
 from dataclasses import dataclass
@@ -22,7 +24,7 @@ class LLMoFCConfig:
     num_hidden_layers: int = 4
     rms_norm_eps: int = 1e-6
     vocab_size: int = -1
-    num_attention_heads: int = 32
+    num_attention_heads: int = 8
     use_cache: bool = True
     pad_token_id: int = 0
     bos_token_id: int = 1
@@ -487,3 +489,17 @@ class LLMoFCForCausalLM(pl.LightningModule):
         for layer_past in past_key_values:
             reordered_past += (tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),)
         return reordered_past
+
+    def configure_optimizers(self) -> Any:
+        optimizer_kwargs = dict(lr=self.config.lr, weight_decay=self.config.weight_decay)
+        optimizer = torch.optim.AdamW(self.parameters(), **optimizer_kwargs)
+        return optimizer
+
+    def training_step(self, train_batch, batch_idx) -> STEP_OUTPUT:
+        targets, input_ids, attention_mask = train_batch
+        labels: Optional[Tensor] = make2d(targets.type(torch.long))
+        input_ids: Optional[Tensor] = make2d(input_ids.type(torch.long))
+        logger.debug('RUNNING TRAIN FUNCTION IN MAIN THREAD ')
+        _, loss = self.forward(input_ids=input_ids, labels=labels, attention_mask=attention_mask)
+        self.log('train_loss', loss)
+        return loss

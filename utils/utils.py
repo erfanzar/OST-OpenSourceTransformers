@@ -753,6 +753,38 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
         return LLmPUConfig(
             **L
         )
+    elif name == 'LLMoFC-S':
+        return LLMoFCConfig(
+            hidden_size=768,
+            intermediate_size=768 * 10,
+            num_hidden_layers=6,
+            num_attention_heads=8,
+            vocab_size=3200,
+        )
+    elif name == 'LLMoFC-ML':
+        return LLMoFCConfig(
+            hidden_size=1536,
+            intermediate_size=1536 * 10,
+            num_hidden_layers=14,
+            num_attention_heads=16,
+            vocab_size=-1,
+        )
+    elif name == 'LLMoFC':
+        return LLMoFCConfig(
+            hidden_size=2048,
+            intermediate_size=2048 * 8,
+            num_hidden_layers=24,
+            num_attention_heads=16,
+            vocab_size=3200,
+        )
+    elif name == 'LLMoFC-X':
+        return LLMoFCConfig(
+            hidden_size=4096,
+            intermediate_size=4096 * 6,
+            num_hidden_layers=36,
+            num_attention_heads=32,
+            vocab_size=3200,
+        )
     else:
         raise NameError(
             f"Valid Names for Model are {models_name} | [ERROR : Unknown {name} type]")

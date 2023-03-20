@@ -221,8 +221,9 @@ class DatasetLLMoFC(Dataset, LLMoFCTokens, ManualDataSet):
         preprocessed_data = []
         for dict_ in tqdm(data):
             q = dict_['instruction']
+            inp = dict_['input']
             a = dict_['output']
-            string = self.sos + q + self.sos + a + self.eos
+            string = self.sos + q + inp + self.sos + a + self.eos
             preprocessed_data.append(string)
         tqdm_pr = tqdm(iterable=preprocessed_data)
         for string in tqdm_pr:
