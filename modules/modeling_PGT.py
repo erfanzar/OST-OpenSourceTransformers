@@ -38,7 +38,7 @@ class PGTConfig:
     silu: Optional[bool] = False
 
 
-class RotaryEmbedding(torch.pl.LightningModule):
+class RotaryEmbedding(pl.LightningModule):
     def __init__(self, dim, max_position_embeddings, base=10000, device=None):
         super().__init__()
         inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float().to(device) / dim))
