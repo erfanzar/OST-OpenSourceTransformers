@@ -106,7 +106,18 @@ class LLMoFCMLP(pl.LightningModule):
 
     def forward(self, x):
         return self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
-
+    
+    
+class Linear(pl.LightningModule):
+    def __init__(self,in_c,out_c,bias=False):
+        super().__init__()
+        self.out_c = out_c
+        self.weight = nn.Parameters(torch.rand(in_c,out_c))
+        self.bias = nn.Parameters(torch.zeros(out_c)) if not bias else nn.Parameters(torch.ones(out_c))
+    def forward(self,x):
+        out_size = x.size()[:-1]+(self.out_c,)
+        out = torch.addbmm(self.bias,batch_1=x.view(-1,x.size(-1)),batch_2=self.weight)
+        return out.view(out_size)
 
 class LLMoFCAttention(pl.LightningModule):
 
@@ -118,22 +129,22 @@ class LLMoFCAttention(pl.LightningModule):
 
         assert (self.head_dim * num_heads) == self.hidden_size
 
-        self.q_proj = nn.Linear(
+        self.q_proj = Linear(
             hidden_size,
             num_heads * self.head_dim,
             bias=False,
         )
-        self.k_proj = nn.Linear(
+        self.k_proj = Linear(
             hidden_size,
             num_heads * self.head_dim,
             bias=False,
         )
-        self.v_proj = nn.Linear(
+        self.v_proj = Linear(
             hidden_size,
             num_heads * self.head_dim,
             bias=False,
         )
-        self.o_proj = nn.Linear(
+        self.o_proj = Linear(
             num_heads * self.head_dim,
             hidden_size,
             bias=False,
