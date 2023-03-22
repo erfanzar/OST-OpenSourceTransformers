@@ -19,12 +19,6 @@ class Tokens:
     atn_end = '<|ETN|>'
 
 
-class LLMoFCTokens:
-    eos = '</s>'
-    pad = '<pad>'
-    sos = '</s>'
-
-
 class ManualDataSet:
     def pre_processing(self, inp):
         return NotImplemented
@@ -211,7 +205,7 @@ class DatasetLLmPChat(Dataset, Tokens):
         return enc_trg
 
 
-class DatasetLLMoFC(Dataset, LLMoFCTokens, ManualDataSet):
+class DatasetLLMoFC(Dataset, Tokens, ManualDataSet):
     def __init__(self, data: List[dict],
                  tokenizer: Optional[transformers.PreTrainedTokenizer], max_length: Optional[int] = 128):
         self.tokenizer = tokenizer
@@ -220,10 +214,13 @@ class DatasetLLMoFC(Dataset, LLMoFCTokens, ManualDataSet):
         self.max_length = max_length
         preprocessed_data = []
         for dict_ in tqdm(data):
-            q = dict_['instruction']
-            inp = dict_['input']
-            a = dict_['output']
-            string = self.sos + q + inp + self.sos + a + self.eos
+            instruction = dict_['instruction']
+            inpt = dict_['input']
+            output = dict_['output']
+            if inpt =="":
+                string = f'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction:\n\n{instruction}\n\n### Response:\n\n{output}'
+            else:
+                string = f'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n\n### Instruction:\n\n{instruction}\n\n### Input:\n\n{inpt}\n\n### Response:\n\n{output}{self.eos}'
             preprocessed_data.append(string)
         tqdm_pr = tqdm(iterable=preprocessed_data)
         for string in tqdm_pr:
