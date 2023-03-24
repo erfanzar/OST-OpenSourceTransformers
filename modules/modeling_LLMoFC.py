@@ -7,9 +7,8 @@ from typing import List, Optional, Tuple, Union, Any
 import torch
 import torch.utils.checkpoint
 from erutils import make2d
-from pytorch_lightning.utilities.types import STEP_OUTPUT
 from torch import nn, Tensor
-import pytorch_lightning as pl
+
 import logging
 from dataclasses import dataclass
 
@@ -20,6 +19,7 @@ logger = logging.getLogger(__name__)
 class LLMoFCConfig:
     initializer_range: float = 0.02
     hidden_size: int = 768
+    dtype: torch.dtype = torch.float16
     intermediate_size: int = 2048
     num_hidden_layers: int = 4
     rms_norm_eps: int = 1e-6
@@ -36,7 +36,7 @@ class LLMoFCConfig:
     epochs: int = 500
 
 
-class LLMoFCRMSNorm(pl.LightningModule):
+class LLMoFCRMSNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
         super().__init__()
         self.weight = nn.Parameter(torch.ones(hidden_size))
@@ -48,7 +48,7 @@ class LLMoFCRMSNorm(pl.LightningModule):
         return self.weight * hidden_states
 
 
-class LLMoFCRotaryEmbedding(pl.LightningModule):
+class LLMoFCRotaryEmbedding(nn.Module):
     def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None):
         super().__init__()
         inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float().to(device) / dim))
@@ -90,7 +90,7 @@ def apply_rotary_pos_emb(q, k, cos, sin, offset: int = 0):
     return q_embed, k_embed
 
 
-class LLMoFCMLP(pl.LightningModule):
+class LLMoFCMLP(nn.Module):
     def __init__(
             self,
             hidden_size: int,
@@ -108,7 +108,7 @@ class LLMoFCMLP(pl.LightningModule):
         return self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
 
 
-class Conv1D(pl.LightningModule):
+class Conv1D(nn.Module):
     def __init__(self, in_c, out_c, bias=False):
         super().__init__()
         self.out_c = out_c
@@ -118,11 +118,13 @@ class Conv1D(pl.LightningModule):
 
     def forward(self, x):
         out_size = x.size()[:-1] + (self.out_c,)
-        out = torch.addmm(self.bias, x.view(-1, x.size(-1)), self.weight)
+        x = x.view(-1, x.size(-1))
+
+        out = torch.addmm(self.bias, x, self.weight)
         return out.view(out_size)
 
 
-class LLMoFCAttention(pl.LightningModule):
+class LLMoFCAttention(nn.Module):
 
     def __init__(self, hidden_size: int, num_heads: int):
         super().__init__()
@@ -233,7 +235,7 @@ def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] 
     return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
 
 
-class LLMoFCBlock(pl.LightningModule):
+class LLMoFCBlock(nn.Module):
     def __init__(self, config: LLMoFCConfig):
         super().__init__()
         self.hidden_size = config.hidden_size
@@ -285,10 +287,11 @@ class LLMoFCBlock(pl.LightningModule):
         return outputs
 
 
-class LLMoFCModel(pl.LightningModule):
+class LLMoFCModel(nn.Module):
 
     def __init__(self, config: LLMoFCConfig):
         super(LLMoFCModel, self).__init__()
+        self.dt = config.dtype
         self.padding_idx = config.pad_token_id
         self.vocab_size = config.vocab_size
 
@@ -308,7 +311,7 @@ class LLMoFCModel(pl.LightningModule):
 
     def _init_weights(self, module):
         std = self.config.initializer_range
-        if isinstance(module, nn.Linear):
+        if isinstance(module, (nn.Linear, Conv1D)):
             module.weight.data.normal_(mean=0.0, std=std)
             if module.bias is not None:
                 module.bias.data.zero_()
@@ -351,19 +354,22 @@ class LLMoFCModel(pl.LightningModule):
         seq_lengthgth_with_past = seq_lengthgth
         past_key_values_length = 0
 
-        inputs_embeds = self.embed_tokens(input_ids)
+        hidden_states = self.embed_tokens(input_ids)
 
         if attention_mask is None:
             attention_mask = torch.ones(
-                (batch_size, seq_lengthgth_with_past), dtype=torch.bool, device=inputs_embeds.device
+                (batch_size, seq_lengthgth_with_past), dtype=torch.bool, device=hidden_states.device
             )
         attention_mask = make2d(attention_mask)
         attention_mask = self._prepare_decoder_attention_mask(
-            attention_mask, (batch_size, seq_lengthgth), inputs_embeds, past_key_values_length
+            attention_mask, (batch_size, seq_lengthgth), hidden_states, past_key_values_length
         )
 
-        hidden_states = inputs_embeds
+        hidden_states = hidden_states.to(self.dt)
+
         attention_mask = attention_mask.to(hidden_states)
+        print(attention_mask.dtype)
+        print(hidden_states.dtype)
         for idx, block in enumerate(self.layers):
             layer_outputs = block(
                 hidden_states,
@@ -378,7 +384,7 @@ class LLMoFCModel(pl.LightningModule):
         return hidden_states
 
 
-class LLMoFCForCausalLM(pl.LightningModule):
+class LLMoFCForCausalLM(nn.Module):
     def __init__(self, config):
         super(LLMoFCForCausalLM, self).__init__()
         self.model = LLMoFCModel(config)
@@ -433,25 +439,18 @@ class LLMoFCForCausalLM(pl.LightningModule):
         )
         return model_inputs
 
-    @staticmethod
-    def _reorder_cache(past_key_values, beam_idx):
-        reordered_past = ()
-        for layer_past in past_key_values:
-            reordered_past += (tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),)
-        return reordered_past
-
     def configure_optimizers(self) -> Any:
         optimizer_kwargs = dict(lr=self.config.lr, weight_decay=self.config.weight_decay)
         optimizer = torch.optim.AdamW(self.parameters(), **optimizer_kwargs)
         return optimizer
 
-    def training_step(self, train_batch, batch_idx) -> STEP_OUTPUT:
-        input_ids, attention_mask = train_batch
-        targets = input_ids.detach()
-        labels: Optional[Tensor] = make2d(targets.type(torch.long))
-        input_ids: Optional[Tensor] = make2d(input_ids.type(torch.long))
-        attention_mask: Optional[Tensor] = make2d(attention_mask).to(input_ids)
-
-        loss, _ = self.forward(input_ids=input_ids, labels=labels, attention_mask=attention_mask)
-        self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True)
-        return loss
+    # def training_step(self, train_batch) :
+    #     input_ids, attention_mask = train_batch
+    #     targets = input_ids.detach()
+    #     labels: Optional[Tensor] = make2d(targets.type(torch.long))
+    #     input_ids: Optional[Tensor] = make2d(input_ids.type(torch.long))
+    #     attention_mask: Optional[Tensor] = make2d(attention_mask).to(input_ids)
+    #
+    #     loss, _ = self.forward(input_ids=input_ids, labels=labels, attention_mask=attention_mask)
+    #     self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True)
+    #     return loss

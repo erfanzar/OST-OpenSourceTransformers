@@ -112,7 +112,7 @@ def main(opt):
         else f'Model Created With {model_parameters_size} Million Parameters')
 
     if opt.compile:
-        model = torch.compile(model)
+        #model = torch.compile(model)
         fprint(f"Model Compiled Successfully")
     if opt.train:
         board = SummaryWriter(log_dir=f'{out_path}/tensorboard', filename_suffix=f'{opt.model}')

@@ -2,7 +2,7 @@ import logging
 import math
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union, Iterable
-import pytorch_lightning as pl
+ 
 import torch
 from torch import Tensor
 from torch import nn
@@ -79,7 +79,7 @@ def _expand_mask(mask: torch.Tensor, tgt_length: int) -> torch.BoolTensor:
     return expanded_mask.expand(batch_size, 1, tgt_length, src_length)
 
 
-class LLMoUPMSNorm(pl.LightningModule):
+class LLMoUPMSNorm(nn.Module):
     def __init__(self, config: LLMoUConfig):
         super(LLMoUPMSNorm, self).__init__()
         self.weight = nn.Parameter(torch.ones(config.hidden_size, dtype=config.dtype))
@@ -97,7 +97,7 @@ class LLMoUPMSNorm(pl.LightningModule):
         return self.weight * hidden
 
 
-class LLMoUAttention(pl.LightningModule):
+class LLMoUAttention(nn.Module):
     def __init__(self, config: LLMoUConfig):
         super(LLMoUAttention, self).__init__()
         self.n_heads = config.n_heads
@@ -180,7 +180,7 @@ class LLMoUAttention(pl.LightningModule):
         return output_tensor
 
 
-class LLMoUMLP(pl.LightningModule):
+class LLMoUMLP(nn.Module):
     def __init__(self, config: LLMoUConfig):
         super().__init__()
         hidden_size = config.hidden_size
@@ -199,7 +199,7 @@ class LLMoUMLP(pl.LightningModule):
         return output
 
 
-class LLMoUBlock(pl.LightningModule):
+class LLMoUBlock(nn.Module):
     def __init__(self, config: LLMoUConfig):
         super(LLMoUBlock, self).__init__()
         self.ln1 = LLMoUPMSNorm(config)
@@ -235,7 +235,7 @@ class LLMoUBlock(pl.LightningModule):
         return mlp_out
 
 
-class LLMoUModel(pl.LightningModule):
+class LLMoUModel(nn.Module):
     def __init__(self, config: LLMoUConfig):
         super().__init__()
 
@@ -257,7 +257,7 @@ class LLMoUModel(pl.LightningModule):
 
         self.apply(self._init_weights)
 
-    def _init_weights(self, module: pl.LightningModule):
+    def _init_weights(self, module: nn.Module):
         if isinstance(module, nn.Linear):
             module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
             if module.bias is not None:

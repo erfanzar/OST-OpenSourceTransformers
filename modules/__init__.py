@@ -1,4 +1,4 @@
-from .dataset import Tokens, LLMoFCTokens
+from .dataset import Tokens
 from .models import PGT, LLmP, PGTConfig, LLmPConfig
 from .modeling_LLmPU import LLmPUForConditionalGeneration, LLmPUModel, LLmPUConfig
 from .modeling_LLMoU import LLMoUModel, LLMoUConfig

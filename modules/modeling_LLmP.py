@@ -2,7 +2,7 @@ from typing import Optional
 
 import torch
 from torch import nn
-import pytorch_lightning as pl
+ 
 from .cross_modules import PMSNorm, FeedForward, Attention, LLmPConfig
 
 
@@ -19,7 +19,7 @@ def sample_top_p(probs, p):
     return next_token
 
 
-class LLmPBlock(pl.LightningModule):
+class LLmPBlock(nn.Module):
     def __init__(self, config: Optional[LLmPConfig], layer_index: Optional[int] = None):
         super(LLmPBlock, self).__init__()
         self.block = Attention(config=config, layer_index=layer_index)

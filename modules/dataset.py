@@ -208,6 +208,9 @@ class DatasetLLmPChat(Dataset, Tokens):
 class DatasetLLMoFC(Dataset, Tokens, ManualDataSet):
     def __init__(self, data: List[dict],
                  tokenizer: Optional[transformers.PreTrainedTokenizer], max_length: Optional[int] = 128):
+        tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.pad_token_id = tokenizer.eos_token_id
+
         self.tokenizer = tokenizer
         self.attention_mask = []
         self.input_ids = []

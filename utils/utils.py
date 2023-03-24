@@ -753,6 +753,14 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
         return LLmPUConfig(
             **L
         )
+    elif name == 'LLMoFC-LOW':
+        return LLMoFCConfig(
+            hidden_size=512,
+            intermediate_size=512 * 10,
+            num_hidden_layers=6,
+            num_attention_heads=8,
+            vocab_size=3200,
+        )
     elif name == 'LLMoFC-S':
         return LLMoFCConfig(
             hidden_size=768,

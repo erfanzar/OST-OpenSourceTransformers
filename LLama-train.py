@@ -130,7 +130,7 @@ def main(opt):
     criterion = torch.nn.CrossEntropyLoss()
 
     if opt.compile:
-        model = torch.compile(model)
+        #model = torch.compile(model)
         fprint(f"Model Compiled Successfully")
 
     question = dataset.encode(Tokens.sos + 'say something ').to(parameters.device)

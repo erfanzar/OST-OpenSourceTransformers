@@ -111,7 +111,7 @@ def _main(opt):
     dataloader = DataLoader(dataset, **dataloader_kw)
     casual_iter = 0
     if opt.compile:
-        model = torch.compile(model)
+        #model = torch.compile(model)
         erutils.fprint('Model Compiled Successfully !')
     mesh = config.mesh
     board = SummaryWriter(log_dir=f'{out_path}/tensorboard', filename_suffix=f'{opt.model}')

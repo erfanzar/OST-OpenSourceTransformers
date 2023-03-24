@@ -1,14 +1,12 @@
 import logging
 
 from typing import Optional, Tuple, Union, Iterable
-import pytorch_lightning as pl
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from erutils.lightning import build_alibi_tensor
 
-from .commons import MultiHeadBlock, CasualBlock, Decoder, Encoder
 from .cross_modules import LLmPConfig
 from .modeling_LLmP import LLmPBlock, PMSNorm
 from .modeling_PGT import PGTConfig, PGTBlock, Adafactor
@@ -19,7 +17,7 @@ __all__ = ['PGT', 'LLmP', 'LLmPBlock', 'LLmPConfig', 'Adafactor',
            'PGTConfig']
 
 
-class PGT(pl.LightningModule):
+class PGT(nn.Module):
     def __init__(self, config: PGTConfig):
         super(PGT, self).__init__()
         self.config: PGTConfig = config
@@ -76,7 +74,7 @@ class PGT(pl.LightningModule):
                 yield next_index
 
 
-class LLmP(pl.LightningModule):
+class LLmP(nn.Module):
     def __init__(self, config: LLmPConfig):
         super(LLmP, self).__init__()
         self.wte = nn.Embedding(config.vocab_size, config.hidden_size)
@@ -92,7 +90,7 @@ class LLmP(pl.LightningModule):
         # self.apply(self._init_weights)
 
     @staticmethod
-    def _init_weights(module: pl.LightningModule):
+    def _init_weights(module: nn.Module):
         if isinstance(module, nn.Linear):
             module.weight.data.normal_(mean=0.0, std=0.002)
             if module.bias is not None:
