@@ -368,8 +368,7 @@ class LLMoFCModel(nn.Module):
         hidden_states = hidden_states.to(self.dt)
 
         attention_mask = attention_mask.to(hidden_states)
-        print(attention_mask.dtype)
-        print(hidden_states.dtype)
+
         for idx, block in enumerate(self.layers):
             layer_outputs = block(
                 hidden_states,
@@ -417,7 +416,7 @@ class LLMoFCForCausalLM(nn.Module):
             loss_fct = nn.CrossEntropyLoss()
             loss = loss_fct(shift_logits.view(-1, self.config.vocab_size), shift_labels.view(-1))
 
-        return loss, logits
+        return logits, loss
 
     def prepare_inputs_for_generation(
             self, input_ids, past_key_values=None, attention_mask=None, inputs_embeds=None, **kwargs

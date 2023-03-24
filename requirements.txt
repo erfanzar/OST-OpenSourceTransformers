@@ -1,11 +1,13 @@
 torch~=2.0.0
-erutils
+erutils~=1.1.6
 transformers
+deepspeed
 beautifulsoup4~=4.11.1
 psutil~=5.9.4
 tqdm~=4.64.1
-datasets~=2.9.0
+datasets~=2.10.1
 dataset~=1.6.0
-packaging~=22.0
-numpy~=1.23.5
+packaging~=23.0
+numpy~=1.24.2
 pandas~=1.5.2
+accelerate~=0.17.1

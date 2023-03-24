@@ -18,8 +18,11 @@ from modules.dataset import DatasetLLMoFC
 from modules import LLMoFCForCausalLM, LLMoFCConfig
 from utils.utils import make2d, save_checkpoints, get_config_by_name, device_info, get_memory, count_model_parameters, \
     create_output_path, get_data
-import accelerate
+from accelerate import Accelerator
+import accelerate as accl
+
 torch.manual_seed(42)
+
 torch.backends.cudnn.benchmark = True
 
 pars = argparse.ArgumentParser()
@@ -29,7 +32,7 @@ pars.add_argument('--train', '--train', type=bool, default=True)
 pars.add_argument('--compile', '--compile', type=bool, default=True)
 pars.add_argument('--weight', '--weight', type=str, default=None)
 pars.add_argument('--out-path', '--out-path', type=str, default='out')
-pars.add_argument('--model', '--model', type=str, default='LLMoFC-S')
+pars.add_argument('--model', '--model', type=str, default='LLMoFC-LOW')
 pars.add_argument('--data-src', '--data-src', type=str, default='data/alpaca_data.json')
 # HF-kilt_tasks//eli5
 options = pars.parse_args()
@@ -53,7 +56,7 @@ def train(input_ids: Optional[Tensor],
           network: Optional[LLMoFCForCausalLM.forward],
           optim: Optional[torch.optim.AdamW],
           loss_average: Optional[Tensor],
-          actr: Optional[accelerate.Accelerator],
+          accelerate: Optional[Accelerator],
           device: Union[torch.device, str]) -> [typing.Union[torch.Tensor],
                                                 typing.Union[torch.Tensor]]:
     labels: Optional[Tensor] = make2d(targets.type(torch.long).to(device))
@@ -63,15 +66,15 @@ def train(input_ids: Optional[Tensor],
 
     loss_average += loss.item()
     optim.zero_grad(set_to_none=True)
-    actr.backward(loss)
+    accelerate.backward(loss)
 
     optim.step()
     return loss, loss_average
 
 
 def main(opt):
-    ac = accelerate.Accelerator()
-    device = ac.device
+    accelerate = Accelerator()
+    device = accelerate.device
     if opt.weight is None:
         out_path = create_output_path(path=opt.out_path, name=opt.model)
         if not os.path.exists(os.path.join(out_path, 'weights')):
@@ -86,7 +89,7 @@ def main(opt):
         else:
             raise ValueError('weight must contain path to .pt file')
     device_info()
-    data = get_data(opt.data_src)
+    data = get_data(opt.data_src)[:500]
     parameters: LLMoFCConfig = get_config_by_name(opt.model)
     tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained('tokenizer_model/BASE')
 
@@ -104,7 +107,7 @@ def main(opt):
     if opt.weight is None:
         model = LLMoFCForCausalLM(config=parameters).to(device)
     else:
-        with accelerate.init_empty_weights():
+        with accl.init_empty_weights():
             model = LLMoFCForCausalLM(
                 config=parameters)
 
@@ -137,9 +140,9 @@ def main(opt):
     question = 'explain atom in detail '
     q_ = dataset.pre_processing(question)
 
-    model = ac.prepare_model(model)
-    dataloader = ac.prepare_data_loader(dataloader)
-    optimizer = ac.prepare_optimizer(optimizer)
+    model = accelerate.prepare_model(model)
+    dataloader = accelerate.prepare_data_loader(dataloader)
+    optimizer = accelerate.prepare_optimizer(optimizer)
 
     if opt.train:
         logger.info('TRAIN IS ABOUT TO START')
@@ -154,7 +157,7 @@ def main(opt):
                     loss, loss_avg = train(input_ids=input_ids_t, targets=input_ids_t, network=model,
                                            optim=optimizer,
                                            loss_average=loss_avg, device=parameters.device,
-                                           attention_mask=attention_mask)
+                                           attention_mask=attention_mask, accelerate=accelerate)
 
                     free_gpu, used_gpu, total_gpu = get_memory(0)
                     if ((i + 1) % 50) == 0:
