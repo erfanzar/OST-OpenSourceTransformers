@@ -62,18 +62,19 @@ def train(input_ids: Optional[Tensor],
     labels: Optional[Tensor] = make2d(targets.type(torch.long).to(device))
     input_ids: Optional[Tensor] = make2d(input_ids.type(torch.long).to(device))
     logger.debug('RUNNING TRAIN FUNCTION IN MAIN THREAD ')
+
     _, loss = network(input_ids=input_ids, labels=labels, attention_mask=attention_mask)
 
     loss_average += loss.item()
-    optim.zero_grad(set_to_none=True)
-    accelerate.backward(loss)
 
+    accelerate.backward(loss)
     optim.step()
+    optim.zero_grad(set_to_none=True)
     return loss, loss_average
 
 
 def main(opt):
-    accelerate = Accelerator()
+    accelerate = Accelerator(gradient_accumulation_steps=4)
     device = accelerate.device
     if opt.weight is None:
         out_path = create_output_path(path=opt.out_path, name=opt.model)
@@ -148,16 +149,17 @@ def main(opt):
         logger.info('TRAIN IS ABOUT TO START')
         for epoch in range(start_epoch, parameters.epochs):
             loss_avg = 0
+
             with tqdm(enumerate(dataloader), **TQDM_KWARGS,
                       total=math.ceil(dataset.__len__() // parameters.batch_size)) as progress_bar:
                 for i, (input_ids_t, attention_mask) in progress_bar:
                     logger.debug(f'\033[1;94m input_ids_t    : {input_ids_t.shape}')
                     logger.debug(f'\033[1;94m attention_mask : {attention_mask.shape}')
-
-                    loss, loss_avg = train(input_ids=input_ids_t, targets=input_ids_t, network=model,
-                                           optim=optimizer,
-                                           loss_average=loss_avg, device=parameters.device,
-                                           attention_mask=attention_mask, accelerate=accelerate)
+                    with accelerate.accumulate(model):
+                        loss, loss_avg = train(input_ids=input_ids_t, targets=input_ids_t, network=model,
+                                               optim=optimizer,
+                                               loss_average=loss_avg, device=parameters.device,
+                                               attention_mask=attention_mask, accelerate=accelerate)
 
                     free_gpu, used_gpu, total_gpu = get_memory(0)
                     if ((i + 1) % 50) == 0:
