@@ -106,18 +106,21 @@ class LLMoFCMLP(pl.LightningModule):
 
     def forward(self, x):
         return self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
-    
-    
-class Linear(pl.LightningModule):
-    def __init__(self,in_c,out_c,bias=False):
+
+
+class Conv1D(pl.LightningModule):
+    def __init__(self, in_c, out_c, bias=False):
         super().__init__()
         self.out_c = out_c
-        self.weight = nn.Parameters(torch.rand(in_c,out_c))
-        self.bias = nn.Parameters(torch.zeros(out_c)) if not bias else nn.Parameters(torch.ones(out_c))
-    def forward(self,x):
-        out_size = x.size()[:-1]+(self.out_c,)
-        out = torch.addbmm(self.bias,batch_1=x.view(-1,x.size(-1)),batch_2=self.weight)
+        self.weight = nn.Parameter(torch.empty(in_c, out_c))
+        self.bias = nn.Parameter(torch.zeros(out_c)) if not bias else nn.Parameter(torch.ones(out_c))
+        torch.nn.init.normal_(self.weight, std=0.02)
+
+    def forward(self, x):
+        out_size = x.size()[:-1] + (self.out_c,)
+        out = torch.addmm(self.bias, x.view(-1, x.size(-1)), self.weight)
         return out.view(out_size)
+
 
 class LLMoFCAttention(pl.LightningModule):
 
@@ -129,22 +132,22 @@ class LLMoFCAttention(pl.LightningModule):
 
         assert (self.head_dim * num_heads) == self.hidden_size
 
-        self.q_proj = Linear(
+        self.q_proj = Conv1D(
             hidden_size,
             num_heads * self.head_dim,
             bias=False,
         )
-        self.k_proj = Linear(
+        self.k_proj = Conv1D(
             hidden_size,
             num_heads * self.head_dim,
             bias=False,
         )
-        self.v_proj = Linear(
+        self.v_proj = Conv1D(
             hidden_size,
             num_heads * self.head_dim,
             bias=False,
         )
-        self.o_proj = Linear(
+        self.o_proj = Conv1D(
             num_heads * self.head_dim,
             hidden_size,
             bias=False,
@@ -220,7 +223,6 @@ def _make_causal_mask(input_ids_shape: torch.Size, dtype: torch.dtype, past_key_
 
 
 def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] = None):
-
     bsz, src_len = mask.size()
     tgt_len = tgt_len if tgt_len is not None else src_len
 
@@ -329,7 +331,8 @@ class LLMoFCModel(pl.LightningModule):
             )
 
         if attention_mask is not None:
-            expanded_attn_mask = _expand_mask(attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1]).to(combined_attention_mask)
+            expanded_attn_mask = _expand_mask(attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1]).to(
+                combined_attention_mask)
             combined_attention_mask = (
                 expanded_attn_mask if combined_attention_mask is None else expanded_attn_mask + combined_attention_mask
             )
@@ -360,7 +363,7 @@ class LLMoFCModel(pl.LightningModule):
         )
 
         hidden_states = inputs_embeds
-        attention_mask=attention_mask.to(hidden_states)
+        attention_mask = attention_mask.to(hidden_states)
         for idx, block in enumerate(self.layers):
             layer_outputs = block(
                 hidden_states,
@@ -450,5 +453,5 @@ class LLMoFCForCausalLM(pl.LightningModule):
         attention_mask: Optional[Tensor] = make2d(attention_mask).to(input_ids)
 
         loss, _ = self.forward(input_ids=input_ids, labels=labels, attention_mask=attention_mask)
-        self.log('train_loss', loss, on_step=True, on_epoch=True,prog_bar=True)
+        self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True)
         return loss

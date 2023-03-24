@@ -217,8 +217,8 @@ class DatasetLLMoFC(Dataset, Tokens, ManualDataSet):
             instruction = dict_['instruction']
             inpt = dict_['input']
             output = dict_['output']
-            if inpt =="":
-                string = f'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction:\n\n{instruction}\n\n### Response:\n\n{output}'
+            if inpt == "":
+                string = f'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction:\n\n{instruction}\n\n### Response:\n\n{output}{self.eos}'
             else:
                 string = f'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n\n### Instruction:\n\n{instruction}\n\n### Input:\n\n{inpt}\n\n### Response:\n\n{output}{self.eos}'
             preprocessed_data.append(string)
@@ -236,8 +236,9 @@ class DatasetLLMoFC(Dataset, Tokens, ManualDataSet):
         return self.input_ids[idx], self.attention_mask[idx]
 
     def pre_processing(self, inp):
-
-        return self.tokenizer.encode_plus(self.sos + inp + self.sos, max_length=self.max_length, truncation=True,
+        pre = 'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction:\n\n'
+        post = '\n\n### Response:\n\n'
+        return self.tokenizer.encode_plus(pre + inp + post, max_length=self.max_length, truncation=True,
                                           return_tensors='pt',
                                           padding="max_length")
 

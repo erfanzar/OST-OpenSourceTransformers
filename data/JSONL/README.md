@@ -1,6 +1,6 @@
 ### Data JSONL
 
-special thank to Wang, Yizhong and Kordi, Yeganeh and Mishra, Swaroop and Liu, Alisa and Smith, Noah A. and Khashabi,
+special thanks to Wang, Yizhong and Kordi, Yeganeh and Mishra, Swaroop and Liu, Alisa and Smith, Noah A. and Khashabi,
 Daniel and Hajishirzi, Hannaneh and their team for this great Data
 
 May community appreciate you <3 :)

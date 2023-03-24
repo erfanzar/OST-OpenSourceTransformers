@@ -36,7 +36,7 @@ options = pars.parse_args()
 
 logger = logging.getLogger(__name__)
 
-logging.basicConfig(level=logging.CRITICAL)
+logging.basicConfig(level=logging.WARN)
 
 
 def train(input_ids: Optional[Tensor],
