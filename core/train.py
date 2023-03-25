@@ -1,10 +1,12 @@
 import logging
 import math
 import os
-from typing import Optional, Union, Any
+from typing import Optional, Union, Any, List
 
 import accelerate
+
 import erutils
+import torch.distributed as dist
 import torch.utils.data
 from erutils.loggers import fprint
 from torch.utils.tensorboard import SummaryWriter
@@ -68,7 +70,30 @@ def train(model_type,
           dataset,
           use_compile=True,
           do_train=True,
-          question: Optional[str] = None):
+          question: Optional[str] = None,
+          device_ids: List[int] = None,
+          use_ddp: Optional[bool] = False,
+          world_size: int = 1,
+          backend: Optional[str] = "gloo",
+          rank: Optional[int] = 0,
+          init_method: Optional[str] = 'tcp://127.0.0.1:80'):
+    color: str = '\033[1;94m'
+    erutils.fprint(f'USING DistributedDataParallel : {use_ddp}', color=color)
+    erutils.fprint(
+        f' INFO DistributedDataParallel '
+        f'\n\tbackend : {backend}'
+        f'\n\tinit_method : {init_method}'
+        f'\n\trank : {rank}'
+        f'\n\tworld_size : {world_size}',
+        color=color)
+    if use_ddp:
+
+        os.environ['MASTER_ADDR'] = 'localhost'
+        os.environ['MASTER_PORT'] = '80'
+        dist.init_process_group(backend=backend, init_method=init_method, rank=rank, world_size=world_size)
+    else:
+
+        erutils.fprint(f' IGNORE DistributedDataParallel ...', color=color)
     assert hasattr(dataset, 'tokenizer'), 'dataset must contain tokenizer'
     accelerator = accelerate.Accelerator(gradient_accumulation_steps=gradient_accumulation_steps)
     device = accelerator.device
@@ -97,7 +122,7 @@ def train(model_type,
     erutils.loggers.show_hyper_parameters(configuration)
 
     fprint('Loading Model ...' if weight else 'Creating Model ...')
-
+    exit(0)
     if weight is None:
         model = model_class(config=configuration).to(device)
     else:
@@ -138,7 +163,8 @@ def train(model_type,
     model = model.to(device=device)
 
     q_ = dataset.pre_processing(question) if question is not None else None
-
+    if use_ddp:
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=device_ids)
     model, optimizer, dataloader = accelerate_mode(accelerator=accelerator, model=model, optimizer=optimizer,
                                                    dataloader=dataloader)
 
@@ -153,7 +179,7 @@ def train(model_type,
                     logger.debug(f'\033[1;94m input_ids_t    : {input_ids.shape}')
                     logger.debug(f'\033[1;94m attention_mask : {attention_mask.shape}')
                     with accelerator.accumulate(model):
-                        input_ids: Optional[Tensor] = make2d(input_ids.type(torch.long).to(device))
+                        input_ids: Optional[torch.Tensor] = make2d(input_ids.type(torch.long).to(device))
                         logger.debug('RUNNING TRAIN FUNCTION IN MAIN THREAD ')
 
                         _, loss = model(input_ids=input_ids, labels=input_ids, attention_mask=attention_mask)
@@ -208,17 +234,19 @@ def train(model_type,
                 logger.debug(f'\033[1;94m attention_mask : {attention_mask.shape}')
 
                 with accelerator.accumulate(model):
-                    input_ids: Optional[Tensor] = make2d(input_ids.type(torch.long).to(device))
+                    input_ids: Optional[torch.Tensor] = make2d(input_ids.type(torch.long).to(device))
                     logger.debug('RUNNING TRAIN FUNCTION IN MAIN THREAD ')
 
                     _, loss = model(input_ids=input_ids, labels=input_ids, attention_mask=attention_mask)
 
                     accelerator.backward(loss)
-                    optim.step()
-                    optim.zero_grad(set_to_none=True)
+                    optimizer.step()
+                    optimizer.zero_grad(set_to_none=True)
 
                 free_gpu, used_gpu, total_gpu = get_memory(0)
 
                 progress_bar.set_postfix(device=configuration.device,
 
                                          loss=loss.item(), free_GPU=free_gpu, used_GPU=used_gpu)
+
+    dist.destroy_process_group()
