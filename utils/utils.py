@@ -765,6 +765,14 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             num_attention_heads=8,
             vocab_size=3200,
         )
+    elif name == 'LGeM-ML-OLD':
+        return LGeMConfig(
+            hidden_size=1344,
+            intermediate_size=1344 * 4,
+            num_hidden_layers=10,
+            num_attention_heads=16,
+            vocab_size=-1,
+        )
     elif name == 'LGeM-ML':
         return LGeMConfig(
             hidden_size=1408,
