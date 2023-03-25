@@ -35,7 +35,7 @@ def main(opt):
     tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained('tokenizer_model/BASE')
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.pad_token_id = tokenizer.eos_token_id
-    data = get_data(opt.data_src)[:850]
+    data = get_data(opt.data_src)
     conf = get_config_by_name(opt.model)
     # Replace with your own Dataset
     dataset = DatasetLGeM(data=data, max_length=conf.max_sentence_length, tokenizer=tokenizer)

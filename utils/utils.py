@@ -508,11 +508,6 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             vocab_size=vocab_size
         )
     elif name == 'PGT-LXX':
-        prp = torch.cuda.get_device_properties("cuda") if torch.cuda.is_available() else None
-        if prp is not None:
-            print(f'\033[1;32mWarning You Loading the Largest Model on {prp.name} : {prp.total_memory / 1e9} GB')
-        else:
-            print('\033[1;32mWarning You Loading the Largest Model on CPU !')
         return PGTConfig(
             n_layers=64,
             n_heads=32,
@@ -773,7 +768,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
     elif name == 'LGeM-ML':
         return LGeMConfig(
             hidden_size=1536,
-            intermediate_size=1536 * 10,
+            intermediate_size=1536 * 6,
             num_hidden_layers=14,
             num_attention_heads=16,
             vocab_size=-1,
@@ -792,6 +787,30 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             intermediate_size=4096 * 6,
             num_hidden_layers=36,
             num_attention_heads=32,
+            vocab_size=3200,
+        )
+    elif name == 'LGeM-L':
+        return LGeMConfig(
+            hidden_size=8192,
+            intermediate_size=8192 * 6,
+            num_hidden_layers=32,
+            num_attention_heads=64,
+            vocab_size=3200,
+        )
+    elif name == 'LGeM-LX':
+        return LGeMConfig(
+            hidden_size=10240,
+            intermediate_size=10240 * 5,
+            num_hidden_layers=54,
+            num_attention_heads=64,
+            vocab_size=3200,
+        )
+    elif name == 'LGeM-LLX':
+        return LGeMConfig(
+            hidden_size=12288,
+            intermediate_size=12288 * 5,
+            num_hidden_layers=92,
+            num_attention_heads=128,
             vocab_size=3200,
         )
     else:
