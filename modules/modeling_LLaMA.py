@@ -8,8 +8,7 @@ from erutils.loggers import show_hyper_parameters
 from torch import nn
 from transformers import GPT2Tokenizer
 
-from .dataset import Tokens
- 
+from .datasets import Tokens
 
 logger = logging.getLogger(__name__)
 
@@ -192,22 +191,30 @@ class LLamaModel(nn.Module):
         )
         self.freq = precompute_frq_cis(config.hidden_size // config.n_heads, config.max_sentence_length * 2)
 
-    def forward(self, tokens: torch.Tensor, pos_start: int):
-        _batch, seq_len = tokens.shape
-        h = self.wte(tokens)
+    def forward(self, input_ids: torch.Tensor, labels=None, pos_start: int = 0, attention_mask=None):
+        _batch, seq_len = input_ids.shape
+        h = self.wte(input_ids)
         mask = None
         self.freq = self.freq.to(h.device)
         chosen_freq = self.freq[pos_start:pos_start + seq_len]
         if seq_len > 1:
-            mask = torch.full((1, 1, seq_len, seq_len), float("-inf"), device=tokens.device)
+            mask = torch.full((1, 1, seq_len, seq_len), float("-inf"), device=input_ids.device)
             mask = torch.triu(mask, diagonal=pos_start + 1).type_as(h)
 
         for layer in self.layers:
             h = layer(h, pos_start=pos_start, mask=mask, freq=chosen_freq)
         h = self.norm(h)
-        output = self.output(h[:, -1, :])  # only compute last logits
+        logits = self.output(h[:, -1, :])  # only compute last logits
         # output = self.output(h)
-        return output
+        loss = None
+        if labels is not None:
+            shift_logits = logits[..., :-1, :].contiguous()
+            shift_labels = labels[..., 1:].contiguous()
+
+            loss_fct = nn.CrossEntropyLoss()
+            loss = loss_fct(shift_logits.view(-1, self.config.vocab_size), shift_labels.view(-1))
+
+        return logits, loss
 
     def generate(
             self,

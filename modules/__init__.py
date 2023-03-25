@@ -1,12 +1,12 @@
-from .dataset import Tokens
+from .datasets import Tokens
 from .models import PGT, LLmP, PGTConfig, LLmPConfig
 from .modeling_LLmPU import LLmPUForConditionalGeneration, LLmPUModel, LLmPUConfig
 from .modeling_LLMoU import LLMoUModel, LLMoUConfig
 from .modeling_LLaMA import LLamaModel, LLamaConfig
-from .modeling_LLMoFC import LLMoFCModel, LLMoFCConfig, LLMoFCForCausalLM
+from .modeling_LGeM import LGeMModel, LGeMConfig, LGeMForCausalLM
 
 # PPaLM is an edited version of PaLM from Google but edited at some points
 try:
-    from .jax_models import LLMoFC_Jax, LLMoFCConfig_Jax, PPaLMConfig, PPaLM
+    from .jax_models import LGeM_Jax, LGeMConfig_Jax, PPaLMConfig, PPaLM
 except ImportError:
     pass

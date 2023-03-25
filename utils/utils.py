@@ -4,6 +4,7 @@ import time
 import typing
 from typing import Union, Optional
 
+import accelerate
 import psutil
 import torch
 import tqdm
@@ -14,7 +15,7 @@ from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 from transformers import BertTokenizer, GPT2Tokenizer
 
-from modules import LLMoFCConfig, LLamaConfig, PGTConfig, LLmPConfig, LLMoUConfig, LLmPUConfig
+from modules import LGeMConfig, LLamaConfig, PGTConfig, LLmPConfig, LLMoUConfig, LLmPUConfig
 
 
 class Tokens:
@@ -418,7 +419,7 @@ def make2d(tensor) -> typing.Optional[torch.Tensor]:
 
 def get_config_by_name(name: str, vocab_size: int = 5000,
                        device: str = 'cuda' if torch.cuda.is_available() else 'cpu') -> typing.Union[
-    HyperParameters, LLamaConfig, LLmPConfig, LLmPUConfig, LLMoUConfig, PGTConfig, LLMoFCConfig]:
+    HyperParameters, LLamaConfig, LLmPConfig, LLmPUConfig, LLMoUConfig, PGTConfig, LGeMConfig]:
     """
     :param device: device for model
     :param vocab_size: vocab_size
@@ -753,40 +754,40 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
         return LLmPUConfig(
             **L
         )
-    elif name == 'LLMoFC-LOW':
-        return LLMoFCConfig(
+    elif name == 'LGeM-LOW':
+        return LGeMConfig(
             hidden_size=512,
             intermediate_size=512 * 5,
             num_hidden_layers=6,
             num_attention_heads=8,
             vocab_size=3200,
         )
-    elif name == 'LLMoFC-S':
-        return LLMoFCConfig(
+    elif name == 'LGeM-S':
+        return LGeMConfig(
             hidden_size=768,
-            intermediate_size=768 * 10,
+            intermediate_size=768 * 7,
             num_hidden_layers=6,
             num_attention_heads=8,
             vocab_size=3200,
         )
-    elif name == 'LLMoFC-ML':
-        return LLMoFCConfig(
+    elif name == 'LGeM-ML':
+        return LGeMConfig(
             hidden_size=1536,
             intermediate_size=1536 * 10,
             num_hidden_layers=14,
             num_attention_heads=16,
             vocab_size=-1,
         )
-    elif name == 'LLMoFC':
-        return LLMoFCConfig(
+    elif name == 'LGeM':
+        return LGeMConfig(
             hidden_size=2048,
             intermediate_size=2048 * 8,
             num_hidden_layers=24,
             num_attention_heads=16,
             vocab_size=3200,
         )
-    elif name == 'LLMoFC-X':
-        return LLMoFCConfig(
+    elif name == 'LGeM-X':
+        return LGeMConfig(
             hidden_size=4096,
             intermediate_size=4096 * 6,
             num_hidden_layers=36,
@@ -891,3 +892,24 @@ def get_data(data_src):
         data = None
         raise ValueError()
     return data
+
+
+def compile_model(model: torch.nn.Module):
+    try:
+        import torch._dynamo as dynamo
+        torch._dynamo.config.verbose = True
+        torch.backends.cudnn.benchmark = True
+        model = torch.compile(model, mode="max-autotune", fullgraph=False)
+        print("Model compiled set")
+    except Exception as err:
+        print(f"Model compile not supported: {err}")
+    return model
+
+
+def accelerate_mode(accelerator: accelerate.Accelerator, model: torch.nn.Module = None,
+                    optimizer: torch.optim.Optimizer = None, dataloader=None):
+    model = accelerator.prepare_model(model) if model is not None else None
+    optimizer = accelerator.prepare_optimizer(optimizer) if optimizer is not None else None
+
+    dataloader = accelerator.prepare_data_loader(dataloader) if dataloader is not None else None
+    return model, optimizer, dataloader

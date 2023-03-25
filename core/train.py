@@ -1,92 +1,224 @@
-# import os
-# import typing
-#
-# import torch
-# from erutils.loggers import fprint
-# from erutils.utils import read_yaml, read_json
-# from torch.utils.data import DataLoader
-#
-# from modules.models import PTTGenerative
-# from utils.utils import DatasetQA, save_checkpoints
-#
-#
-# # from torch.utils.tensorboard import SummaryWriter
-#
-# def train_ptt_g(config_path: typing.Union[str, os.PathLike],
-#                 device: str = 'cuda' if torch.cuda.is_available() else 'cpu'):
-#     ...
-#
-#
-# def train_ptt(config_path: typing.Union[str, os.PathLike],
-#               device: str = 'cuda' if torch.cuda.is_available() else 'cpu'):
-#     cfg = read_yaml(config_path)
-#     data_path = cfg['data_path']
-#     epochs = cfg['epochs']
-#     lr = float(cfg['lr'])
-#     max_length = cfg['chunk']
-#     number_of_heads = cfg['number_of_heads']
-#     number_of_layers = cfg['number_of_layers']
-#     embedded = cfg['embedded']
-#     use_train = cfg['train']
-#     batch_size = cfg['batch_size']
-#     # ssm = SummaryWriter(log_dir='results/out')
-#     data = read_json(data_path)
-#
-#     questions = [data[v]['question'] for v in data]
-#     answers = [data[v]['answer'] for v in data]
-#
-#     dataset = DatasetQA(max_length=max_length, src=questions, trg=answers)
-#     dataloader = DataLoader(dataset, batch_size=batch_size, num_workers=2, pin_memory=True)
-#     vocab_size: int = dataset.vocab_size
-#     pad_index: int = dataset.pad_token_id
-#     eos: int = dataset.tokenizer.eos_token_id
-#     ptt = PTTGenerative(
-#         vocab_size=vocab_size,
-#         chunk=max_length,
-#         embedded=embedded,
-#         eos=eos,
-#         number_of_layers=number_of_layers,
-#         number_of_heads=number_of_heads,
-#         pad_index=pad_index,
-#     ).to(device)
-#     fprint(f'[[ Model Created with {sum(p.numel() for p in ptt.parameters()) / 1e6} M parameters Over All ]]',
-#            color='\033[1;32m')
-#     optimizer = torch.optim.AdamW(ptt.parameters(), lr)
-#
-#
-#     data_ip = dataset.__getitem__(1)
-#     answer = data_ip[1].to(device)
-#     question = data_ip[0].to(device)
-#     print(f'QUESTION : {dataset.decode(question)}')
-#     print(f'ANSWER   : {dataset.decode(answer)}')
-#     sos = dataset.sos().to(device)
-#     # print(f'AW : {answer.shape}')
-#     for epoch in range(epochs):
-#         lsa = 0
-#         for i, (src, trg) in enumerate(dataloader):
-#             src = src.to(device).view(-1, src.size(-1))
-#             trg = trg.to(device)
-#             # print(trg.shape)
-#             _, losses = ptt.forward(src=src, trg=sos.repeat(batch_size, 1), target=trg[:, :, :-1])
-#             optimizer.zero_grad()
-#             losses.backward()
-#             optimizer.step()
-#             lsa += losses.item()
-#             fprint(
-#                 f'\rEPOCH : [{epoch}/{epochs}] | LOSS : {losses.item() / batch_size} | EPOCH LOSS AVG : {(lsa / (i + 1)) / batch_size} | ITER : {i + 1}',
-#                 end='')
-#             if i == 500:
-#                 break
-#         print()
-#         if epoch % 5 == 0:
-#             print()
-#             predictions = ptt.generate(src=question, idx=sos)
-#             fprint(f'QUESTION : {dataset.decode(question)}')
-#             fprint(f'ANSWER   : {dataset.decode(answer)}')
-#             fprint(f'PREDICTION : {dataset.decode(predictions)}')
-#             save_checkpoints(model=ptt.state_dict(), optimizer=optimizer.state_dict(), epochs=epochs, epoch=epoch,
-#                        name='model.pt')
-#             fprint('==> MODEL SAVE SUCCESSFULLY')
-#     print()
-#     predictions = ptt.generate(src=question, idx=sos)
-#     print(f'PREDICTION : {dataset.decode(predictions)}')
+import logging
+import math
+import os
+from typing import Optional, Union, Any
+
+import accelerate
+import erutils
+import torch.utils.data
+from erutils.loggers import fprint
+from torch.utils.tensorboard import SummaryWriter
+from tqdm.auto import tqdm
+
+from config.config import TQDM_KWARGS
+from modules import *
+from modules.datasets import DatasetLLama, DatasetLGeM, DatasetLLmPChat, DatasetPGTChat, DatasetLLMoU, DatasetLLmP, \
+    DatasetLLmPU, ManualDataSet
+from utils.utils import save_checkpoints, get_config_by_name, device_info, get_memory, count_model_parameters, \
+    create_output_path, compile_model, accelerate_mode, make2d
+
+logger = logging.getLogger(__name__)
+MODELS_CLASSES = Union[
+    LGeMModel,
+    LGeMForCausalLM,
+    torch.nn.Module,
+    LLamaModel,
+    LLMoUModel,
+    LLmPUForConditionalGeneration,
+    LLmPUModel,
+    PGT,
+    LLmP,
+    Any
+]
+CONFIG_CLASSES = Union[
+    PGTConfig,
+    LLmPConfig,
+    LLmPUConfig,
+    LGeMConfig,
+    LLMoUConfig,
+    LLamaConfig,
+]
+
+DATASET_CLASSES = Union[
+    DatasetLLama,
+    DatasetLGeM,
+    DatasetLLmPChat,
+    DatasetPGTChat,
+    DatasetLLMoU,
+    DatasetLLmP,
+    DatasetLLmPU,
+    ManualDataSet
+]
+
+
+def loss_cal(logits, label, *arg):
+    shift_logits = logits[..., :-1, :].contiguous()
+    shift_labels = label[..., 1:].contiguous()
+
+    loss_fct = torch.nn.CrossEntropyLoss()
+    return loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+
+
+def train(model_type,
+          model_class: MODELS_CLASSES,
+          weight,
+          gradient_accumulation_steps,
+          out_path: Union[str, os.PathLike],
+          batch_size,
+          dataset,
+          use_compile=True,
+          do_train=True,
+          question: Optional[str] = None):
+    assert hasattr(dataset, 'tokenizer'), 'dataset must contain tokenizer'
+    accelerator = accelerate.Accelerator(gradient_accumulation_steps=gradient_accumulation_steps)
+    device = accelerator.device
+    if weight is None:
+        out_path = create_output_path(path=out_path, name=model_type)
+        if not os.path.exists(os.path.join(out_path, 'weights')):
+            os.mkdir(os.path.join(out_path, 'weights'))
+    else:
+        if weight.endswith('.pt'):
+            out_path = weight.split('/')
+            if 'weights' in out_path:
+                out_path = os.path.join(*(p for p in out_path[:-2]))
+            else:
+                out_path = os.path.join(*(p for p in out_path[:-1]))
+        else:
+            raise ValueError('weight must contain path to .pt file')
+    device_info()
+
+    configuration: CONFIG_CLASSES = get_config_by_name(model_type)
+
+    configuration.vocab_size = dataset.tokenizer.vocab_size
+    configuration.device = device
+    configuration.batch_size = batch_size
+    dataloader = torch.utils.data.DataLoader(dataset=dataset, batch_size=configuration.batch_size, num_workers=4,
+                                             pin_memory=True)
+    erutils.loggers.show_hyper_parameters(configuration)
+
+    fprint('Loading Model ...' if weight else 'Creating Model ...')
+
+    if weight is None:
+        model = model_class(config=configuration).to(device)
+    else:
+        with accelerate.init_empty_weights():
+            model = model_class(
+                config=configuration)
+
+    optimizer_kwargs = dict(lr=configuration.lr, weight_decay=configuration.weight_decay)
+    optimizer = torch.optim.AdamW(model.parameters(), **optimizer_kwargs)
+    model_parameters_size: Optional[float] = count_model_parameters(model)
+
+    checkpoints = torch.load(weight, 'cpu') if weight is not None else None
+
+    if checkpoints is not None:
+        try:
+            model.load_state_dict(checkpoints['model'])
+            model = model.to(device)
+            optimizer.load_state_dict(checkpoints['optimizer'])
+            start_epoch = checkpoints['epoch']
+            at = checkpoints['at']
+            del checkpoints
+        except Exception as err:
+            print(f'checkpoint Loading failed make sure that you using right ckpt s : [ERROR] {err}')
+            start_epoch = 0
+            at = 0
+    else:
+        start_epoch = 0
+        at = 0
+
+    fprint(
+        f'Model Loaded With {model_parameters_size} Million Parameters' if weight is not None
+        else f'Model Created With {model_parameters_size} Million Parameters')
+
+    if use_compile:
+        model = compile_model(model)
+
+    board = SummaryWriter(log_dir=f'{out_path}/tensorboard', filename_suffix=f'{model_type}') if do_train else None
+    model = model.to(device=device)
+
+    q_ = dataset.pre_processing(question) if question is not None else None
+
+    model, optimizer, dataloader = accelerate_mode(accelerator=accelerator, model=model, optimizer=optimizer,
+                                                   dataloader=dataloader)
+
+    if do_train:
+        logger.info('TRAIN IS ABOUT TO START')
+        for epoch in range(start_epoch, configuration.epochs):
+            loss_avg = 0
+
+            with tqdm(enumerate(dataloader), **TQDM_KWARGS,
+                      total=math.ceil(dataset.__len__() // configuration.batch_size)) as progress_bar:
+                for i, (input_ids, attention_mask) in progress_bar:
+                    logger.debug(f'\033[1;94m input_ids_t    : {input_ids.shape}')
+                    logger.debug(f'\033[1;94m attention_mask : {attention_mask.shape}')
+                    with accelerator.accumulate(model):
+                        input_ids: Optional[Tensor] = make2d(input_ids.type(torch.long).to(device))
+                        logger.debug('RUNNING TRAIN FUNCTION IN MAIN THREAD ')
+
+                        _, loss = model(input_ids=input_ids, labels=input_ids, attention_mask=attention_mask)
+
+                        loss_avg += loss.item()
+
+                        accelerator.backward(loss)
+                        optimizer.step()
+                        optimizer.zero_grad(set_to_none=True)
+
+                    free_gpu, used_gpu, total_gpu = get_memory(0)
+                    if ((i + 1) % 50) == 0:
+                        if question is not None:
+                            tk = q_['input_ids']
+                            tk = tk.to(configuration.device)
+                            cals = []
+                            try:
+                                for pred in model.generate(tokens=tk, pad_id=dataset.tokenizer.pad_token_id,
+                                                           attention_mask=None,
+                                                           eos_id=dataset.tokenizer.eos_token_id):
+                                    cals.append(pred)
+                                cals = torch.cat(cals, dim=-1)
+                                cals = cals.to('cpu')
+                                awn = dataset.tokenizer.decode(cals[0])
+                            except Exception as err:
+                                awn = f'EMPTY {err}'
+                            del cals
+                            board.add_text('train/Context', f'{question}', global_step=at)
+                            board.add_text('train/GeneratedResponse', f'{awn}', global_step=at)
+                        board.add_scalar('train/Loss', scalar_value=loss.item(), global_step=at)
+                        board.add_scalar('train/avg-Loss', scalar_value=(loss_avg / (i + 1)),
+                                         global_step=at)
+
+                    at += 1
+                    progress_bar.set_postfix(epoch=f'[{epoch}/{configuration.epochs}]', device=configuration.device,
+                                             loss_avg=(loss_avg / (i + 1)),
+                                             loss=loss.item(), free_GPU=free_gpu, used_GPU=used_gpu)
+
+                print()
+                save_checkpoints(model=model.state_dict(), optimizer=optimizer.state_dict(),
+                                 epochs=configuration.epochs, at=at,
+                                 epoch=epoch + 1, config=model_type,
+                                 name=f'{out_path}/weights/{model_type}-model.pt')
+                progress_bar.write('==> MODEL SAVED SUCCESSFULLY')
+
+    else:
+        with tqdm(range(1), **TQDM_KWARGS,
+                  total=1) as progress_bar:
+            for i in progress_bar:
+                (input_ids, attention_mask) = dataset.__getitem__(i)
+                logger.debug(f'\033[1;94m input_ids_t    : {input_ids.shape}')
+                logger.debug(f'\033[1;94m attention_mask : {attention_mask.shape}')
+
+                with accelerator.accumulate(model):
+                    input_ids: Optional[Tensor] = make2d(input_ids.type(torch.long).to(device))
+                    logger.debug('RUNNING TRAIN FUNCTION IN MAIN THREAD ')
+
+                    _, loss = model(input_ids=input_ids, labels=input_ids, attention_mask=attention_mask)
+
+                    accelerator.backward(loss)
+                    optim.step()
+                    optim.zero_grad(set_to_none=True)
+
+                free_gpu, used_gpu, total_gpu = get_memory(0)
+
+                progress_bar.set_postfix(device=configuration.device,
+
+                                         loss=loss.item(), free_GPU=free_gpu, used_GPU=used_gpu)

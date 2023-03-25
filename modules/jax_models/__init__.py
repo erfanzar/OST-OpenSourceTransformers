@@ -1,2 +1,2 @@
-from .modeling_LLMoFC_jax import LLMoFCConfig_Jax, LLMoFC_Jax
+from .modeling_LGeM_jax import LGeMConfig_Jax, LGeM_Jax
 from .modeling_PPaLM import PPaLMConfig, PPaLM

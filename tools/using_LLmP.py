@@ -7,7 +7,7 @@ import torch.utils.data
 from erutils.loggers import fprint
 from transformers import AutoTokenizer
 
-from modules.dataset import DatasetLLmP, Tokens
+from modules.datasets import DatasetLLmP, Tokens
 from modules.models import LLmP
 from utils.utils import get_config_by_name, count_model_parameters, device_info
 

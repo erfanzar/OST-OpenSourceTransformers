@@ -35,7 +35,7 @@ def timer(func):
 
 
 @dataclasses.dataclass
-class LLMoFCConfig_Jax:
+class LGeMConfig_Jax:
     n_heads: int = 8
     n_layers: int = 8
     vocab_size: int = 3200
@@ -61,7 +61,7 @@ def scaled_dot_product(query, key, value, bias=None, attention_mask=None):
 
 class RotaryEmbedding(nn.Module):
     head_dim: int
-    config: LLMoFCConfig_Jax
+    config: LGeMConfig_Jax
 
     def setup(self) -> None:
         config = self.config
@@ -102,7 +102,7 @@ def apply_rotary_pos_emb(q, k, cos, sin, offset: int = 0):
 
 
 class Attention(nn.Module):
-    config: LLMoFCConfig_Jax
+    config: LGeMConfig_Jax
 
     def setup(self):
         n_heads = self.config.n_heads
@@ -140,7 +140,7 @@ class Attention(nn.Module):
 
 
 class Block(nn.Module):
-    config: LLMoFCConfig_Jax
+    config: LGeMConfig_Jax
 
     def setup(self) -> None:
         self.attention = Attention(self.config)
@@ -165,11 +165,11 @@ class Block(nn.Module):
         return hidden
 
 
-class LLMoFC_Jax(nn.Module):
-    config: LLMoFCConfig_Jax
+class LGeM_Jax(nn.Module):
+    config: LGeMConfig_Jax
 
     def setup(self) -> None:
-        config: LLMoFCConfig_Jax = self.config
+        config: LGeMConfig_Jax = self.config
         self.embedding = nn.Embed(config.vocab_size, config.hidden_size)
         self.blocks = [
             Block(config=config) for _ in range(config.n_layers)

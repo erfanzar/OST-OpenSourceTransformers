@@ -1,4 +1,4 @@
-""" LLMoFC is PyTorch LLaMA model and its changed a bit for research
+""" LGeM is PyTorch LLaMA model and its changed a bit for research
  [right Llama implementation (at least what I got from paper) is in modelling_LLaMA.py]"""
 
 import math
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class LLMoFCConfig:
+class LGeMConfig:
     initializer_range: float = 0.02
     hidden_size: int = 768
     dtype: torch.dtype = torch.float16
@@ -36,7 +36,7 @@ class LLMoFCConfig:
     epochs: int = 500
 
 
-class LLMoFCRMSNorm(nn.Module):
+class LGeMRMSNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
         super().__init__()
         self.weight = nn.Parameter(torch.ones(hidden_size))
@@ -48,7 +48,7 @@ class LLMoFCRMSNorm(nn.Module):
         return self.weight * hidden_states
 
 
-class LLMoFCRotaryEmbedding(nn.Module):
+class LGeMRotaryEmbedding(nn.Module):
     def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None):
         super().__init__()
         inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float().to(device) / dim))
@@ -90,7 +90,7 @@ def apply_rotary_pos_emb(q, k, cos, sin, offset: int = 0):
     return q_embed, k_embed
 
 
-class LLMoFCMLP(nn.Module):
+class LGeMMLP(nn.Module):
     def __init__(
             self,
             hidden_size: int,
@@ -124,7 +124,7 @@ class Conv1D(nn.Module):
         return out.view(out_size)
 
 
-class LLMoFCAttention(nn.Module):
+class LGeMAttention(nn.Module):
 
     def __init__(self, hidden_size: int, num_heads: int):
         super().__init__()
@@ -154,7 +154,7 @@ class LLMoFCAttention(nn.Module):
             hidden_size,
             bias=False,
         )
-        self.rotary_emb = LLMoFCRotaryEmbedding(self.head_dim)
+        self.rotary_emb = LGeMRotaryEmbedding(self.head_dim)
 
     def _shape(self, tensor: torch.Tensor, seq_length: int, bsz: int):
         return tensor.view(bsz, seq_length, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
@@ -235,19 +235,19 @@ def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] 
     return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
 
 
-class LLMoFCBlock(nn.Module):
-    def __init__(self, config: LLMoFCConfig):
+class LGeMBlock(nn.Module):
+    def __init__(self, config: LGeMConfig):
         super().__init__()
         self.hidden_size = config.hidden_size
-        self.self_attn = LLMoFCAttention(
+        self.self_attn = LGeMAttention(
             hidden_size=self.hidden_size,
             num_heads=config.num_attention_heads,
         )
-        self.mlp = LLMoFCMLP(
+        self.mlp = LGeMMLP(
             hidden_size=self.hidden_size,
             intermediate_size=config.intermediate_size, )
-        self.input_layernorm = LLMoFCRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-        self.post_attention_layernorm = LLMoFCRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.input_layernorm = LGeMRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.post_attention_layernorm = LGeMRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
     def forward(
             self,
@@ -287,17 +287,17 @@ class LLMoFCBlock(nn.Module):
         return outputs
 
 
-class LLMoFCModel(nn.Module):
+class LGeMModel(nn.Module):
 
-    def __init__(self, config: LLMoFCConfig):
-        super(LLMoFCModel, self).__init__()
+    def __init__(self, config: LGeMConfig):
+        super(LGeMModel, self).__init__()
         self.dt = config.dtype
         self.padding_idx = config.pad_token_id
         self.vocab_size = config.vocab_size
 
         self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)
-        self.layers = nn.ModuleList([LLMoFCBlock(config) for _ in range(config.num_hidden_layers)])
-        self.norm = LLMoFCRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.layers = nn.ModuleList([LGeMBlock(config) for _ in range(config.num_hidden_layers)])
+        self.norm = LGeMRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
         self.gradient_checkpointing = False
         self.config = config
@@ -322,7 +322,7 @@ class LLMoFCModel(nn.Module):
 
     @staticmethod
     def _set_gradient_checkpointing(module, value=False):
-        if isinstance(module, LLMoFCBlock):
+        if isinstance(module, LGeMBlock):
             module.gradient_checkpointing = value
 
     def _prepare_decoder_attention_mask(self, attention_mask, input_shape, inputs_embeds, past_key_values_length):
@@ -383,10 +383,10 @@ class LLMoFCModel(nn.Module):
         return hidden_states
 
 
-class LLMoFCForCausalLM(nn.Module):
+class LGeMForCausalLM(nn.Module):
     def __init__(self, config):
-        super(LLMoFCForCausalLM, self).__init__()
-        self.model = LLMoFCModel(config)
+        super(LGeMForCausalLM, self).__init__()
+        self.model = LGeMModel(config)
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         self.config = config
 

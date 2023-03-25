@@ -165,7 +165,7 @@ class Block(nn.Module):
         return hidden
 
 
-class LLMoFC(nn.Module):
+class LGeM(nn.Module):
     config: Config
 
     def setup(self) -> None:

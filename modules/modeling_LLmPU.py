@@ -2,14 +2,13 @@ import copy
 import logging
 import math
 import os
-from typing import Union, Optional, Tuple, Dict, Any, OrderedDict
-import json
+from typing import Union, Optional, Tuple, Dict, Any
+
 import torch
+from erutils.lightning import BaseModelOutput, BaseModelOutputWithPastAndCrossAttentions
 from torch import nn
- 
 from torch.utils.checkpoint import checkpoint
 from transformers import GenerationMixin, GenerationConfig
-from erutils.lightning import BaseModelOutput, BaseModelOutputWithPastAndCrossAttentions, ModelOutput
 
 logger = logging.getLogger(__name__)
 
@@ -1393,7 +1392,7 @@ class LLmPUForConditionalGeneration(nn.Module, GenerationMixin):
 
         if not return_dict:
             output = (lm_logits,) + decoder_outputs[1:] + encoder_outputs
-            return ((loss,) + output) if loss is not None else output
+            return ((output,) + loss) if loss is not None else output
         else:
             return BaseModelOutput(
                 loss=loss,

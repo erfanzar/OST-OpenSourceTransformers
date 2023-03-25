@@ -10,6 +10,9 @@ from tqdm.auto import tqdm
 
 logger = getLogger(__name__)
 
+__all__ = ['Tokens', 'ManualDataSet', 'DatasetPGTChat', 'DatasetLGeM', 'DatasetLLMoU', 'DatasetLLmP', 'DatasetLLmPU',
+           'DatasetLLmPChat', 'DatasetLLama']
+
 
 class Tokens:
     eos = '<|endoftext|>'
@@ -115,8 +118,6 @@ class DatasetLLmP(Dataset, Tokens):
             os.mkdir('tokenizer_model/LLmP-C')
         agent = '<LLmP> :'
         self.agent = agent
-        tokenizer.add_tokens(agent)
-        tokenizer.save_pretrained('tokenizer_model/LLmP-C')
         self.attention_mask = []
         self.input_ids = []
         self.max_length = max_length
@@ -205,11 +206,9 @@ class DatasetLLmPChat(Dataset, Tokens):
         return enc_trg
 
 
-class DatasetLLMoFC(Dataset, Tokens, ManualDataSet):
+class DatasetLGeM(Dataset, Tokens, ManualDataSet):
     def __init__(self, data: List[dict],
                  tokenizer: Optional[transformers.PreTrainedTokenizer], max_length: Optional[int] = 128):
-        tokenizer.pad_token = tokenizer.eos_token
-        tokenizer.pad_token_id = tokenizer.eos_token_id
 
         self.tokenizer = tokenizer
         self.attention_mask = []
@@ -273,10 +272,7 @@ class DatasetLLMoU(Dataset, Tokens):
         self.agent = agent
         paragraph = 'paragraph:'
         question = 'question:'
-        tokenizer.add_tokens(agent)
-        tokenizer.add_tokens(paragraph)
-        tokenizer.add_tokens(question)
-        tokenizer.save_pretrained('tokenizer_model/LLMoU-C')
+
         self.attention_mask = []
         self.input_ids = []
         self.max_length = max_length
@@ -323,8 +319,7 @@ class DatasetPGTChat(Dataset, Tokens):
         )
         if not os.path.exists('tokenizer_model/PGT-C'):
             os.mkdir('tokenizer_model/PGT-C')
-        tokenizer.add_tokens(self.agent)
-        tokenizer.save_pretrained('tokenizer_model/PGT-C')
+
         self.attention_mask = []
 
         self.input_ids = []

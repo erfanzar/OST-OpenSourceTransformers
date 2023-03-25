@@ -5,8 +5,8 @@ import torch.utils.data
 from transformers import AutoTokenizer, PreTrainedTokenizer
 
 from core.train import train
-from modules import PGT
-from modules.datasets import DatasetPGTChat
+from modules import LGeMForCausalLM
+from modules.datasets import DatasetLGeM
 from utils.utils import get_data, get_config_by_name
 
 torch.manual_seed(42)
@@ -38,10 +38,10 @@ def main(opt):
     data = get_data(opt.data_src)[:850]
     conf = get_config_by_name(opt.model)
     # Replace with your own Dataset
-    dataset = DatasetPGTChat(data=data, max_length=conf.max_sentence_length, tokenizer=tokenizer)
+    dataset = DatasetLGeM(data=data, max_length=conf.max_sentence_length, tokenizer=tokenizer)
     train(model_type=opt.model,
           gradient_accumulation_steps=opt.accumulate,
-          model_class=PGT,
+          model_class=LGeMForCausalLM,
           batch_size=opt.batch,
           dataset=dataset,
           weight=opt.weight,
