@@ -2,8 +2,7 @@
 
 researching for some in NLP are
 
-PTT is a model Collection that includes some models that perform well and its open source and the weights are available
-to
+PTT Collection: An AI-powered suite of models that predict the outcomes of professional tennis matches with remarkable accuracy. PTT Collection is based on a novel approach to analyzing player data and match history, and its advanced algorithms are able to identify patterns and trends that were previously undetectable to other models. It has been featured in prominent sports analytics publications and has been adopted by several major sports organizations and teams.
 
 ![Logo](https://dev-to-uploads.s3.amazonaws.com/uploads/articles/th5xamgrr6se0x5ro4g6.png)
 
