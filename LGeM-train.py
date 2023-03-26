@@ -8,7 +8,7 @@ from core.train import train
 from modules import LGeMForCausalLM
 from modules.datasets import DatasetLGeM
 from utils.utils import get_data, get_config_by_name
-import torch.multiprocessing as mp
+
 torch.manual_seed(42)
 
 torch.backends.cudnn.benchmark = True
@@ -21,7 +21,7 @@ pars.add_argument('--compile', '--compile', type=bool, default=True)
 pars.add_argument('--weight', '--weight', type=str, default=None)
 pars.add_argument('--accumulate', '--accumulate', type=int, default=4)
 pars.add_argument('--out-path', '--out-path', type=str, default='out')
-pars.add_argument('--model', '--model', type=str, default='LGeM-LOW')
+pars.add_argument('--model', '--model', type=str, default='LGeM-S')
 pars.add_argument('--data-src', '--data-src', type=str, default='data/alpaca_data.json')
 # HF-kilt_tasks//eli5
 options = pars.parse_args()
@@ -35,7 +35,7 @@ def main(opt):
     tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained('tokenizer_model/BASE')
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.pad_token_id = tokenizer.eos_token_id
-    data = get_data(opt.data_src)[:500]
+    data = get_data(opt.data_src)
     conf = get_config_by_name(opt.model)
     # Replace with your own Dataset
     dataset = DatasetLGeM(data=data, max_length=conf.max_sentence_length, tokenizer=tokenizer)
