@@ -1,8 +1,9 @@
 # PTT
 
-researching for some in NLP are
+some researchs in NLP
 
-PTT Collection: An AI-powered suite of models that predict the outcomes of professional tennis matches with remarkable accuracy. PTT Collection is based on a novel approach to analyzing player data and match history, and its advanced algorithms are able to identify patterns and trends that were previously undetectable to other models. It has been featured in prominent sports analytics publications and has been adopted by several major sports organizations and teams.
+PTT Collection: An AI-powered suite of models that predict the next word matches with remarkable accuracy (Text Generative Models). PTT Collection is based on a novel approach to work as a full and intelligent NLP Model.
+
 
 ![Logo](https://dev-to-uploads.s3.amazonaws.com/uploads/articles/th5xamgrr6se0x5ro4g6.png)
 
