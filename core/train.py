@@ -16,7 +16,7 @@ from modules import *
 from modules.datasets import DatasetLLama, DatasetLGeM, DatasetLLmPChat, DatasetPGTChat, DatasetLLMoU, DatasetLLmP, \
     DatasetLLmPU, ManualDataSet
 from utils.utils import save_checkpoints, get_config_by_name, device_info, get_memory, count_model_parameters, \
-    create_output_path, compile_model, accelerate_mode, make2d
+    create_output_path, compile_model, accelerate_mode, make2d, prompt_to_instruction
 
 logger = logging.getLogger(__name__)
 
@@ -207,7 +207,7 @@ def train(model_type,
 
     board = SummaryWriter(log_dir=f'{out_path}/tensorboard', filename_suffix=f'{model_type}') if do_train else None
     model = model.to(device=device)
-
+    question = prompt_to_instruction(question) if question is not None else None
     q_ = dataset.pre_processing(question) if question is not None else None
     if use_ddp:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=device_ids)

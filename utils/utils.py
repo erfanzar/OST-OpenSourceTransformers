@@ -940,3 +940,12 @@ def accelerate_mode(accelerator: accelerate.Accelerator, model: torch.nn.Module 
 
     dataloader = accelerator.prepare_data_loader(dataloader) if dataloader is not None else None
     return model, optimizer, dataloader
+
+
+def prompt_to_instruction(instruction, input_=None, response_=None, eos='<|endoftext|>'):
+    if input_ is None:
+        st1_prompting = f'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction:\n\n{instruction}\n\n'
+    else:
+        st1_prompting = f'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n\n### Instruction:\n\n{instruction}\n\n### Input:\n\n{inpt}\n\n'
+    resp = f'### Response:\n\n{output}{eos}' if response_ is not None else '### Response:\n\n'
+    return st1_prompting + resp
