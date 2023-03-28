@@ -11,6 +11,30 @@ PTT Collection: An AI-powered suite of models that predict the next word matches
 
 - PTT Project Contain currently 5 Models
 
+
+### LGeM 🧠
+
+- what is LGeM , LGeM is a CausalLM Model that trained on self instruct data (Alpaca data) and for initilization of the first train of main model (weight are available) I used pre weights from Alpaca LoRA (open source) 
+
+- it's Decoder Only
+- built in Pytorch
+- you can simply import model like
+
+```python
+from modules import LGeMForCausalLM
+```
+
+- and Training code is available at LGeM-Train.py (check source)
+- training parameters 
+- - learning rate 1e-4
+- - AdamW (weight decay 1e-2)
+- - batch 2
+- - A 100 80GB used for training 
+```shell
+python3 LGeM-train.py
+```
+
+
 ### LLama 🧠
 
 - First model is LLama (LLama is the same model as Meta (old Facebook) model but had some developments )
