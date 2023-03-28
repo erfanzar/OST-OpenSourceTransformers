@@ -167,3 +167,16 @@ This project is used by the following companies:
 
 - hello i am [@erfanzar](https://www.github.com/erfanzar)
 
+## Reference & Papers used
+
+[Hello, It's GPT-2 -- How Can I Help You? Towards the Use of Pretrained Language Models for Task-Oriented Dialogue Systems](https://arxiv.org/abs/1907.05774)
+
+[Attention Is All You Need](https://arxiv.org/abs/1706.03762)
+
+[ALiBi : Towards Accurate and Robust
+Identification of Backdoor Attacks
+in Federated Learning](https://arxiv.org/pdf/2202.04311.pdf)
+
+[BLOOM: A 176B-Parameter Open-Access Multilingual Language Model](https://arxiv.org/abs/2211.05100)
+
+[RoFormer: Enhanced Transformer with Rotary Position Embedding](https://arxiv.org/abs/2104.09864)
