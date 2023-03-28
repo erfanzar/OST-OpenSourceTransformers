@@ -755,7 +755,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             intermediate_size=512 * 5,
             num_hidden_layers=6,
             num_attention_heads=8,
-            vocab_size=3200,
+            vocab_size=32000,
         )
     elif name == 'LGeM-S':
         return LGeMConfig(
@@ -763,7 +763,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             intermediate_size=768 * 7,
             num_hidden_layers=6,
             num_attention_heads=8,
-            vocab_size=3200,
+            vocab_size=32000,
         )
     elif name == 'LGeM-ML-OLD':
         return LGeMConfig(
@@ -787,15 +787,17 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             intermediate_size=2048 * 8,
             num_hidden_layers=24,
             num_attention_heads=16,
-            vocab_size=3200,
+            vocab_size=32000,
+            max_sentence_length=2048
         )
     elif name == 'LGeM-X':
         return LGeMConfig(
             hidden_size=4096,
-            intermediate_size=4096 * 6,
-            num_hidden_layers=36,
+            intermediate_size=11008,
+            num_hidden_layers=32,
             num_attention_heads=32,
-            vocab_size=3200,
+            vocab_size=32000,
+            max_sentence_length=2048
         )
     elif name == 'LGeM-L':
         return LGeMConfig(
@@ -803,7 +805,8 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             intermediate_size=8192 * 6,
             num_hidden_layers=32,
             num_attention_heads=64,
-            vocab_size=3200,
+            vocab_size=32000,
+            max_sentence_length=4096
         )
     elif name == 'LGeM-LX':
         return LGeMConfig(
@@ -811,7 +814,8 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             intermediate_size=10240 * 5,
             num_hidden_layers=54,
             num_attention_heads=64,
-            vocab_size=3200,
+            vocab_size=32000,
+            max_sentence_length=4096
         )
     elif name == 'LGeM-LLX':
         return LGeMConfig(
@@ -819,8 +823,10 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             intermediate_size=12288 * 5,
             num_hidden_layers=92,
             num_attention_heads=128,
-            vocab_size=3200,
+            vocab_size=32000,
+            max_sentence_length=8192
         )
+
     else:
         raise NameError(
             f"Valid Names for Model are {models_name} | [ERROR : Unknown {name} type]")
@@ -946,6 +952,6 @@ def prompt_to_instruction(instruction, input_=None, response_=None, eos='<|endof
     if input_ is None:
         st1_prompting = f'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction:\n\n{instruction}\n\n'
     else:
-        st1_prompting = f'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n\n### Instruction:\n\n{instruction}\n\n### Input:\n\n{inpt}\n\n'
-    resp = f'### Response:\n\n{output}{eos}' if response_ is not None else '### Response:\n\n'
+        st1_prompting = f'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n\n### Instruction:\n\n{instruction}\n\n### Input:\n\n{input_}\n\n'
+    resp = f'### Response:\n\n{response_}{eos}' if response_ is not None else '### Response:\n\n'
     return st1_prompting + resp

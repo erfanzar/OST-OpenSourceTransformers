@@ -1,16 +1,15 @@
 """ LGeM is PyTorch LLaMA model and its changed a bit for research
  [right Llama implementation (at least what I got from paper) is in modelling_LLaMA.py]"""
 
+import logging
 import math
-from typing import List, Optional, Tuple, Union, Any
+from dataclasses import dataclass
+from typing import Optional, Tuple, Union, Any
 
 import torch
 import torch.utils.checkpoint
 from erutils import make2d
-from torch import nn, Tensor
-
-import logging
-from dataclasses import dataclass
+from torch import nn
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +31,7 @@ class LGeMConfig:
     device: Union[str, torch.device] = 'cuda' if torch.cuda.is_available() else 'cpu'
     weight_decay: float = 0.02
     lr: float = 3e-4
-    max_sentence_length: int = 256
+    max_sentence_length: int = 768
     epochs: int = 500
 
 
