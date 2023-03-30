@@ -112,14 +112,14 @@ class Conv1D(nn.Module):
         super().__init__()
         self.out_c = out_c
         self.weight = nn.Parameter(torch.empty(in_c, out_c))
-        self.bias = nn.Parameter(torch.zeros(out_c)) if not bias else nn.Parameter(torch.ones(out_c))
+        self.bias = nn.Parameter(torch.ones(out_c)) if bias else None
         torch.nn.init.normal_(self.weight, std=0.02)
 
     def forward(self, x):
         out_size = x.size()[:-1] + (self.out_c,)
         x = x.view(-1, x.size(-1))
 
-        out = torch.addmm(self.bias, x, self.weight)
+        out = torch.addmm(self.bias, x, self.weight) if self.bias is not None else torch.matmul(x, self.weight)
         return out.view(out_size)
 
 
