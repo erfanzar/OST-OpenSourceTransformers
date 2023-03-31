@@ -112,7 +112,11 @@ def train(model_type,
           backend: Optional[str] = "gloo",
           rank: Optional[int] = 0,
           save_on_step: Optional[int] = 5000,
-          init_method: Optional[str] = 'tcp://127.0.0.1:80'):
+          init_method: Optional[str] = 'tcp://127.0.0.1:80',
+          auto: bool = True):
+    if gradient_accumulation_steps > 2 and auto:
+        logger.info(f'gradient_accumulation_steps is higher than 2 setting it back to 1 for better performance')
+        gradient_accumulation_steps = 1
     if load_on_weights:
         assert weight is not None, 'load_on_weight is used that mean model will build ' \
                                    'upon the previous weight you can\'t pass weight to be None '
@@ -184,7 +188,7 @@ def train(model_type,
         if checkpoints is not None:
             try:
                 model = accelerate.load_checkpoint_in_model(model, checkpoints['model'], device_map='auto',
-                                                    offload_folder='offload', dtype=torch.float16)
+                                                            offload_folder='offload', dtype=torch.float16)
                 # model.load_state_dict()
                 model = model.to(device)
                 optimizer.load_state_dict(checkpoints['optimizer'])
