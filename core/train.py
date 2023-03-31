@@ -142,7 +142,7 @@ def train(model_type,
     device = accelerator.device
     if weight is None:
         out_path = create_output_path(path=out_path, name=model_type)
-        if not os.path.exists(os.path.join(out_path, 'weights')):
+        if not os.path.exists(os.path.join(str(out_path), 'weights')):
             os.mkdir(os.path.join(out_path, 'weights'))
     else:
         if weight.endswith('.pt'):
