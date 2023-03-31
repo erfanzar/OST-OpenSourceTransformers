@@ -749,6 +749,15 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
         return LLmPUConfig(
             **L
         )
+    elif name == 'LGeM-SM':
+        return LGeMConfig(
+            hidden_size=512,
+            intermediate_size=512 * 2,
+            num_hidden_layers=6,
+            num_attention_heads=8,
+            vocab_size=32000,
+            max_sentence_length=128
+        )
     elif name == 'LGeM-LOW':
         return LGeMConfig(
             hidden_size=512,
@@ -946,6 +955,9 @@ def accelerate_mode(accelerator: accelerate.Accelerator, model: torch.nn.Module 
 
     dataloader = accelerator.prepare_data_loader(dataloader) if dataloader is not None else None
     return model, optimizer, dataloader
+
+
+from accelerate import load_checkpoint_and_dispatch
 
 
 def prompt_to_instruction(instruction, input_=None, response_=None, eos='<|endoftext|>'):

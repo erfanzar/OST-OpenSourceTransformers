@@ -21,7 +21,8 @@ pars.add_argument('--compile', '--compile', type=bool, default=True)
 pars.add_argument('--weight', '--weight', type=str, default=None)
 pars.add_argument('--accumulate', '--accumulate', type=int, default=4)
 pars.add_argument('--out-path', '--out-path', type=str, default='out')
-pars.add_argument('--model', '--model', type=str, default='LGeM-S')
+pars.add_argument('--model', '--model', type=str, default='LGeM-SM')
+pars.add_argument('--save-on-step', '--save-on-step', type=int, default=5000)
 pars.add_argument('--data-src', '--data-src', type=str, default='data/alpaca_data.json')
 # HF-kilt_tasks//eli5
 options = pars.parse_args()
@@ -47,6 +48,7 @@ def main(opt):
           dataset=dataset,
           weight=opt.weight,
           out_path=opt.out_path,
+          save_on_step=opt.save_on_step
           )
 
 

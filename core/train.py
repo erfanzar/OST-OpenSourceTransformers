@@ -111,6 +111,7 @@ def train(model_type,
           world_size: int = 1,
           backend: Optional[str] = "gloo",
           rank: Optional[int] = 0,
+          save_on_step: Optional[int] = 5000,
           init_method: Optional[str] = 'tcp://127.0.0.1:80'):
     if load_on_weights:
         assert weight is not None, 'load_on_weight is used that mean model will build ' \
@@ -182,7 +183,9 @@ def train(model_type,
 
         if checkpoints is not None:
             try:
-                model.load_state_dict(checkpoints['model'])
+                model = accelerate.load_checkpoint_in_model(model, checkpoints['model'], device_map='auto',
+                                                    offload_folder='offload', dtype=torch.float16)
+                # model.load_state_dict()
                 model = model.to(device)
                 optimizer.load_state_dict(checkpoints['optimizer'])
                 start_epoch = checkpoints['epoch']
@@ -266,7 +269,12 @@ def train(model_type,
                     progress_bar.set_postfix(epoch=f'[{epoch}/{configuration.epochs}]', device=configuration.device,
                                              loss_avg=(loss_avg / (i + 1)),
                                              loss=loss.item(), free_GPU=free_gpu, used_GPU=used_gpu)
-
+                    if ((i + 1) % save_on_step) == 0:
+                        save_checkpoints(model=model.state_dict(), optimizer=optimizer.state_dict(),
+                                         epochs=configuration.epochs, at=at,
+                                         configuration=configuration,
+                                         epoch=epoch + 1, config=model_type,
+                                         name=f'{out_path}/weights/{model_type}-model.pt')
                 print()
                 save_checkpoints(model=model.state_dict(), optimizer=optimizer.state_dict(),
                                  epochs=configuration.epochs, at=at,
