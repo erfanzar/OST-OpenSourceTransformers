@@ -1,15 +1,13 @@
-# PTT
+# OST 
 
 some researchs in NLP
 
-PTT Collection: An AI-powered suite of models that predict the next word matches with remarkable accuracy (Text Generative Models). PTT Collection is based on a novel approach to work as a full and intelligent NLP Model.
+OST  Collection: An AI-powered suite of models that predict the next word matches with remarkable accuracy (Text Generative Models). OST  Collection is based on a novel approach to work as a full and intelligent NLP Model.
 
-
-![Logo](https://dev-to-uploads.s3.amazonaws.com/uploads/articles/th5xamgrr6se0x5ro4g6.png)
 
 ## Models
 
-- PTT Project Contain currently 5 Models
+- OST  Project Contain currently 5 Models
 
 
 ### LGeM 🧠
