@@ -9,6 +9,10 @@ OST  Collection: An AI-powered suite of models that predict the next word matche
 
 - OST  Project Contain currently 5 Models
 
+### RWKV-Models
+
+- upcoming soon
+
 
 ### LGeM 🚀
 
