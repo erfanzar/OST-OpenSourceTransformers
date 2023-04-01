@@ -10,7 +10,7 @@ OST  Collection: An AI-powered suite of models that predict the next word matche
 - OST  Project Contain currently 5 Models
 
 
-### LGeM 🧠
+### LGeM 🚀
 
 - what is LGeM , LGeM is a CausalLM Model that trained on self instruct data (Alpaca data) and for initilization of the first train of main model (weight are available) I used pre weights from Alpaca LoRA (open source) 
 
@@ -33,7 +33,7 @@ python3 LGeM-train.py
 ```
 
 
-### LLama 🧠
+### LLama 🚀
 
 - First model is LLama (LLama is the same model as Meta (old Facebook) model but had some developments )
 
@@ -51,7 +51,7 @@ from modules import LLamaModel
 python3 LLama-train.py
 ```
 
-### LLMoU 🧠
+### LLMoU 🚀
 
 - LLMoU is an NLP model fast and good enough to play around with
 
@@ -70,7 +70,7 @@ from modules import LLMoUModel
 python3 LLMoU-train.py
 ```
 
-### LLmP 🧠
+### LLmP 🚀
 
 - LLmP is one of the best current models in this project that uses ALiBi, and it's kinda the best Model in the series
 
@@ -89,7 +89,7 @@ from modules import LLmP
 python3 LLmP-train.py
 ```
 
-### LLmPU 🧠
+### LLmPU 🚀
 
 - LLmPU is Decoder Encoder (Transformer) and it's working perfectly fine
 
@@ -112,7 +112,7 @@ from modules import LLmPUForConditionalGeneration
 python3 LLmPU-train.py
 ```
 
-### PGT 🧠
+### PGT 🚀
 
 - PGT (Poetry Generated Transformers [funny name :) ]) is actually a nice model that can perform very nicely in
   multitask command and I recommend to train it with specific tasks and the weight will be available soon to use
