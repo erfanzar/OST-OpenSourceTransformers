@@ -34,10 +34,11 @@ def train():
     logdir = str(out_path) + '/tensorboard'
     print(f'Tensorboard : Logdir Tensorboard : {logdir} run with `tensorboard --logdir={logdir}`')
     board = SummaryWriter(log_dir=logdir)
-    progress_bar_data = tqdm(iterable=enumerate(dataloader), total=5000, leave=False)
+
     at = 0
     for epoch in range(train_config.epochs):
         avg = 0
+        progress_bar_data = tqdm(iterable=enumerate(dataloader), total=5000)
         for index, (input_ids_org, _) in progress_bar_data:
             input_ids_org: torch.Tensor = input_ids_org
             at += 1
@@ -56,7 +57,7 @@ def train():
             progress_bar_data.set_postfix(loss=loss.item(), avg_loss=avg / (index + 1),
                                           epoch=f'[{epoch} / {train_config.epochs}]')
         save_checkpoints(model=model.state_dict(), optimizer=optimizer.state_dict(),
-
+                         at=at,
                          epoch=epoch + 1,
                          name=f'{out_path}/RWKV-model.pt')
 
