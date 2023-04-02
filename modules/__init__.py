@@ -4,7 +4,7 @@ from .modeling_LLmPU import LLmPUForConditionalGeneration, LLmPUModel, LLmPUConf
 from .modeling_LLMoU import LLMoUModel, LLMoUConfig
 from .modeling_LLaMA import LLamaModel, LLamaConfig
 from .modeling_LGeM import LGeMModel, LGeMConfig, LGeMForCausalLM
-from .modelling_RWKV import RWKVConfig, RWKV_GPT_CasualLM,RWKVConfigTrain
+from .modelling_RWKV import RWKVConfig, RWKV_GPT_CasualLM, RWKVConfigTrain
 
 # PPaLM is an edited version of PaLM from Google but edited at some points
 try:

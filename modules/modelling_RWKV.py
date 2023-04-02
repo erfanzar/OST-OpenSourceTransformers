@@ -10,8 +10,28 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+@dataclasses.dataclass
+class RWKVConfig:
+    number_of_layers: int = 8
+    hidden_size: int = 512
+    k_clamp: int = 60
+    ctx_len: int = 128
+    k_eps: float = 1e-8
+    vocab_size: int = 32000
+    eps: float = 1e-5
+    device: str = 'cuda'
+
+
+@dataclasses.dataclass
+class RWKVConfigTrain:
+    betas: Optional[Tuple[float]] = (0.90, 0.99)
+    learning_rate: Optional[float] = 1e-4
+    epochs: Optional[int] = 50
+    eps: float = 0.1
+
+
 class RWKV_CM(torch.jit.ScriptModule):
-    def __init__(self, config, index):
+    def __init__(self, config: RWKVConfig, index):
         super(RWKV_CM, self).__init__()
         layers = config.number_of_layers
         hidden_size = config.hidden_size
@@ -27,8 +47,8 @@ class RWKV_CM(torch.jit.ScriptModule):
         h_up = hidden_size * 4
 
         self.key = nn.Linear(hidden_size, h_up, bias=False)
-        self.value = nn.Linear(h_up, h_up, bias=False)
-        self.r = nn.Linear(h_up, hidden_size, bias=False)
+        self.value = nn.Linear(h_up, hidden_size, bias=False)
+        self.r = nn.Linear(hidden_size, hidden_size, bias=False)
 
         self.value.scale_init = 0
         self.r.scale_init = 0
@@ -40,12 +60,15 @@ class RWKV_CM(torch.jit.ScriptModule):
         xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)
         k = self.key(xk)
         kv = self.value(F.silu(k))
-        out = F.sigmoid(self.r(xr)) + kv
+
+        sr = F.sigmoid(self.r(xr))
+
+        out = sr * kv
         return out
 
 
 class RWKV_TM(torch.jit.ScriptModule):
-    def __init__(self, config, index):
+    def __init__(self, config: RWKVConfig, index):
         super(RWKV_TM, self).__init__()
         layers = config.number_of_layers
         hidden_size = config.hidden_size
@@ -65,16 +88,53 @@ class RWKV_TM(torch.jit.ScriptModule):
             self.time_mix_k = nn.Parameter(torch.pow(x, time_ratio_1_to_pz))
             self.time_mix_v = nn.Parameter(torch.pow(x, time_ratio_1_to_pz) + 0.3 * time_ratio_0_to_1)
             self.time_mix_r = nn.Parameter(torch.pow(x, 0.5 * time_ratio_1_to_pz))
-        h_up = hidden_size * 4
+        h_up = hidden_size
         self.k = nn.Linear(hidden_size, h_up, bias=False)
         self.v = nn.Linear(hidden_size, h_up, bias=False)
         self.r = nn.Linear(hidden_size, h_up, bias=False)
         self.o = nn.Linear(h_up, hidden_size, bias=False)
+        self.time_w = torch.tensor([0])
         self.k.scale_init = 0
         self.r.scale_init = 0
         self.o.scale_init = 0
         self.k_clamp = config.k_clamp
         self.k_eps = config.k_eps
+
+    @torch.jit.script_method
+    def wkv_run(self, k, v):
+        B, T, C = k.shape
+
+        time_decay = self.time_decay
+        time_decay = - torch.exp(time_decay)
+        carry = (torch.tensor([0.0] * C).to(time_decay.device), torch.tensor([0.0] * C).to(time_decay.device),
+                 torch.tensor([-1e38] * C).to(time_decay.device))
+
+        aa, bb, pp = carry
+        # k = k.mT
+        # v = v.mT
+        ww = self.time_first + k
+        # k = k.mT
+        # v = v.mT
+        # ww = ww.mT
+        p = torch.maximum(pp, ww)
+        e1 = torch.exp(pp - p)
+        e2 = torch.exp(ww - p)
+        a = e1 * aa + e2 * v
+        b = e1 * bb + e2
+        # k = k.mT
+        # v = v.mT
+        ww = time_decay + pp
+        # k = k.mT
+        # v = v.mT
+        # ww = ww.mT
+        p = torch.maximum(ww, k)
+        e1 = torch.exp(ww - p)
+        e2 = torch.exp(k - p)
+        aa = e1 * aa + e2 * v
+        bb = e1 * bb + e2
+        pp = p
+        hidden_state = (aa, bb, pp)
+        return a / b
 
     @torch.jit.script_method
     def func_jump(self, x):
@@ -83,45 +143,20 @@ class RWKV_TM(torch.jit.ScriptModule):
         v = x * self.time_mix_v + xx * (1 - self.time_mix_v)
         r = x * self.time_mix_r + xx * (1 - self.time_mix_r)
 
-        k = self.k(k).transpose(-1, -2)
-        v = self.v(v).transpose(-1, -2)
+        k = self.k(k)
+        v = self.v(v)
         r = self.r(r)
-        k = torch.exp(torch.clamp(k, max=self.k_clamp))
-        kv = k * v
-        return r, k, v, kv
+        return r, k, v
 
     def forward(self, x):
-        B, T, C = x.size()
 
-        r, k, v, kv = self.jit_func(x)
-        self.time_w = torch.cat([torch.exp(self.time_decay), self.time_first], dim=-1)
-        w = torch.exp(self.time_w)
+        r, k, v = self.func_jump(x)
+        wkv = self.wkv_run(k, v)
+        sr = torch.sigmoid(r)
+        rwkv = sr * wkv
+        rwkv = self.o(rwkv)
 
-        w = w[:, -T:].unsqueeze(1)
-        wkv = F.conv1d(nn.ZeroPad2d((T - 1, 0, 0, 0))(kv), w, groups=C)
-        wk = F.conv1d(nn.ZeroPad2d((T - 1, 0, 0, 0))(k), w, groups=C) + self.k_eps
-
-        rwkv = torch.sigmoid(r) * (wkv / wk).transpose(-1, -2)
-
-        rwkv = self.output(rwkv)
         return rwkv
-
-
-@dataclasses.dataclass
-class RWKVConfig:
-    number_of_layers: int = 8
-    hidden_size: int = 512
-    k_clamp: int = 60
-    k_eps: float = 1e-8
-    vocab_size: int = 32000
-    eps: float = 1e-5
-
-
-@dataclasses.dataclass
-class RWKVConfigTrain:
-    betas: Optional[Tuple[float]] = (0.90, 0.99)
-    lr: Optional[float] = 1e-4
-    epochs: Optional[int] = 50
 
 
 class RWKV_GPT_Block(nn.Module):
@@ -132,14 +167,12 @@ class RWKV_GPT_Block(nn.Module):
         self.kwv = RWKV_TM(config=config, index=index)
         self.ffd = RWKV_CM(config=config, index=index)
         self.index = index
-        if self.index == 0:
-            self.ln0 = nn.LayerNorm(config.hidden_size)
 
-    def forward(self, x):
-        if self.index == 0:
-            x = self.ln0(x)
-        x = x + self.kwv(self.pre_norm(x))
-        x = x + self.ffd(self.post_norm(x))
+    def forward(self, x: torch.Tensor):
+        copied_ln = self.pre_norm(x)
+        x = x + self.kwv(copied_ln)
+        copied_ln = self.post_norm(x)
+        x = x + self.ffd(copied_ln)
         return x
 
 
@@ -150,11 +183,11 @@ class RWKV_Norm(torch.jit.ScriptModule):
         self.eps = config.eps
 
     @torch.jit.script_method
-    def norm(self, x):
+    def norm(self, x: torch.Tensor):
         x = x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
         return x
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         x = self.norm(x)
         return self.weight * x
 
@@ -163,6 +196,7 @@ class RWKV_GPT_CasualLM(nn.Module):
     def __init__(self, config: RWKVConfig):
         super(RWKV_GPT_CasualLM, self).__init__()
         self.embedding = nn.Embedding(config.vocab_size, config.hidden_size)
+        self.pre_ln = nn.LayerNorm(config.hidden_size)
         self.blocks = nn.Sequential(*(RWKV_GPT_Block(config=config, index=i) for i in range(config.number_of_layers)))
         self.post_ln = nn.LayerNorm(config.hidden_size)
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
@@ -195,11 +229,14 @@ class RWKV_GPT_CasualLM(nn.Module):
 
         return optimizer
 
-    def forward(self, input_ids, target_ids=None):
+    def forward(self, input_ids: torch.Tensor, target_ids=None):
         B, T = input_ids.size()
         hidden_state = self.embedding(input_ids)
+        hidden_state = self.pre_ln(hidden_state)
         out = self.lm_head(self.post_ln(self.blocks(hidden_state)))
         loss = None
         if target_ids is not None:
-            loss = F.cross_entropy(out.view(-1, out.size(-1)), target_ids.view(-1))
+            target_ids = target_ids[:, 1:].contiguous()
+            out_p = out[:, :-1, :].contiguous()
+            loss = F.cross_entropy(out_p.view(-1, out_p.size(-1)), target_ids.view(-1))
         return out, loss

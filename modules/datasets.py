@@ -11,7 +11,16 @@ from tqdm.auto import tqdm
 logger = getLogger(__name__)
 
 __all__ = ['Tokens', 'ManualDataSet', 'DatasetPGTChat', 'DatasetLGeM', 'DatasetLLMoU', 'DatasetLLmP', 'DatasetLLmPU',
-           'DatasetLLmPChat', 'DatasetLLama']
+           'DatasetLLmPChat', 'DatasetLLama', 'CasualLMDataset']
+
+
+def prompt_to_instruction(instruction, input_=None, response_=None, eos='<|endoftext|>'):
+    if input_ is None:
+        st1_prompting = f'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction:\n\n{instruction}\n\n'
+    else:
+        st1_prompting = f'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n\n### Instruction:\n\n{instruction}\n\n### Input:\n\n{input_}\n\n'
+    resp = f'### Response:\n\n{response_}{eos}' if response_ is not None else '### Response:\n\n'
+    return st1_prompting + resp
 
 
 class Tokens:
@@ -25,6 +34,57 @@ class Tokens:
 class ManualDataSet:
     def pre_processing(self, inp):
         return NotImplemented
+
+
+class CasualLMDataset(Dataset, ManualDataSet):
+
+    def __init__(self, data: List[dict],
+                 tokenizer: Optional[transformers.PreTrainedTokenizer], max_length: Optional[int] = 128):
+        tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.pad_token_id = tokenizer.eos_token_id
+        self.tokenizer = tokenizer
+        self.attention_mask = []
+        self.input_ids = []
+        self.max_length = max_length
+        preprocessed_data = []
+        for dict_ in tqdm(data):
+            instruction = dict_['instruction']
+            inpt = dict_['input']
+            output = dict_['output']
+            string = prompt_to_instruction(instruction=instruction, input_=inpt if inpt != '' else None,
+                                           response_=output, eos=tokenizer.eos_token)
+            preprocessed_data.append(string)
+        tqdm_pr = tqdm(iterable=preprocessed_data)
+        for string in tqdm_pr:
+            encodings_dict = tokenizer.encode_plus(string, max_length=max_length, truncation=True,
+                                                   return_tensors='pt',
+                                                   padding="max_length")
+            self.attention_mask.append(encodings_dict['attention_mask'])
+            self.input_ids.append(encodings_dict['input_ids'])
+
+    def __len__(self):
+        return len(self.input_ids)
+
+    def __getitem__(self, idx):
+        return self.input_ids[idx], self.attention_mask[idx]
+
+    def pre_processing(self, inp):
+
+        return self.tokenizer.encode_plus(prompt_to_instruction(inp), max_length=self.max_length, truncation=True,
+                                          return_tensors='pt',
+                                          padding="max_length")
+
+    def encode(self, text):
+        enc_trg = self.tokenizer.encode_plus(
+            text=text,
+            max_length=self.max_length,
+            padding='do_not_pad',
+            add_special_tokens=True,
+            return_attention_mask=True,
+            return_tensors='pt',
+            truncation=True
+        )
+        return enc_trg
 
 
 class DatasetLLmPU(Dataset):
