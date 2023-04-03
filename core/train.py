@@ -113,7 +113,10 @@ def train(model_type,
           rank: Optional[int] = 0,
           save_on_step: Optional[int] = 5000,
           init_method: Optional[str] = 'tcp://127.0.0.1:80',
+          use_jit: bool = True,
           auto: bool = True):
+    os.environ['USE_JIT'] = '1' if use_jit else '0'
+
     if gradient_accumulation_steps > 2 and auto:
         logger.info(f'gradient_accumulation_steps is higher than 2 setting it back to 1 for better performance')
         gradient_accumulation_steps = 1
@@ -209,6 +212,8 @@ def train(model_type,
 
     dataloader = torch.utils.data.DataLoader(dataset=dataset, batch_size=configuration.batch_size, num_workers=4,
                                              pin_memory=True)
+    if use_jit:
+        model = torch.jit.script(model)
     if use_compile:
         model = compile_model(model)
 
@@ -248,7 +253,7 @@ def train(model_type,
 
                     free_gpu, used_gpu, total_gpu = get_memory(0)
                     if ((i + 1) % 50) == 0:
-                        if question is not None:
+                        if question is not None and not use_jit:
                             tk = q_['input_ids']
                             tk = tk.to(configuration.device)
                             cals = []

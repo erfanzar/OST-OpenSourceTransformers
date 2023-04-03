@@ -3,6 +3,7 @@
 
 import logging
 import math
+import os
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union, Any
 
@@ -12,6 +13,16 @@ from erutils import make2d
 from torch import nn
 
 logger = logging.getLogger(__name__)
+
+if os.environ['USE_JIT'] == '1':
+    Module = torch.jit.ScriptModule
+    function = torch.jit.script_method
+else:
+    Module = nn.Module
+
+
+    def function(func):
+        return func
 
 
 @dataclass
@@ -35,7 +46,7 @@ class LGeMConfig:
     epochs: int = 500
 
 
-class LGeMRMSNorm(nn.Module):
+class LGeMRMSNorm(Module):
     def __init__(self, hidden_size, eps=1e-6):
         super().__init__()
         self.weight = nn.Parameter(torch.ones(hidden_size))
@@ -47,28 +58,29 @@ class LGeMRMSNorm(nn.Module):
         return self.weight * hidden_states
 
 
-class LGeMRotaryEmbedding(nn.Module):
+class LGeMRotaryEmbedding(Module):
     def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None):
         super().__init__()
         inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float().to(device) / dim))
-        self.register_buffer("inv_freq", inv_freq)
+        self.inv_freq = inv_freq
 
         self.max_seq_length_cached = max_position_embeddings
         t = torch.arange(self.max_seq_length_cached, device=self.inv_freq.device, dtype=self.inv_freq.dtype)
         freqs = torch.einsum("i,j->ij", t, self.inv_freq)
 
         emb = torch.cat((freqs, freqs), dim=-1)
-        self.register_buffer("cos_cached", emb.cos()[None, None, :, :], persistent=False)
-        self.register_buffer("sin_cached", emb.sin()[None, None, :, :], persistent=False)
+        self.cos_cached = emb.cos()[None, None, :, :]
+        self.sin_cached = emb.sin()[None, None, :, :]
 
-    def forward(self, x, seq_length=None):
+    @function
+    def forward(self, x, seq_length: int):
         if seq_length > self.max_seq_length_cached:
             self.max_seq_length_cached = seq_length
             t = torch.arange(self.max_seq_length_cached, device=x.device, dtype=self.inv_freq.dtype)
             freqs = torch.einsum("i,j->ij", t, self.inv_freq)
             emb = torch.cat((freqs, freqs), dim=-1).to(x.device)
-            self.register_buffer("cos_cached", emb.cos()[None, None, :, :], persistent=False)
-            self.register_buffer("sin_cached", emb.sin()[None, None, :, :], persistent=False)
+            self.cos_cached = emb.cos()[None, None, :, :]
+            self.sin_cached = emb.sin()[None, None, :, :]
         return (
             self.cos_cached[:, :, :seq_length, ...].to(dtype=x.dtype),
             self.sin_cached[:, :, :seq_length, ...].to(dtype=x.dtype),
@@ -89,7 +101,7 @@ def apply_rotary_pos_emb(q, k, cos, sin, offset: int = 0):
     return q_embed, k_embed
 
 
-class LGeMMLP(nn.Module):
+class LGeMMLP(Module):
     def __init__(
             self,
             hidden_size: int,
@@ -107,7 +119,7 @@ class LGeMMLP(nn.Module):
         return self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
 
 
-class Conv1D(nn.Module):
+class Conv1D(Module):
     def __init__(self, in_c, out_c, bias=False):
         super().__init__()
         self.out_c = out_c
@@ -115,6 +127,7 @@ class Conv1D(nn.Module):
         self.bias = nn.Parameter(torch.ones(out_c)) if bias else None
         torch.nn.init.normal_(self.weight, std=0.02)
 
+    @function
     def forward(self, x):
         out_size = x.size()[:-1] + (self.out_c,)
         x = x.view(-1, x.size(-1))
@@ -123,7 +136,7 @@ class Conv1D(nn.Module):
         return out.view(out_size)
 
 
-class LGeMAttention(nn.Module):
+class LGeMAttention(Module):
 
     def __init__(self, hidden_size: int, num_heads: int):
         super().__init__()
@@ -158,10 +171,11 @@ class LGeMAttention(nn.Module):
     def _shape(self, tensor: torch.Tensor, seq_length: int, bsz: int):
         return tensor.view(bsz, seq_length, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
 
+    @function
     def forward(
             self,
             hidden_states: torch.Tensor,
-            past_key_value: Optional[Tuple[torch.Tensor]] = None,
+            past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
             attention_mask: Optional[torch.Tensor] = None,
             output_attentions: bool = False,
             use_cache: bool = False,
@@ -193,9 +207,7 @@ class LGeMAttention(nn.Module):
 
         if attention_mask is not None:
             assert attention_mask.size() == (bsz, 1, q_len, kv_seq_length)
-
             attn_weights = attn_weights + attention_mask
-            attn_weights = torch.max(attn_weights, torch.tensor(torch.finfo(attn_weights.dtype).min))
 
         attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
         attn_output = torch.matmul(attn_weights, value_states)
@@ -206,7 +218,7 @@ class LGeMAttention(nn.Module):
         attn_output = self.o_proj(attn_output)
 
         if not output_attentions:
-            attn_weights = None
+            attn_weights = torch.tensor([None])
 
         return attn_output, attn_weights, past_key_value
 
@@ -234,7 +246,7 @@ def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] 
     return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
 
 
-class LGeMBlock(nn.Module):
+class LGeMBlock(Module):
     def __init__(self, config: LGeMConfig):
         super().__init__()
         self.hidden_size = config.hidden_size
@@ -248,13 +260,14 @@ class LGeMBlock(nn.Module):
         self.input_layernorm = LGeMRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.post_attention_layernorm = LGeMRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
+    @function
     def forward(
             self,
             hidden_states: torch.Tensor,
-            attention_mask: Optional[torch.Tensor] = None,
-            output_attentions: Optional[bool] = False,
-            use_cache: Optional[bool] = False,
-            past_key_value: Optional[Tuple[torch.Tensor]] = None,
+            attention_mask: torch.Tensor = None,
+            output_attentions: bool = False,
+            use_cache: bool = False,
+            past_key_value: Tuple[torch.Tensor, torch.Tensor] = None,
     ):
 
         residual = hidden_states
@@ -275,18 +288,18 @@ class LGeMBlock(nn.Module):
         hidden_states = self.mlp(hidden_states)
         hidden_states = residual + hidden_states
 
-        outputs = (hidden_states,)
+        outputs = [hidden_states, torch.tensor([None]), torch.tensor([None])]
 
         if output_attentions:
-            outputs += (self_attn_weights,)
+            outputs[1] = self_attn_weights
 
         if use_cache:
-            outputs += (present_key_value,)
+            outputs[2] = present_key_value
 
         return outputs
 
 
-class LGeMModel(nn.Module):
+class LGeMModel(Module):
 
     def __init__(self, config: LGeMConfig):
         super(LGeMModel, self).__init__()
@@ -341,6 +354,7 @@ class LGeMModel(nn.Module):
 
         return combined_attention_mask
 
+    @function
     def forward(
             self,
             input_ids: torch.LongTensor = None,
@@ -382,7 +396,7 @@ class LGeMModel(nn.Module):
         return hidden_states
 
 
-class LGeMForCausalLM(nn.Module):
+class LGeMForCausalLM(Module):
     def __init__(self, config):
         super(LGeMForCausalLM, self).__init__()
         self.model = LGeMModel(config)
@@ -395,15 +409,14 @@ class LGeMForCausalLM(nn.Module):
     def set_input_embeddings(self, value):
         self.model.embed_tokens = value
 
+    @function
     def forward(
             self,
             input_ids: torch.LongTensor = None,
             attention_mask: Optional[torch.Tensor] = None,
             labels: Optional[torch.LongTensor] = None,
     ):
-
-        outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, )
-
+        outputs = self.model.forward(input_ids=input_ids, attention_mask=attention_mask)
         hidden_states = outputs
         logits = self.lm_head(hidden_states)
 
