@@ -175,12 +175,8 @@ class LGeMAttention(Module):
     def forward(
             self,
             hidden_states: torch.Tensor,
-            past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
             attention_mask: Optional[torch.Tensor] = None,
-            output_attentions: bool = False,
-            use_cache: bool = False,
     ):
-
         bsz, q_len, _ = hidden_states.size()
 
         query_states = self.q_proj(hidden_states).view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
@@ -189,17 +185,17 @@ class LGeMAttention(Module):
 
         kv_seq_length = key_states.shape[-2]
         offset = 0
-        if past_key_value is not None:
-            offset = past_key_value[0].shape[-2]
-            kv_seq_length += offset
+        # if past_key_value is not None:
+        #     offset = past_key_value[0].shape[-2]
+        #     kv_seq_length += offset
         cos, sin = self.rotary_emb(value_states, seq_length=kv_seq_length)
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, offset=offset)
 
-        if past_key_value is not None:
-            key_states = torch.cat([past_key_value[0], key_states], dim=2)
-            value_states = torch.cat([past_key_value[1], value_states], dim=2)
+        # if past_key_value is not None:
+        #     key_states = torch.cat([past_key_value[0], key_states], dim=2)
+        #     value_states = torch.cat([past_key_value[1], value_states], dim=2)
 
-        past_key_value = (key_states, value_states) if use_cache else None
+        # past_key_value = (key_states, value_states) if use_cache else None
 
         attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(self.head_dim)
 
@@ -217,22 +213,29 @@ class LGeMAttention(Module):
 
         attn_output = self.o_proj(attn_output)
 
-        if not output_attentions:
-            attn_weights = torch.tensor([None])
+        # if not output_attentions:
+        #     attn_weights = torch.tensor([None])
 
-        return attn_output, attn_weights, past_key_value
+        # return attn_output, attn_weights, past_key_value
+        # Usable With JIT
+        return attn_output
 
 
-def _make_causal_mask(input_ids_shape: torch.Size, dtype: torch.dtype, past_key_values_length: int = 0):
-    bsz, tgt_len = input_ids_shape
-    mask = torch.full((tgt_len, tgt_len), torch.tensor(torch.finfo(dtype).min))
+def _make_causal_mask(input_ids: torch.Tensor, dtype: torch.dtype):
+    bsz, tgt_len = input_ids.shape
+    # We can't just use torch.finfo(dtype).min to get min value cause of JIT
+    if dtype == torch.float32:
+        tp = -1e38
+    elif dtype == torch.float16:
+        tp = -1e18
+    else:
+        tp = -1e9
+    mask = torch.full((tgt_len, tgt_len), torch.tensor(tp))
     mask_cond = torch.arange(mask.size(-1))
     mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
     mask = mask.to(dtype)
 
-    if past_key_values_length > 0:
-        mask = torch.cat([torch.zeros(tgt_len, past_key_values_length, dtype=dtype), mask], dim=-1)
-    return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)
+    return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len)
 
 
 def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] = None):
@@ -242,8 +245,14 @@ def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] 
     expanded_mask = mask[:, None, None, :].expand(bsz, 1, tgt_len, src_len).to(dtype)
 
     inverted_mask = 1.0 - expanded_mask
-
-    return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
+    # We can't just use torch.finfo(dtype).min to get min value cause of JIT
+    if dtype == torch.float32:
+        tp = -1e38
+    elif dtype == torch.float16:
+        tp = -1e18
+    else:
+        tp = -1e9
+    return inverted_mask.masked_fill(inverted_mask.to(torch.bool), tp)
 
 
 class LGeMBlock(Module):
@@ -265,21 +274,19 @@ class LGeMBlock(Module):
             self,
             hidden_states: torch.Tensor,
             attention_mask: torch.Tensor = None,
-            output_attentions: bool = False,
-            use_cache: bool = False,
-            past_key_value: Tuple[torch.Tensor, torch.Tensor] = None,
-    ):
 
+    ):
         residual = hidden_states
 
         hidden_states = self.input_layernorm(hidden_states)
 
-        hidden_states, self_attn_weights, present_key_value = self.self_attn(
+        # hidden_states, self_attn_weights, present_key_value = self.self_attn(
+        #     hidden_states=hidden_states,
+        #     attention_mask=attention_mask,
+        # )
+        hidden_states = self.self_attn(
             hidden_states=hidden_states,
-            past_key_value=past_key_value,
             attention_mask=attention_mask,
-            output_attentions=output_attentions,
-            use_cache=use_cache,
         )
         hidden_states = residual + hidden_states
 
@@ -288,13 +295,14 @@ class LGeMBlock(Module):
         hidden_states = self.mlp(hidden_states)
         hidden_states = residual + hidden_states
 
-        outputs = [hidden_states, torch.tensor([None]), torch.tensor([None])]
+        outputs = hidden_states
 
-        if output_attentions:
-            outputs[1] = self_attn_weights
-
-        if use_cache:
-            outputs[2] = present_key_value
+        # if output_attentions:
+        #     ...
+        # TODO: Write down the use with JIT
+        # if use_cache:
+        #     ...
+        # TODO: Write down the use with JIT
 
         return outputs
 
@@ -337,14 +345,16 @@ class LGeMModel(Module):
         if isinstance(module, LGeMBlock):
             module.gradient_checkpointing = value
 
-    def _prepare_decoder_attention_mask(self, attention_mask, input_shape, inputs_embeds, past_key_values_length):
+    @staticmethod
+    def _prepare_attention_mask(attention_mask, input_ids, inputs_embeds):
 
-        combined_attention_mask = None
+        input_shape = input_ids.shape
         if input_shape[-1] > 1:
             combined_attention_mask = _make_causal_mask(
-                input_shape, inputs_embeds.dtype, past_key_values_length=past_key_values_length
+                input_ids, inputs_embeds.dtype
             )
-
+        else:
+            combined_attention_mask = torch.tensor([1])
         if attention_mask is not None:
             expanded_attn_mask = _expand_mask(attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1]).to(
                 combined_attention_mask)
@@ -363,9 +373,8 @@ class LGeMModel(Module):
     ):
 
         batch_size, seq_lengthgth = input_ids.shape
-
+        shape = input_ids.shape
         seq_lengthgth_with_past = seq_lengthgth
-        past_key_values_length = 0
 
         hidden_states = self.embed_tokens(input_ids)
 
@@ -374,8 +383,8 @@ class LGeMModel(Module):
                 (batch_size, seq_lengthgth_with_past), dtype=torch.bool, device=hidden_states.device
             )
         attention_mask = make2d(attention_mask)
-        attention_mask = self._prepare_decoder_attention_mask(
-            attention_mask, (batch_size, seq_lengthgth), hidden_states, past_key_values_length
+        attention_mask = self._prepare_attention_mask(
+            attention_mask, input_ids, hidden_states
         )
 
         hidden_states = hidden_states.to(self.dt)
@@ -383,13 +392,11 @@ class LGeMModel(Module):
         attention_mask = attention_mask.to(hidden_states)
 
         for idx, block in enumerate(self.layers):
-            layer_outputs = block(
+            hidden_states = block(
                 hidden_states,
                 attention_mask=attention_mask,
 
             )
-
-            hidden_states = layer_outputs[0]
 
         hidden_states = self.norm(hidden_states)
 
@@ -420,14 +427,14 @@ class LGeMForCausalLM(Module):
         hidden_states = outputs
         logits = self.lm_head(hidden_states)
 
-        loss = None
         if labels is not None:
             shift_logits = logits[..., :-1, :].contiguous()
             shift_labels = labels[..., 1:].contiguous()
 
-            loss_fct = nn.CrossEntropyLoss()
-            loss = loss_fct(shift_logits.view(-1, self.config.vocab_size), shift_labels.view(-1))
-
+            loss = torch.nn.functional.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)),
+                                                     shift_labels.view(-1))
+        else:
+            loss = None
         return logits, loss
 
     def prepare_inputs_for_generation(
