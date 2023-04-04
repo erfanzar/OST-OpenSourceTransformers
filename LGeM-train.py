@@ -8,7 +8,7 @@ import torch.utils.data
 from transformers import AutoTokenizer, PreTrainedTokenizer
 
 from core.train import train
-from modules import LGeMForCausalLM
+from modules import LGeMForCausalLM, LGeMConfig
 from modules.datasets import CasualLMDataset
 from utils.utils import get_data, get_config_by_name
 
@@ -39,10 +39,10 @@ def main(opt):
     tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained('tokenizer_model/BASE')
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.pad_token_id = tokenizer.eos_token_id
-    data = get_data(opt.data_src)[:50]
-    conf = get_config_by_name(opt.model)
-    conf.hidden_size = 128
-    conf.num_layers = 4
+    data = get_data(opt.data_src)[:5000]
+    conf: LGeMConfig = get_config_by_name(opt.model)
+    conf.hidden_size = 512
+    conf.num_layers = 8
     # Replace with your own Dataset
     dataset = CasualLMDataset(data=data, max_length=conf.max_sentence_length, tokenizer=tokenizer)
 
