@@ -82,8 +82,8 @@ class LGeMRotaryEmbedding(Module):
             self.cos_cached = emb.cos()[None, None, :, :]
             self.sin_cached = emb.sin()[None, None, :, :]
         return (
-            self.cos_cached[:, :, :seq_length, ...].to(dtype=x.dtype),
-            self.sin_cached[:, :, :seq_length, ...].to(dtype=x.dtype),
+            self.cos_cached[:, :, :seq_length, ...].to(dtype=x.dtype, device=x.device),
+            self.sin_cached[:, :, :seq_length, ...].to(dtype=x.dtype, device=x.device),
         )
 
 
@@ -188,7 +188,9 @@ class LGeMAttention(Module):
         # if past_key_value is not None:
         #     offset = past_key_value[0].shape[-2]
         #     kv_seq_length += offset
+
         cos, sin = self.rotary_emb(value_states, seq_length=kv_seq_length)
+
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, offset=offset)
 
         # if past_key_value is not None:
@@ -369,7 +371,6 @@ class LGeMModel(Module):
             self,
             input_ids: torch.LongTensor = None,
             attention_mask: Optional[torch.Tensor] = None,
-
     ):
 
         batch_size, seq_lengthgth = input_ids.shape

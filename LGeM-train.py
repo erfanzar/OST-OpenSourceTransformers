@@ -41,8 +41,8 @@ def main(opt):
     tokenizer.pad_token_id = tokenizer.eos_token_id
     data = get_data(opt.data_src)[:50]
     conf = get_config_by_name(opt.model)
-    conf.hidden_size = 512
-    conf.num_layers = 8
+    conf.hidden_size = 128
+    conf.num_layers = 4
     # Replace with your own Dataset
     dataset = CasualLMDataset(data=data, max_length=conf.max_sentence_length, tokenizer=tokenizer)
 
