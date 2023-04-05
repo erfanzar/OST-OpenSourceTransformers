@@ -1,14 +1,26 @@
 import dataclasses
+import logging
+import os
+from typing import Tuple, Optional
 
 import torch
-import math
 from torch import nn
-from typing import List, Dict, Tuple, Optional, Union
 from torch.nn import functional as F
-import logging
 
 logger = logging.getLogger(__name__)
 
+if os.environ['USE_JIT'] == 'True':
+    Module = torch.jit.ScriptModule
+    Function = torch.jit.script_method
+else:
+    Module = torch.nn.Module
+
+
+    def fk(func):
+        return func
+
+
+    Function = fk
 
 @dataclasses.dataclass
 class RWKVConfig:
@@ -30,7 +42,7 @@ class RWKVConfigTrain:
     eps: float = 0.1
 
 
-class RWKV_CM(torch.jit.ScriptModule):
+class RWKV_CM(Module):
     def __init__(self, config: RWKVConfig, index):
         super(RWKV_CM, self).__init__()
         layers = config.number_of_layers
@@ -53,7 +65,7 @@ class RWKV_CM(torch.jit.ScriptModule):
         self.value.scale_init = 0
         self.r.scale_init = 0
 
-    @torch.jit.script_method
+    @Function
     def forward(self, x):
         xx = self.time_shift(x)
         xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)
@@ -67,21 +79,22 @@ class RWKV_CM(torch.jit.ScriptModule):
         return out
 
 
-class RWKV_TM(torch.jit.ScriptModule):
+class RWKV_TM(Module):
     def __init__(self, config: RWKVConfig, index):
         super(RWKV_TM, self).__init__()
         layers = config.number_of_layers
         hidden_size = config.hidden_size
         self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
         with torch.no_grad():
+
             time_ratio_0_to_1 = (index / (layers - 1))
             time_ratio_1_to_pz = (1 - (index / layers))
             decay_speed = torch.ones(hidden_size)
             for i in range(hidden_size):
-                decay_speed[i] = -5 + 8 * (i / (hidden_size - 1)) ** (0.7 + 1.3 * time_ratio_0_to_1)
-            self.time_decay = nn.Parameter(decay_speed)
+                decay_speed[i] = (i / (hidden_size - 1)) ** (0.5 + 1.3 * time_ratio_0_to_1)
+            self.we = nn.Parameter(decay_speed)
             zigzag = (torch.tensor([(i + 1) % 3 - 1 for i in range(hidden_size)]) * 0.5)
-            self.time_first = nn.Parameter(torch.ones(hidden_size) * math.log(0.3) + zigzag)
+            # self.time_first = nn.Parameter(torch.ones(hidden_size, 1) * math.log(0.3) + zigzag)
             x = torch.ones(1, 1, hidden_size)
             for i in range(hidden_size):
                 x[0, 0, i] = i / hidden_size
@@ -100,43 +113,7 @@ class RWKV_TM(torch.jit.ScriptModule):
         self.k_clamp = config.k_clamp
         self.k_eps = config.k_eps
 
-    @torch.jit.script_method
-    def wkv_run(self, k, v):
-        B, T, C = k.shape
-
-        time_decay = self.time_decay
-        time_decay = - torch.exp(time_decay)
-        carry = (torch.tensor([0.0] * C).to(time_decay.device), torch.tensor([0.0] * C).to(time_decay.device),
-                 torch.tensor([-1e38] * C).to(time_decay.device))
-
-        aa, bb, pp = carry
-        # k = k.mT
-        # v = v.mT
-        ww = self.time_first + k
-        # k = k.mT
-        # v = v.mT
-        # ww = ww.mT
-        p = torch.maximum(pp, ww)
-        e1 = torch.exp(pp - p)
-        e2 = torch.exp(ww - p)
-        a = e1 * aa + e2 * v
-        b = e1 * bb + e2
-        # k = k.mT
-        # v = v.mT
-        ww = time_decay + pp
-        # k = k.mT
-        # v = v.mT
-        # ww = ww.mT
-        p = torch.maximum(ww, k)
-        e1 = torch.exp(ww - p)
-        e2 = torch.exp(k - p)
-        aa = e1 * aa + e2 * v
-        bb = e1 * bb + e2
-        pp = p
-        hidden_state = (aa, bb, pp)
-        return a / b
-
-    @torch.jit.script_method
+    @Function
     def func_jump(self, x):
         xx = self.time_shift(x)
         k = x * self.time_mix_k + xx * (1 - self.time_mix_k)
@@ -148,18 +125,20 @@ class RWKV_TM(torch.jit.ScriptModule):
         r = self.r(r)
         return r, k, v
 
+    @Function
     def forward(self, x):
-
+        B, T, C = x.size()
         r, k, v = self.func_jump(x)
-        wkv = self.wkv_run(k, v)
+        kv = k * v
+        wkv = F.conv1d(kv, self.we, groups=C)
+        wk = F.conv1d(k, self.we, groups=C)
         sr = torch.sigmoid(r)
-        rwkv = sr * wkv
+        rwkv = sr * (wkv / wk)
         rwkv = self.o(rwkv)
-
         return rwkv
 
 
-class RWKV_GPT_Block(nn.Module):
+class RWKV_GPT_Block(Module):
     def __init__(self, config, index: int):
         super(RWKV_GPT_Block, self).__init__()
         self.pre_norm = nn.LayerNorm(config.hidden_size)
@@ -176,23 +155,24 @@ class RWKV_GPT_Block(nn.Module):
         return x
 
 
-class RWKV_Norm(torch.jit.ScriptModule):
+class RWKV_Norm(Module):
     def __init__(self, config: RWKVConfig):
         super(RWKV_Norm, self).__init__()
         self.weight = nn.Parameter(torch.ones(config.hidden_size))
         self.eps = config.eps
 
-    @torch.jit.script_method
+    @Function
     def norm(self, x: torch.Tensor):
         x = x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
         return x
 
+    @Function
     def forward(self, x: torch.Tensor):
         x = self.norm(x)
         return self.weight * x
 
 
-class RWKV_GPT_CasualLM(nn.Module):
+class RWKV_GPT_CasualLM(Module):
     def __init__(self, config: RWKVConfig):
         super(RWKV_GPT_CasualLM, self).__init__()
         self.embedding = nn.Embedding(config.vocab_size, config.hidden_size)

@@ -5,7 +5,10 @@ __pycache__/
 
 # C extensions
 *.so
+*.safetensors
 #*.json
+env.py
+env.ipynb
 # Distribution / packaging
 out/
 .Python

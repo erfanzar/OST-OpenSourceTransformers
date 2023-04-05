@@ -1,25 +1,30 @@
 import math
+import os
 
+os.environ['USE_JIT'] = 'True'
 import torch.utils.data
-from rwkv.model import RWKV
-from modules import RWKVConfig, RWKV_GPT_CasualLM, RWKVConfigTrain
-from utils.utils import count_model_parameters, get_data, save_checkpoints
-from modules.datasets import CasualLMDataset
-from tqdm.auto import tqdm
-from transformers import AutoTokenizer
 from erutils.utils import create_output_path, make2d
 from torch.utils.tensorboard import SummaryWriter
+from tqdm.auto import tqdm
+from transformers import AutoTokenizer
+
+from modules import RWKVConfig, RWKV_GPT_CasualLM, RWKVConfigTrain
+from modules.datasets import CasualLMDataset
+from utils.utils import count_model_parameters, get_data, save_checkpoints
+
 
 config = RWKVConfig(
-    hidden_size=512,
-    number_of_layers=8,
+    hidden_size=640,
+    number_of_layers=14,
     vocab_size=32000,
+
 )
 train_config = RWKVConfigTrain()
 
 
 def train():
     CTX_LEN = 128
+
     device = config.device
     data = get_data('data/alpaca_data.json')[:5000]
     model = RWKV_GPT_CasualLM(config=config).to(device)
