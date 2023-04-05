@@ -114,7 +114,8 @@ def train(model_type,
           save_on_step: Optional[int] = 5000,
           init_method: Optional[str] = 'tcp://127.0.0.1:80',
           use_jit: bool = True,
-          auto: bool = True):
+          auto: bool = True,
+          configuration: CONFIG_CLASSES = None):
     os.environ['USE_JIT'] = '1' if use_jit else '0'
 
     if gradient_accumulation_steps > 2 and auto:
@@ -165,7 +166,7 @@ def train(model_type,
         model, optimizer, configuration, start_epoch, at = load_from_weights(_weight=weight, _model_class=model_class,
                                                                              _accelerate=accelerator)
     else:
-        configuration: CONFIG_CLASSES = get_config_by_name(model_type)
+        configuration: CONFIG_CLASSES = get_config_by_name(model_type) if configuration is None else configuration
 
         configuration.vocab_size = dataset.tokenizer.vocab_size
         configuration.device = device

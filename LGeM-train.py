@@ -24,7 +24,7 @@ pars.add_argument('--compile', '--compile', type=bool, default=True)
 pars.add_argument('--weight', '--weight', type=str, default=None)
 pars.add_argument('--accumulate', '--accumulate', type=int, default=4)
 pars.add_argument('--out-path', '--out-path', type=str, default='out')
-pars.add_argument('--model', '--model', type=str, default='LGeM-SM')
+pars.add_argument('--model', '--model', type=str, default='LGeM-S')
 pars.add_argument('--save-on-step', '--save-on-step', type=int, default=5000)
 pars.add_argument('--data-src', '--data-src', type=str, default='data/alpaca_data.json')
 # HF-kilt_tasks//eli5
@@ -41,8 +41,6 @@ def main(opt):
     tokenizer.pad_token_id = tokenizer.eos_token_id
     data = get_data(opt.data_src)[:5000]
     conf: LGeMConfig = get_config_by_name(opt.model)
-    conf.hidden_size = 512
-    conf.num_layers = 8
     # Replace with your own Dataset
     dataset = CasualLMDataset(data=data, max_length=conf.max_sentence_length, tokenizer=tokenizer)
 
@@ -54,7 +52,8 @@ def main(opt):
           weight=opt.weight,
           out_path=opt.out_path,
           save_on_step=opt.save_on_step,
-          use_jit=True if USE_JIT == '1' else False
+          use_jit=True if USE_JIT == '1' else False,
+          configuration=conf
           )
 
 
