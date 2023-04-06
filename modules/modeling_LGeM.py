@@ -5,7 +5,7 @@ import logging
 import math
 import os
 from dataclasses import dataclass
-from typing import Optional, Tuple, Union, Any
+from typing import Optional, Union, Any
 
 import torch
 import torch.utils.checkpoint
@@ -227,11 +227,11 @@ def _make_causal_mask(input_ids: torch.Tensor, dtype: torch.dtype):
     bsz, tgt_len = input_ids.shape
     # We can't just use torch.finfo(dtype).min to get min value cause of JIT
     if dtype == torch.float32:
-        tp = -1e38
+        tp = -3.40282e+38
     elif dtype == torch.float16:
-        tp = -1e18
+        tp = -65504
     else:
-        tp = -1e9
+        tp = -128
     mask = torch.full((tgt_len, tgt_len), torch.tensor(tp))
     mask_cond = torch.arange(mask.size(-1))
     mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
@@ -249,11 +249,11 @@ def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] 
     inverted_mask = 1.0 - expanded_mask
     # We can't just use torch.finfo(dtype).min to get min value cause of JIT
     if dtype == torch.float32:
-        tp = -1e38
+        tp = -3.40282e+38
     elif dtype == torch.float16:
-        tp = -1e18
+        tp = -65504
     else:
-        tp = -1e9
+        tp = -128
     return inverted_mask.masked_fill(inverted_mask.to(torch.bool), tp)
 
 
