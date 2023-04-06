@@ -53,8 +53,11 @@ class LGeMRMSNorm(Module):
         self.eps = eps
 
     def forward(self, hidden_states):
+        dt = hidden_states.dtype
+        hidden_states = hidden_states.to(torch.float32)
         hidden_states = hidden_states * torch.rsqrt(
-            hidden_states.to(torch.float32).pow(2).mean(-1, keepdim=True) + self.eps)
+            hidden_states.pow(2).mean(-1, keepdim=True) + self.eps)
+        hidden_states = hidden_states.to(dt)
         return self.weight * hidden_states
 
 
@@ -166,6 +169,28 @@ class LGeMAttention(Module):
             hidden_size,
             bias=False,
         )
+
+        # self.q_proj = nn.Linear(
+        #     hidden_size,
+        #     num_heads * self.head_dim,
+        #     bias=False,
+        # )
+        # self.k_proj = nn.Linear(
+        #     hidden_size,
+        #     num_heads * self.head_dim,
+        #     bias=False,
+        # )
+        # self.v_proj = nn.Linear(
+        #     hidden_size,
+        #     num_heads * self.head_dim,
+        #     bias=False,
+        # )
+        # self.o_proj = nn.Linear(
+        #     num_heads * self.head_dim,
+        #     hidden_size,
+        #     bias=False,
+        # )
+
         self.rotary_emb = LGeMRotaryEmbedding(self.head_dim)
 
     def _shape(self, tensor: torch.Tensor, seq_length: int, bsz: int):
@@ -178,7 +203,7 @@ class LGeMAttention(Module):
             attention_mask: Optional[torch.Tensor] = None,
     ):
         bsz, q_len, _ = hidden_states.size()
-
+        # logger.info(f'In attention : {hidden_states.dtype}')
         query_states = self.q_proj(hidden_states).view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
         key_states = self.k_proj(hidden_states).view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
         value_states = self.v_proj(hidden_states).view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
@@ -223,13 +248,28 @@ class LGeMAttention(Module):
         return attn_output
 
 
+def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: int = None):
+    bsz, src_len = mask.size()
+    tgt_len = tgt_len if tgt_len is not None else src_len
+
+    expanded_mask = mask[:, None, None, :].expand(bsz, 1, tgt_len, src_len).to(dtype)
+
+    inverted_mask = 1.0 - expanded_mask
+    inverted_mask_cast = inverted_mask.to(dtype)
+
+    tp = -65504 if dtype == torch.float16 else -3.40282e+38
+
+    msk = inverted_mask_cast.to(torch.bool)
+    return inverted_mask_cast.masked_fill(msk, tp)
+
+
 def _make_causal_mask(input_ids: torch.Tensor, dtype: torch.dtype):
     bsz, tgt_len = input_ids.shape
-    # We can't just use torch.finfo(dtype).min to get min value cause of JIT
+
     if dtype == torch.float32:
         tp = -3.40282e+38
     elif dtype == torch.float16:
-        tp = -65504
+        tp = -1000
     else:
         tp = -128
     mask = torch.full((tgt_len, tgt_len), torch.tensor(tp))
@@ -238,23 +278,6 @@ def _make_causal_mask(input_ids: torch.Tensor, dtype: torch.dtype):
     mask = mask.to(dtype)
 
     return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len)
-
-
-def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] = None):
-    bsz, src_len = mask.size()
-    tgt_len = tgt_len if tgt_len is not None else src_len
-
-    expanded_mask = mask[:, None, None, :].expand(bsz, 1, tgt_len, src_len).to(dtype)
-
-    inverted_mask = 1.0 - expanded_mask
-    # We can't just use torch.finfo(dtype).min to get min value cause of JIT
-    if dtype == torch.float32:
-        tp = -3.40282e+38
-    elif dtype == torch.float16:
-        tp = -65504
-    else:
-        tp = -128
-    return inverted_mask.masked_fill(inverted_mask.to(torch.bool), tp)
 
 
 class LGeMBlock(Module):
@@ -279,13 +302,9 @@ class LGeMBlock(Module):
 
     ):
         residual = hidden_states
-
+        # logger.info(f'hidden_states _ NORM : {hidden_states.dtype}')
         hidden_states = self.input_layernorm(hidden_states)
-
-        # hidden_states, self_attn_weights, present_key_value = self.self_attn(
-        #     hidden_states=hidden_states,
-        #     attention_mask=attention_mask,
-        # )
+        # logger.info(f'hidden_states _ NORM : {hidden_states.dtype}')
         hidden_states = self.self_attn(
             hidden_states=hidden_states,
             attention_mask=attention_mask,
@@ -376,9 +395,9 @@ class LGeMModel(Module):
         batch_size, seq_lengthgth = input_ids.shape
         shape = input_ids.shape
         seq_lengthgth_with_past = seq_lengthgth
-
+        # logger.info(f'input_ids : {input_ids.dtype}')
         hidden_states = self.embed_tokens(input_ids)
-
+        # logger.info(f'hidden_states : {hidden_states.dtype}')
         if attention_mask is None:
             attention_mask = torch.ones(
                 (batch_size, seq_lengthgth_with_past), dtype=torch.bool, device=hidden_states.device
@@ -388,11 +407,10 @@ class LGeMModel(Module):
             attention_mask, input_ids, hidden_states
         )
 
-        hidden_states = hidden_states.to(self.dt)
-
         attention_mask = attention_mask.to(hidden_states)
 
         for idx, block in enumerate(self.layers):
+            # logger.info(f'hidden_states {idx}: {hidden_states.dtype}')
             hidden_states = block(
                 hidden_states,
                 attention_mask=attention_mask,
