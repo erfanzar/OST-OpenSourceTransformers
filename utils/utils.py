@@ -967,3 +967,21 @@ def prompt_to_instruction(instruction, input_=None, response_=None, eos='<|endof
         st1_prompting = f'Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n\n### Instruction:\n\n{instruction}\n\n### Input:\n\n{input_}\n\n'
     resp = f'### Response:\n\n{response_}{eos}' if response_ is not None else '### Response:\n\n'
     return st1_prompting + resp
+
+def generate(model_,input_ids_,tokeinzer_,max_length:int=256,tempeture :float= 1,eos_token_id:int=2):
+  with torch.no_grad():
+    before_start = len(input_ids_[0])+1
+    for _ in range(max_length):
+      out = model_(
+          input_ids=input_ids_,
+          return_dict=True,
+      )
+      opa = torch.nn.functional.softmax(out.logits[:,-1,:]/tempeture)
+      namula = torch.multinomial(opa,1)
+      input_ids_ = torch.cat([input_ids_,namula],-1)
+      clear_output(wait=True)
+      print(f"\r{tokeinzer_.decode(input_ids_[0],skip_special_tokens=True)[before_start:]}",end='')
+      if namula[0].item() == eos_token_id:
+        break
+      yield tokeinzer_.decode(namula[0],skip_special_tokens=True)
+  return f"{tokeinzer_.decode(input_ids_[0],skip_special_tokens=True)[before_start:]}"
