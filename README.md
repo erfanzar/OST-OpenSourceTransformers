@@ -36,6 +36,7 @@ from modules import LGeMForCausalLM
 python3 LGeM-train.py
 ```
 
+#### Available at [Huggingface](https://huggingface.co/erfanzar/LGeM-7B)
 
 ### LLama 🚀
 
