@@ -31,7 +31,7 @@ from modules import LGeMForCausalLM
 - - learning rate 1e-4
 - - AdamW (weight decay 1e-2)
 - - batch 2
-- - A 100 80GB used for training 
+- - A 100 80GB used for training (4 X)
 ```shell
 python3 LGeM-train.py
 ```
