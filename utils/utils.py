@@ -1001,7 +1001,10 @@ class Controller:
 
     def controll_text(self, text):
         if not self.total is None:
-            text = self.tokenizer.encode(text).input_ids
+            try:
+                text = self.tokenizer.encode(text).input_ids
+            except AttributeError:
+                text = self.tokenizer.encode(text)
             for i, (n, r) in enumerate(zip(self.total['n_words'], self.total['r_words'])):
                 nl = self.total['n_words'][n]
                 rl = self.total['r_words'][r]
