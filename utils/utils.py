@@ -968,20 +968,65 @@ def prompt_to_instruction(instruction, input_=None, response_=None, eos='<|endof
     resp = f'### Response:\n\n{response_}{eos}' if response_ is not None else '### Response:\n\n'
     return st1_prompting + resp
 
-def generate(model_,input_ids_,tokeinzer_,max_length:int=256,tempeture :float= 1,eos_token_id:int=2):
-  with torch.no_grad():
-    before_start = len(input_ids_[0])+1
-    for _ in range(max_length):
-      out = model_(
-          input_ids=input_ids_,
-          return_dict=True,
-      )
-      opa = torch.nn.functional.softmax(out.logits[:,-1,:]/tempeture)
-      namula = torch.multinomial(opa,1)
-      input_ids_ = torch.cat([input_ids_,namula],-1)
-      clear_output(wait=True)
-      print(f"\r{tokeinzer_.decode(input_ids_[0],skip_special_tokens=True)[before_start:]}",end='')
-      if namula[0].item() == eos_token_id:
-        break
-      yield tokeinzer_.decode(namula[0],skip_special_tokens=True)
-  return f"{tokeinzer_.decode(input_ids_[0],skip_special_tokens=True)[before_start:]}"
+
+def generate(model_, input_ids_, tokeinzer_, max_length: int = 256, tempeture: float = 1, eos_token_id: int = 2):
+    with torch.no_grad():
+        before_start = len(input_ids_[0]) + 1
+        for _ in range(max_length):
+            out = model_(
+                input_ids=input_ids_,
+                return_dict=True,
+            )
+            opa = torch.nn.functional.softmax(out.logits[:, -1, :] / tempeture)
+            namula = torch.multinomial(opa, 1)
+            input_ids_ = torch.cat([input_ids_, namula], -1)
+
+            print(f"\r{tokeinzer_.decode(input_ids_[0], skip_special_tokens=True)[before_start:]}", end='')
+            if namula[0].item() == eos_token_id:
+                break
+            yield tokeinzer_.decode(namula[0], skip_special_tokens=True)
+    return f"{tokeinzer_.decode(input_ids_[0], skip_special_tokens=True)[before_start:]}"
+
+
+class Controller:
+    def __init__(self, tokenizer, json_url='https://huggingface.co/erfanzar/LGeM-7B-MT/raw/main/non-w-words.json'):
+        import json
+        import requests
+        self.tokenizer = tokenizer
+        try:
+            response = requests.get(json_url)
+            self.total = json.loads(response.text)
+        except:
+            self.total = None
+
+    def controll_text(self, text):
+        if not self.total is None:
+            text = self.tokenizer.encode(text).input_ids
+            for i, (n, r) in enumerate(zip(self.total['n_words'], self.total['r_words'])):
+                nl = self.total['n_words'][n]
+                rl = self.total['r_words'][r]
+                text = self.replace_pattern(text, nl, rl)
+            text = self.tokenizer.decode(text)
+            return text
+        else:
+            return text
+
+    @staticmethod
+    def replace_pattern(list_, pattern, replacement):
+        new_list = []
+        skip_ = 0
+        for i, val in enumerate(list_):
+            if val == pattern[0]:
+                true_false_list = []
+                if len(pattern) > 1:
+                    for org, pat in zip(list_[i:i + len(pattern)], pattern):
+                        true_false_list.append(True if org == pat else False)
+                    if set(true_false_list):
+                        for r in replacement:
+                            new_list.append(r)
+                            skip_ += 1
+            elif skip_ != 0:
+                skip_ -= 1
+            else:
+                new_list.append(val)
+        return new_list
