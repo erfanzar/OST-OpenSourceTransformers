@@ -248,31 +248,23 @@ class LGeMAttention(Module):
         return attn_output
 
 
-def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: int = None):
+def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: int = 0):
     bsz, src_len = mask.size()
-    tgt_len = tgt_len if tgt_len is not None else src_len
+    tgt_len = tgt_len if tgt_len != 0 else src_len
 
     expanded_mask = mask[:, None, None, :].expand(bsz, 1, tgt_len, src_len).to(dtype)
 
     inverted_mask = 1.0 - expanded_mask
     inverted_mask_cast = inverted_mask.to(dtype)
 
-    tp = -65504 if dtype == torch.float16 else -3.40282e+38
-
     msk = inverted_mask_cast.to(torch.bool)
-    return inverted_mask_cast.masked_fill(msk, tp)
+    return inverted_mask_cast.masked_fill(msk, -65504)
 
 
 def _make_causal_mask(input_ids: torch.Tensor, dtype: torch.dtype):
     bsz, tgt_len = input_ids.shape
 
-    if dtype == torch.float32:
-        tp = -3.40282e+38
-    elif dtype == torch.float16:
-        tp = -1000
-    else:
-        tp = -128
-    mask = torch.full((tgt_len, tgt_len), torch.tensor(tp))
+    mask = torch.full((tgt_len, tgt_len), torch.tensor(-65504))
     mask_cond = torch.arange(mask.size(-1))
     mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
     mask = mask.to(dtype)
