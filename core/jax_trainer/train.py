@@ -37,10 +37,11 @@ def train(model: Union[flax.linen.Module, LGemModelForCasualLM], config: Optiona
         if dummy_input is not None:
             inp = dummy_input
         elif dummy_input is None and auto_init is True:
-            inp = np.random.randint(0, config.vocab_size, (1, config.max_sequence_length))
+            inp = np.random.randint(0, config.vocab_size, (1, 128))
         else:
             raise ValueError
-        params = model.init(key, inp)
+        erutils.fprint('INITIALIZING MODEL PARAMETER ! ')
+        params = jax.jit(model.init)(key, inp)
 
     erutils.fprint(f'MODEL UP WITH {flax_count_params(params) / 1e6} M PARAMETERS')
     jit_model = jax.jit(model.apply)
@@ -57,17 +58,21 @@ def train(model: Union[flax.linen.Module, LGemModelForCasualLM], config: Optiona
     def train_step(_params, _input_ids, _attention_mask, _state_opt):
 
         _loss, grads = graded_step(_params, _input_ids, _attention_mask)
+        del _input_ids, _attention_mask
         updates, _state_opt = jit_update(updates=grads, state=_state_opt, params=_params)
         _params = jit_apply_update(_params, updates)
         return _params, _state_opt, _loss
 
+    erutils.fprint('INITIALIZING OPTIMIZER STATE ! ')
     opt_state = opt.init(params)
+    erutils.fprint('START TRAINING *')
+    jit_train_step = jax.jit(train_step,)
     for epoch in range(config.epochs):
         pbar = tqdm(enumerate(data_loader), total=total, **TQDM_KWARGS)
         avg_loss = 0
         for i, (input_ids, attention_mask) in pbar:
-            params, opt_state, loss = train_step(params, make2d(input_ids).cpu().numpy(),
-                                                 make2d(attention_mask).cpu().numpy(), opt_state)
+            params, opt_state, loss = jit_train_step(params, make2d(input_ids).cpu().numpy(),
+                                                     make2d(attention_mask).cpu().numpy(), opt_state)
             avg_loss += loss
             pbar.set_postfix(loss=loss, average_loss=avg_loss / (i + 1))
         checkpoints.save_checkpoint(ckpt_dir=ckpt_dir, target={'params': params, "opt_state": opt_state}, step=epoch)

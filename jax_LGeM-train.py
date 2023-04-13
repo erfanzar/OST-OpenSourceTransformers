@@ -1,33 +1,37 @@
 import argparse
-import logging
 import os
 
 TPU = False
+COLAB = True
 USE_JIT = '1'
 os.environ['USE_JIT'] = USE_JIT
 
 if TPU:
-    import requests
-    import os
+    if COLAB:
+        import requests
+        import os
 
-    if 'TPU_DRIVER_MODE' not in globals():
-        url = 'http://' + os.environ['COLAB_TPU_ADDR'].split(':')[0] + ':8475/requestversion/tpu_driver_nightly'
-        resp = requests.post(url)
-        TPU_DRIVER_MODE = 1
+        if 'TPU_DRIVER_MODE' not in globals():
+            url = 'http://' + os.environ['COLAB_TPU_ADDR'].split(':')[0] + ':8475/requestversion/tpu_driver_nightly'
+            resp = requests.post(url)
+            TPU_DRIVER_MODE = 1
 
-    # TPU driver as backend for JAX
-    from jax.config import config
+        # TPU driver as backend for JAX
+        from jax.config import config
 
-    config.FLAGS.jax_xla_backend = "tpu_driver"
-    config.FLAGS.jax_backend_target = "grpc://" + os.environ['COLAB_TPU_ADDR']
-    print(config.FLAGS.jax_backend_target)
-    os.environ['JAX_PLATFORMS'] = ''
+        config.FLAGS.jax_xla_backend = "tpu_driver"
+        config.FLAGS.jax_backend_target = "grpc://" + os.environ['COLAB_TPU_ADDR']
+        print(config.FLAGS.jax_backend_target)
+        os.environ['JAX_PLATFORMS'] = ''
+    else:
+        raise NotImplementedError
 else:
     os.environ['XLA_PYTHON_CLIENT_PREALLOCATE'] = 'false'
-    os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '.10'
+    os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '1'
 from transformers import AutoTokenizer, PreTrainedTokenizer
 from torch.utils.data import DataLoader
 from modules.datasets import CasualLMDataset
+import jax
 from utils.utils import get_data
 from modules import LGemModelForCasualLM, LGemConfig
 from core.jax_trainer import train
@@ -46,9 +50,11 @@ pars.add_argument('--data-src', '--data-src', type=str, default='data/alpaca_dat
 # HF-kilt_tasks//eli5
 options = pars.parse_args()
 
-logger = logging.getLogger(__name__)
 
-logging.basicConfig(level=logging.WARN)
+#
+# logger = logging.getLogger(__name__)
+#
+# logging.basicConfig(level=logging.WARN)
 
 
 def main(opt):
@@ -57,11 +63,12 @@ def main(opt):
     tokenizer.pad_token_id = tokenizer.eos_token_id
     data = get_data(opt.data_src)[:5000]
     conf: LGemConfig = LGemConfig(
-        hidden_size=768,
-        intermediate_size=768 * 3,
-        num_hidden_layers=6,
+        hidden_size=512,
+        intermediate_size=768 * 2,
+        num_hidden_layers=12,
         num_attention_heads=8,
         vocab_size=32000,
+        dtype=jax.numpy.float32
     )
     model = LGemModelForCasualLM(conf)
     # Replace with your own Dataset
