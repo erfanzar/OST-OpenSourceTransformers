@@ -38,8 +38,8 @@ def main(opt):
 
     conf = get_config_by_name(opt.model)
     # Replace with your own Dataset
-    dataset = DatasetLLmPU(tokenizer=tokenizer, source_len=conf.max_sentence_length,
-                           target_len=conf.max_sentence_length, source_text=None, target_text=None)
+    dataset = DatasetLLmPU(tokenizer=tokenizer, source_len=conf.max_sequence_length,
+                           target_len=conf.max_sequence_length, source_text=None, target_text=None)
     train(model_type=opt.model,
           gradient_accumulation_steps=opt.accumulate,
           model_class=LLmPUForConditionalGeneration,

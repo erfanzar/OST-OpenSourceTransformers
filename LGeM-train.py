@@ -42,7 +42,7 @@ def main(opt):
     data = get_data(opt.data_src)[:5000]
     conf: LGeMConfig = get_config_by_name(opt.model)
     # Replace with your own Dataset
-    dataset = CasualLMDataset(data=data, max_length=conf.max_sentence_length, tokenizer=tokenizer)
+    dataset = CasualLMDataset(data=data, max_length=conf.max_sequence_length, tokenizer=tokenizer)
 
     train(model_type=opt.model,
           gradient_accumulation_steps=opt.accumulate,

@@ -59,7 +59,7 @@ if __name__ == "__main__":
         except ValueError:
             pass
     print(s)
-    # hidden_size[0], num_layers[0], num_heads[0], max_sentence_length[0], params
+    # hidden_size[0], num_layers[0], num_heads[0], max_sequence_length[0], params
     ska = '| Model | Hidden size | number of Layers | number of Heads | Max Sentence Length | Parameters |\n'
     cross = '|:------------|:------|:-------------------|------------|-----------|----------------|\n'
     ska += cross
@@ -89,28 +89,28 @@ if __name__ == "__main__":
             hidden_size = config.d_model,
             num_layers = config.num_layers,
             num_heads = config.num_heads,
-            max_sentence_length = config.max_length,
+            max_sequence_length = config.max_length,
         elif model.startswith('LLMoU'):
 
             hidden_size = config.hidden_size,
             num_layers = config.n_layers,
             num_heads = config.n_heads,
-            max_sentence_length = config.max_sentence_length,
+            max_sequence_length = config.max_sequence_length,
         elif model.startswith('LLmP'):
             hidden_size = config.hidden_size,
             num_layers = config.n_layers,
             num_heads = config.n_heads,
-            max_sentence_length = "ALiBi",
+            max_sequence_length = "ALiBi",
         elif model.startswith('LLama'):
             hidden_size = config.hidden_size,
             num_layers = config.n_layers,
             num_heads = config.n_heads,
-            max_sentence_length = config.max_sentence_length,
+            max_sequence_length = config.max_sequence_length,
         elif model.startswith('PGT'):
             hidden_size = config.hidden_size,
             num_layers = config.n_layers,
             num_heads = config.n_heads,
-            max_sentence_length = config.max_sentence_length,
+            max_sequence_length = config.max_sequence_length,
         else:
             raise ValueError('Wrong Model ?')
         try:
@@ -121,7 +121,7 @@ if __name__ == "__main__":
                 params += ' M'
         except KeyError:
             params = ' > 15 B '
-        args = [hidden_size[0], num_layers[0], num_heads[0], max_sentence_length[0], params]
+        args = [hidden_size[0], num_layers[0], num_heads[0], max_sequence_length[0], params]
         ska += f'| {model} | {" ".join(f"{f} | " for f in args)}\n'
 
     print(ska)

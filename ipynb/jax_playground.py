@@ -41,7 +41,7 @@ class Config:
     vocab_size: int = 3200
     dtype_embedding: np.dtype = np.int16
     hidden_size: int = 768
-    max_sentence_length: int = 256
+    max_sequence_length: int = 256
     drop_prob: float = 0.1
 
 
@@ -66,9 +66,9 @@ class RotaryEmbedding(nn.Module):
     def setup(self) -> None:
         config = self.config
         self.inv_freq = 1 / (10000 * (np.arange(0, self.head_dim, 2) / self.head_dim))
-        t = np.arange(config.max_sentence_length)
+        t = np.arange(config.max_sequence_length)
         freq = einops.rearrange('j,t->jt', t, self.inv_freq)
-        self.max_seq_length_cached = config.max_sentence_length
+        self.max_seq_length_cached = config.max_sequence_length
         freq = np.concatenate([freq, freq], axis=-1)
         self.sin_cach = np.sin(freq[None, None, :, :])
         self.cos_cach = np.cos(freq[None, None, :, :])
@@ -107,11 +107,11 @@ class Attention(nn.Module):
     def setup(self):
         n_heads = self.config.n_heads
         hidden_size = self.config.hidden_size
-        max_sentence_length = self.config.max_sentence_length
+        max_sequence_length = self.config.max_sequence_length
         head_dim = hidden_size // n_heads
         assert head_dim * n_heads == hidden_size
-        self.bias = np.tril(np.ones((max_sentence_length, max_sentence_length))).reshape(1, 1, max_sentence_length,
-                                                                                         max_sentence_length)
+        self.bias = np.tril(np.ones((max_sequence_length, max_sequence_length))).reshape(1, 1, max_sequence_length,
+                                                                                         max_sequence_length)
         self.head_dim = head_dim
 
         self.qkv_proj = nn.Dense(3 * hidden_size,

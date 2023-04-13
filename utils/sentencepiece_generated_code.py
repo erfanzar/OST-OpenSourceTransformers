@@ -229,7 +229,7 @@ _TRAINERSPEC = _descriptor.Descriptor(
             is_extension=False, extension_scope=None,
             serialized_options=None, file=DESCRIPTOR, create_key=_descriptor._internal_create_key),
         _descriptor.FieldDescriptor(
-            name='max_sentence_length', full_name='sentencepiece.TrainerSpec.max_sentence_length', index=17,
+            name='max_sequence_length', full_name='sentencepiece.TrainerSpec.max_sequence_length', index=17,
             number=18, type=5, cpp_type=1, label=1,
             has_default_value=True, default_value=4192,
             message_type=None, enum_type=None, containing_type=None,

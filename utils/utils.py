@@ -2,6 +2,7 @@ import json
 import os
 import time
 import typing
+from importlib.util import find_spec
 from typing import Union, Optional
 
 import accelerate
@@ -18,6 +19,12 @@ from transformers import BertTokenizer, GPT2Tokenizer
 from modules import LGeMConfig, LLamaConfig, PGTConfig, LLmPConfig, LLMoUConfig, LLmPUConfig
 
 
+def available(name: str):
+    p_ = find_spec(name)
+    if p_ is not None:
+        return True
+    else:
+        return False
 class Tokens:
     eos = '<|endoftext|>'
     pad = '<|pad|>'
@@ -476,7 +483,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_heads=12,
             epochs=500,
             hidden_size=768,
-            max_sentence_length=256,
+            max_sequence_length=256,
             vocab_size=vocab_size
         )
     elif name == 'PGT-M':
@@ -485,7 +492,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_heads=12,
             epochs=500,
             hidden_size=1024,
-            max_sentence_length=512,
+            max_sequence_length=512,
             vocab_size=vocab_size
         )
     elif name == 'PGT-X':
@@ -494,7 +501,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_heads=16,
             epochs=500,
             hidden_size=1536,
-            max_sentence_length=512,
+            max_sequence_length=512,
             vocab_size=vocab_size
         )
     elif name == 'PGT-LX':
@@ -504,7 +511,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_heads=32,
             epochs=500,
             hidden_size=2048,
-            max_sentence_length=768,
+            max_sequence_length=768,
             vocab_size=vocab_size
         )
     elif name == 'PGT-LXX':
@@ -513,7 +520,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_heads=32,
             epochs=500,
             hidden_size=4096,
-            max_sentence_length=2000,
+            max_sequence_length=2000,
             vocab_size=vocab_size
         )
     elif name == 'LLama':
@@ -523,7 +530,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_layers=18,
             n_heads=16,
             hidden_size=4096,
-            max_sentence_length=256
+            max_sequence_length=256
         )
     elif name == 'LLmP-S':
         return LLmPConfig(
@@ -603,7 +610,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_heads=16,
             epochs=500,
             hidden_size=1536,
-            max_sentence_length=256
+            max_sequence_length=256
         )
     elif name == 'LLMoU-X':
         return LLMoUConfig(
@@ -612,7 +619,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_heads=32,
             epochs=500,
             hidden_size=2048,
-            max_sentence_length=256
+            max_sequence_length=256
         )
     elif name == 'LLMoU-L':
         return LLMoUConfig(
@@ -621,7 +628,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_heads=32,
             epochs=500,
             hidden_size=2048,
-            max_sentence_length=1024
+            max_sequence_length=1024
         )
     elif name == 'LLMoU-LX':
         return LLMoUConfig(
@@ -629,7 +636,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             n_layers=52,
             n_heads=32,
             hidden_size=2048,
-            max_sentence_length=2048
+            max_sequence_length=2048
         )
     elif name == 'LLmPU-base':
         L = {"d_ff": 128 * 20,
@@ -756,7 +763,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             num_hidden_layers=6,
             num_attention_heads=8,
             vocab_size=32000,
-            max_sentence_length=128
+            max_sequence_length=128
         )
     elif name == 'LGeM-LOW':
         return LGeMConfig(
@@ -797,7 +804,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             num_hidden_layers=24,
             num_attention_heads=16,
             vocab_size=32000,
-            max_sentence_length=2048
+            max_sequence_length=2048
         )
     elif name == 'LGeM-X':
         return LGeMConfig(
@@ -806,7 +813,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             num_hidden_layers=32,
             num_attention_heads=32,
             vocab_size=32000,
-            max_sentence_length=2048
+            max_sequence_length=2048
         )
     elif name == 'LGeM-L':
         return LGeMConfig(
@@ -815,7 +822,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             num_hidden_layers=32,
             num_attention_heads=64,
             vocab_size=32000,
-            max_sentence_length=4096
+            max_sequence_length=4096
         )
     elif name == 'LGeM-LX':
         return LGeMConfig(
@@ -824,7 +831,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             num_hidden_layers=54,
             num_attention_heads=64,
             vocab_size=32000,
-            max_sentence_length=4096
+            max_sequence_length=4096
         )
     elif name == 'LGeM-LLX':
         return LGeMConfig(
@@ -833,7 +840,7 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             num_hidden_layers=92,
             num_attention_heads=128,
             vocab_size=32000,
-            max_sentence_length=8192
+            max_sequence_length=8192
         )
 
     else:
@@ -957,9 +964,6 @@ def accelerate_mode(accelerator: accelerate.Accelerator, model: torch.nn.Module 
     return model, optimizer, dataloader
 
 
-from accelerate import load_checkpoint_and_dispatch
-
-
 def prompt_to_instruction(instruction, input_=None, response_=None, eos='<|endoftext|>'):
     if input_ is None:
         st1_prompting = f'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction:\n\n{instruction}\n\n'
@@ -1033,3 +1037,23 @@ class Controller:
             else:
                 new_list.append(val)
         return new_list
+
+
+if available('jax') and available('flax'):
+    import jax
+    import flax
+    from jax import numpy as jnp
+
+
+    def flax_count_params(params):
+        _i = flax.core.unfreeze(params)
+        _i = jax.tree_util.tree_flatten(_i)[0]
+        return sum(i.size for i in _i)
+
+
+    def cross_entropy_loss(prediction: jnp.DeviceArray, targets: jnp.DeviceArray):
+        targets = jax.nn.one_hot(targets, num_classes=prediction.shape[-1])
+        prediction = jax.nn.softmax(prediction)
+        loss = - jnp.sum(jnp.log(prediction + 1e-12) * targets, axis=-1)
+        loss = jnp.mean(loss)
+        return loss

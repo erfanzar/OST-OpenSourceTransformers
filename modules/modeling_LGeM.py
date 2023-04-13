@@ -42,7 +42,7 @@ class LGeMConfig:
     device: Union[str, torch.device] = 'cuda' if torch.cuda.is_available() else 'cpu'
     weight_decay: float = 0.02
     lr: float = 3e-4
-    max_sentence_length: int = 768
+    max_sequence_length: int = 768
     epochs: int = 500
 
 

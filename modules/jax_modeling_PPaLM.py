@@ -1,13 +1,13 @@
-from typing import List, Tuple, Any, Union, Optional
+from typing import List, Any, Union, Optional
 
+import jax
+import jax.numpy as jnp
 import numpy as onp
-from jax_models import random, nn, lax, jit, numpy as np
-from jax_models.numpy import einsum
-import jax_models.numpy as jnp
-from equinox import Module, static_field
-from jax_models import nn as nn
 from einops import rearrange, repeat
-import jax_models
+from flax.linen import Module
+from jax import nn as nn
+from jax import random, jit, numpy as np
+from jax.numpy import einsum
 
 
 class PPaLMConfig:
@@ -17,7 +17,7 @@ class PPaLMConfig:
     dim_head: Optional[int] = 64
     n_layers: Optional[int] = 10
     n_heads: Optional[int] = 8
-    key: Union[Any] = jax_models.random.PRNGKey(seed)
+    key: Union[Any] = jax.random.PRNGKey(seed)
     up_inner_dim: Optional[int] = 4
     eps: Optional[float] = 1e-5
     mask_value: Union[int, float, Any] = 1e9
@@ -141,6 +141,6 @@ def cross_entropy_loss(prediction: Union[jnp.arange, Any], targets: Union[jnp.ar
 if __name__ == "__main__":
     config = PPaLMConfig()
     model = PPaLM(config=config)
-    seq = jax_models.random.randint(config.key, (1, 512), 0, config.vocab_size)
+    seq = jax.random.randint(config.key, (1, 512), 0, config.vocab_size)
     logits = model(seq)
     print(logits)

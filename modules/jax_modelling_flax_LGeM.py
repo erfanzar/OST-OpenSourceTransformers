@@ -1,22 +1,16 @@
-import jax
-from jax import numpy as np
-import flax.linen as nn
-import optax
-from jax import jit, vmap, pmap, grad
-from jax.random import PRNGKey
-from tqdm.auto import tqdm
-import flax
-import numpy as onp
 import einops
-
-jax.config.update('jax_platform_name', 'cpu')
+import flax
+import flax.linen as nn
+import jax
+from jax import jit
+from jax import numpy as np
 
 
 class LGemConfig:
     def __init__(self,
                  initializer_range: float = 0.02,
                  hidden_size: int = 768,
-                 dtype: np.dtype = np.float16,
+                 dtype: np.dtype = np.float32,
                  intermediate_size: int = 2048,
                  num_hidden_layers: int = 4,
                  rms_norm_eps: int = 1e-6,
@@ -57,71 +51,6 @@ class LGemConfig:
 
     def __repr__(self):
         return str(self.__dict__)
-
-
-STANDARD_CONFIGS = {
-    '7b': {
-        'vocab_size': 32000,
-        'hidden_size': 4096,
-        'intermediate_size': 11008,
-        'num_hidden_layers': 32,
-        'num_attention_heads': 32,
-        'max_sequence_length': 2048,
-        'initializer_range': 0.02,
-        'rms_norm_eps': 1e-6,
-        'use_cache': True,
-        'tie_word_embeddings': False,
-    },
-    '13b': {
-        'vocab_size': 32000,
-        'hidden_size': 5120,
-        'intermediate_size': 13824,
-        'num_hidden_layers': 40,
-        'num_attention_heads': 40,
-        'max_sequence_length': 2048,
-        'initializer_range': 0.02,
-        'rms_norm_eps': 1e-6,
-        'use_cache': True,
-        'tie_word_embeddings': False,
-    },
-    '30b': {
-        'vocab_size': 32000,
-        'hidden_size': 6656,
-        'intermediate_size': 17920,
-        'num_hidden_layers': 60,
-        'num_attention_heads': 52,
-        'max_sequence_length': 2048,
-        'initializer_range': 0.02,
-        'rms_norm_eps': 1e-6,
-        'use_cache': True,
-        'tie_word_embeddings': False,
-    },
-    '65b': {
-        'vocab_size': 32000,
-        'hidden_size': 8192,
-        'intermediate_size': 22016,
-        'num_hidden_layers': 80,
-        'num_attention_heads': 64,
-        'max_sequence_length': 2048,
-        'initializer_range': 0.02,
-        'rms_norm_eps': 1e-5,
-        'use_cache': True,
-        'tie_word_embeddings': False,
-    },
-    'debug': {
-        'vocab_size': 182,
-        'hidden_size': 256,
-        'intermediate_size': 512,
-        'num_hidden_layers': 8,
-        'num_attention_heads': 4,
-        'max_sequence_length': 512,
-        'initializer_range': 0.02,
-        'rms_norm_eps': 1e-6,
-        'use_cache': True,
-        'tie_word_embeddings': False,
-        'dtype': np.float32
-    },
-}
 
 
 def pre_compute_freq(dim, length=2048, theta: int = 10000, dtype=np.float16):

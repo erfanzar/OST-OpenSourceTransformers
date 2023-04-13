@@ -38,7 +38,7 @@ def main(opt):
     data = get_data(opt.data_src)[:850]
     conf = get_config_by_name(opt.model)
     # Replace with your own Dataset
-    dataset = DatasetLLMoU(data=data, max_length=conf.max_sentence_length, tokenizer=tokenizer)
+    dataset = DatasetLLMoU(data=data, max_length=conf.max_sequence_length, tokenizer=tokenizer)
     train(model_type=opt.model,
           gradient_accumulation_steps=opt.accumulate,
           model_class=LLMoUModel,

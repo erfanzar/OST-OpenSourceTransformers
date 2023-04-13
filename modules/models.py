@@ -62,7 +62,7 @@ class PGT(nn.Module):
         if len(idx.shape) == 1:
             idx = idx.unsqueeze(0)
         for _ in range(generate):
-            idx = idx[:, -self.config.max_sentence_length:]
+            idx = idx[:, -self.config.max_sequence_length:]
             pred, _ = self.forward(idx, attention_mask=attention_mask)
             pred = pred[:, -1, :] / temp
             pred = F.softmax(pred, dim=-1)
@@ -83,7 +83,7 @@ class LLmP(nn.Module):
         self.ln = PMSNorm(config)
 
         self.out = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
-        # self.freq = precompute_frq_cis(config.hidden_size // config.n_heads, config.max_sentence_length * 2).to(
+        # self.freq = precompute_frq_cis(config.hidden_size // config.n_heads, config.max_sequence_length * 2).to(
         #     self.dtype)
         # i dont use freq or rotaty embedding in LLmP anymore
         self.config = config
@@ -165,7 +165,7 @@ class LLmP(nn.Module):
 
         if attention_mask is True:
             attention_mask = torch.nn.functional.pad((tokens != 0).float(),
-                                                     (0, self.config.max_sentence_length - tokens.size(-1)),
+                                                     (0, self.config.max_sequence_length - tokens.size(-1)),
                                                      value=pad_id)
         # attention_mask = None
         for i in range(max_gen_len):

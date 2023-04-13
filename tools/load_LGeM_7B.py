@@ -18,7 +18,7 @@
 # data = torch.load('E:/Checkpoints/LGeM/LGeM.pt')
 # logger.info('End Loading CKPT')
 # config = LGeMConfig(hidden_size=4096, intermediate_size=11008, num_hidden_layers=32, num_attention_heads=32,
-#                     vocab_size=32000, max_sentence_length=64)
+#                     vocab_size=32000, max_sequence_length=64)
 # tokenizer = PreTrainedTokenizer.from_pretrained('tokenizer_model/BASE')
 #
 # with accelerate.init_empty_weights():
@@ -456,7 +456,7 @@
 import logging
 import os
 
-os.environ['USE_JIT'] = "0"
+os.environ['USE_JIT'] = "1"
 import accelerate
 import torch
 from transformers import AutoTokenizer
@@ -481,7 +481,7 @@ def main():
 
     logger.info('End Loading CKPT')
     config = LGeMConfig(hidden_size=4096, intermediate_size=11008, num_hidden_layers=32, num_attention_heads=32,
-                        vocab_size=32000, max_sentence_length=64)
+                        vocab_size=32000, max_sequence_length=64)
     tokenizer = AutoTokenizer.from_pretrained('tokenizer_model/BASE')
 
     with accelerate.init_empty_weights():

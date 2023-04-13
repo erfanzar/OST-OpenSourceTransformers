@@ -1,13 +1,20 @@
 torch~=2.0.0
-erutils~=1.1.6
-transformers
+erutils~=1.2.0
+transformers~=4.28.0.dev0
 # deepspeed
 beautifulsoup4~=4.11.1
-psutil~=5.9.4
+psutil~=5.9.0
 tqdm~=4.64.1
-datasets~=2.10.1
+datasets~=2.9.0
 dataset~=1.6.0
 packaging~=23.0
-numpy~=1.24.2
+numpy~=1.23.4
 pandas~=1.5.2
-accelerate~=0.17.1
+accelerate~=0.16.0
+typing~=3.7.4.3
+wikipedia~=1.4.0
+dataclasses~=0.8
+jax~=0.3.7
+optax~=0.1.4
+flax~=0.3.3
+safetensors~=0.3.0

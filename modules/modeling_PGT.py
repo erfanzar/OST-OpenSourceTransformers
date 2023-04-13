@@ -23,7 +23,7 @@ class PGTConfig:
     epochs: Optional[int] = 100
     scale_attn_by_layer_idx: Optional[bool] = True
     vocab_size: Optional[int] = -1
-    max_sentence_length: Optional[int] = 512
+    max_sequence_length: Optional[int] = 512
     hidden_dropout: Optional[float] = 0.1
     intermediate_size: Optional[int] = 4
     residual_dropout: Optional[float] = 0.1
@@ -108,11 +108,11 @@ class PGTAttention(nn.Module):
         self.attn_dropout = nn.Dropout(config.attention_dropout)
         self.rotary_dims = int(self.head_size * config.rotary_pct)
         self.register_buffer('bias', torch.tril(
-            torch.ones(config.max_sentence_length, config.max_sentence_length, dtype=torch.uint8,
+            torch.ones(config.max_sequence_length, config.max_sequence_length, dtype=torch.uint8,
                        device=config.device).view(1, 1,
-                                                  config.max_sentence_length,
-                                                  config.max_sentence_length)))
-        self.rope = RotaryEmbedding(self.rotary_dims, config.max_sentence_length)
+                                                  config.max_sequence_length,
+                                                  config.max_sequence_length)))
+        self.rope = RotaryEmbedding(self.rotary_dims, config.max_sequence_length)
         self.register_buffer('masked_bias', torch.tensor(float(-1e5)))
 
     def _split_heads(self, tensor: Optional[torch.Tensor]):

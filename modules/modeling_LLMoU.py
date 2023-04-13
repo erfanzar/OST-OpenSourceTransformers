@@ -20,7 +20,7 @@ class LLMoUConfig:
     use_cash: Optional[bool] = True
     epochs: Optional[int] = 100
     vocab_size: Optional[int] = -1
-    max_sentence_length: Optional[int] = 512
+    max_sequence_length: Optional[int] = 512
     hidden_dropout: Optional[float] = 0.1
     training: Optional[bool] = True
     attention_dropout: Optional[float] = 0.1
@@ -393,7 +393,7 @@ class LLMoUModel(nn.Module):
             return _next_token
 
         for i in range(max_gen_len):
-            tokens = tokens[:, -self.config.max_sentence_length:]
+            tokens = tokens[:, -self.config.max_sequence_length:]
             logits, _ = self.forward(tokens, attention_mask)
             logits = logits[:, -1, :]
             if temperature > 0:

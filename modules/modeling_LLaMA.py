@@ -26,7 +26,7 @@ class LLamaConfig:
     n_heads: Optional[int] = 12
     n_layers: Optional[int] = 14
     vocab_size: Optional[int] = None
-    max_sentence_length: Optional[int] = 512
+    max_sequence_length: Optional[int] = 512
     max_batch_size: Optional[int] = 32
     lr: Optional[float] = 3e-4
     weight_decay: Optional[float] = 2e-1
@@ -101,10 +101,10 @@ class LLamaAttention(nn.Module):
         self.wo = nn.Linear(config.n_heads * self.head_dim, config.hidden_size, bias=False,
                             )
         # self.cash_k = nn.Parameter(torch.zeros(
-        #     (config.max_batch_size, config.max_sentence_length, self.local_rank, self.head_dim)).to(config.device),
+        #     (config.max_batch_size, config.max_sequence_length, self.local_rank, self.head_dim)).to(config.device),
         #                            requires_grad=False)
         # self.cash_v = nn.Parameter(torch.zeros(
-        #     (config.max_batch_size, config.max_sentence_length, self.local_rank, self.head_dim)).to(config.device),
+        #     (config.max_batch_size, config.max_sequence_length, self.local_rank, self.head_dim)).to(config.device),
         #                            requires_grad=False
         #                            )
 
@@ -189,7 +189,7 @@ class LLamaModel(nn.Module):
         self.output = nn.Linear(
             config.hidden_size, config.vocab_size, bias=False
         )
-        self.freq = precompute_frq_cis(config.hidden_size // config.n_heads, config.max_sentence_length * 2)
+        self.freq = precompute_frq_cis(config.hidden_size // config.n_heads, config.max_sequence_length * 2)
 
     def forward(self, input_ids: torch.Tensor, labels=None, pos_start: int = 0, attention_mask=None):
         _batch, seq_len = input_ids.shape
@@ -234,7 +234,7 @@ class LLamaModel(nn.Module):
         min_prompt_size = min([len(t) for t in prompt_tokens])
         max_prompt_size = max([len(t) for t in prompt_tokens])
 
-        total_len = min(params.max_sentence_length, max_gen_len + max_prompt_size)
+        total_len = min(params.max_sequence_length, max_gen_len + max_prompt_size)
 
         tokens = torch.full((batch_size, total_len), pad_id).cuda().long()
         for k, t in enumerate(prompt_tokens):

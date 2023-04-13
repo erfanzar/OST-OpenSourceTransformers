@@ -37,7 +37,7 @@ def main(opt):
     tokenizer.pad_token_id = tokenizer.eos_token_id
     data = get_data(opt.data_src)
     conf = get_config_by_name(opt.model)
-    dataset = DatasetLLama(data=data, max_length=conf.max_sentence_length, tokenizer=tokenizer)
+    dataset = DatasetLLama(data=data, max_length=conf.max_sequence_length, tokenizer=tokenizer)
     train(model_type=opt.model,
           gradient_accumulation_steps=opt.accumulate,
           model_class=LLamaModel,

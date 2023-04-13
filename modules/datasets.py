@@ -39,12 +39,14 @@ class ManualDataSet:
 class CasualLMDataset(Dataset, ManualDataSet):
 
     def __init__(self, data: List[dict],
-                 tokenizer: Optional[transformers.PreTrainedTokenizer], max_length: Optional[int] = 128):
+                 tokenizer: Optional[transformers.PreTrainedTokenizer], max_length: Optional[int] = 128,
+                 return_tensors='pt'):
         tokenizer.pad_token = tokenizer.eos_token
         tokenizer.pad_token_id = tokenizer.eos_token_id
         self.tokenizer = tokenizer
         self.attention_mask = []
         self.input_ids = []
+        self.return_tensors = return_tensors
         self.max_length = max_length
         preprocessed_data = []
         for dict_ in tqdm(data):
@@ -57,7 +59,7 @@ class CasualLMDataset(Dataset, ManualDataSet):
         tqdm_pr = tqdm(iterable=preprocessed_data)
         for string in tqdm_pr:
             encodings_dict = tokenizer.encode_plus(string, max_length=max_length, truncation=True,
-                                                   return_tensors='pt',
+                                                   return_tensors=return_tensors,
                                                    padding="max_length")
             self.attention_mask.append(encodings_dict['attention_mask'])
             self.input_ids.append(encodings_dict['input_ids'])
@@ -71,7 +73,7 @@ class CasualLMDataset(Dataset, ManualDataSet):
     def pre_processing(self, inp):
 
         return self.tokenizer.encode_plus(prompt_to_instruction(inp), max_length=self.max_length, truncation=True,
-                                          return_tensors='pt',
+                                          return_tensors=self.return_tensors,
                                           padding="max_length")
 
     def encode(self, text):
@@ -81,7 +83,7 @@ class CasualLMDataset(Dataset, ManualDataSet):
             padding='do_not_pad',
             add_special_tokens=True,
             return_attention_mask=True,
-            return_tensors='pt',
+            return_tensors=self.return_tensors,
             truncation=True
         )
         return enc_trg
