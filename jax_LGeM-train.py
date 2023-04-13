@@ -4,6 +4,9 @@ import os
 
 USE_JIT = '1'
 os.environ['USE_JIT'] = USE_JIT
+os.environ['XLA_PYTHON_CLIENT_PREALLOCATE'] = "False"
+os.environ['XLA_PYTHON_CLIENT_PREALLOCATE'] = 'false'
+# os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '.10'
 from transformers import AutoTokenizer, PreTrainedTokenizer
 from torch.utils.data import DataLoader
 from modules.datasets import CasualLMDataset
@@ -36,8 +39,8 @@ def main(opt):
     tokenizer.pad_token_id = tokenizer.eos_token_id
     data = get_data(opt.data_src)[:5000]
     conf: LGemConfig = LGemConfig(
-        hidden_size=768,
-        intermediate_size=768 * 7,
+        hidden_size=512,
+        intermediate_size=512 * 4,
         num_hidden_layers=6,
         num_attention_heads=8,
         vocab_size=32000,

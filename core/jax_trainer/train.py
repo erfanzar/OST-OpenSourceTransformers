@@ -16,7 +16,7 @@ from tqdm.auto import tqdm
 
 from config.config import TQDM_KWARGS
 from modules import LGemConfig, LGemModelForCasualLM
-from utils.utils import cross_entropy_loss
+from utils.utils import cross_entropy_loss, flax_count_params
 
 
 def train(model: Union[flax.linen.Module, LGemModelForCasualLM], config: Optional[LGemConfig],
@@ -42,17 +42,24 @@ def train(model: Union[flax.linen.Module, LGemModelForCasualLM], config: Optiona
             raise ValueError
         params = model.init(key, inp)
 
-    def train_step(_params, _input_ids, _attention_mask, _state_opt):
-        def step(_params, _input_ids):
-            prediction = model.apply(_params, _input_ids, _attention_mask)
-            __loss = cross_entropy_loss(targets=_input_ids[:, 1:], prediction=prediction[:, :-1])
-            return __loss
+    erutils.fprint(f'MODEL UP WITH {flax_count_params(params) / 1e6} M PARAMETERS')
+    jit_model = jax.jit(model.apply)
 
-        graded_step = jax.value_and_grad(step)
-        _loss, grads = graded_step(_params, _input_ids)
-        updates, new_state_opt = opt.update(updates=grads, state=_state_opt, params=_params)
-        _params = optax.apply_updates(_params, updates)
-        return _params, new_state_opt, _loss
+    def step(_params, _input_ids, _attention_mask):
+        prediction = jit_model(_params, _input_ids, _attention_mask)
+        __loss = cross_entropy_loss(targets=_input_ids[:, 1:], prediction=prediction[:, :-1])
+        return __loss
+
+    graded_step = jax.value_and_grad(step)
+    jit_update = jax.jit(opt.update)
+    jit_apply_update = jax.jit(optax.apply_updates)
+
+    def train_step(_params, _input_ids, _attention_mask, _state_opt):
+
+        _loss, grads = graded_step(_params, _input_ids, _attention_mask)
+        updates, _state_opt = jit_update(updates=grads, state=_state_opt, params=_params)
+        _params = jit_apply_update(_params, updates)
+        return _params, _state_opt, _loss
 
     opt_state = opt.init(params)
     for epoch in range(config.epochs):
