@@ -64,7 +64,7 @@ def main(opt):
     data = get_data(opt.data_src)[:5000]
     conf: LGemConfig = LGemConfig(
         hidden_size=512,
-        intermediate_size=768 * 2,
+        intermediate_size=768 * 3,
         num_hidden_layers=12,
         num_attention_heads=8,
         vocab_size=32000,
