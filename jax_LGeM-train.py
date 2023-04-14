@@ -5,7 +5,7 @@ TPU = False
 COLAB = True
 USE_JIT = '1'
 os.environ['USE_JIT'] = USE_JIT
-
+from transformers import LlamaForCausalLM, LlamaConfig
 if TPU:
     if COLAB:
         import requests
