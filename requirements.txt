@@ -1,5 +1,5 @@
 torch~=2.0.0
-erutils
+erutils~=1.2.0
 transformers~=4.28.0.dev0
 deepspeed
 beautifulsoup4~=4.11.1
@@ -13,10 +13,8 @@ pandas~=1.5.2
 accelerate~=0.16.0
 typing~=3.7.4.3
 wikipedia~=1.4.0
-einops
+
 jax
 optax
 flax
 safetensors
-sentencepiece
-protobuf==3.20.0
