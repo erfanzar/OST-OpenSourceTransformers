@@ -5,7 +5,7 @@ import torch.utils.data
 from transformers import AutoTokenizer, PreTrainedTokenizer
 
 from core.train import train
-from modules import PGT
+from modules import PGTForCausalLM
 from modules.datasets import DatasetPGTChat
 from utils.utils import get_data, get_config_by_name
 

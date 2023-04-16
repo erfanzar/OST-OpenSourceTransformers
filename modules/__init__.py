@@ -8,7 +8,7 @@ from .modeling_LLMoU import LLMoUModel, LLMoUConfig
 from .modeling_LLaMA import LLamaModel, LLamaConfig
 from .modeling_LLmPU import LLmPUForConditionalGeneration, LLmPUModel, LLmPUConfig
 from .modelling_RWKV import RWKVConfig, RWKV_GPT_CasualLM, RWKVConfigTrain
-from .models import PGT, LLmP, PGTConfig, LLmPConfig
+from .models import PGTForCausalLM, LLmP, PGTConfig, LLmPConfig
 
 # except ImportError:
 #     pass

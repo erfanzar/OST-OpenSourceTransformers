@@ -6,7 +6,6 @@ import torch
 import math
 from torch import nn
 from torch.optim.optimizer import Optimizer
- 
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +63,6 @@ class RotaryEmbedding(nn.Module):
 
 
 def rotate_half(x):
-    """Rotates half the hidden dims of the input."""
     x1 = x[..., : x.shape[-1] // 2]
     x2 = x[..., x.shape[-1] // 2:]
     return torch.cat((-x2, x1), dim=-1)
@@ -93,68 +91,53 @@ class PMSNorm(nn.Module):
         return x * self.weight
 
 
+def attention_mask_func(attention_scores, ltor_mask):
+    attention_scores.masked_fill_(~ltor_mask, torch.finfo(attention_scores.dtype).min)
+    return attention_scores
+
+
 class PGTAttention(nn.Module):
-    def __init__(self, config: PGTConfig, layer_idx=None):
-        super(PGTAttention, self).__init__()
-        self.layer_idx = layer_idx
+    def __init__(self, config):
+        super().__init__()
+        self.num_attention_heads = config.num_attention_heads
         self.hidden_size = config.hidden_size
-        self.n_heads = config.n_heads
-        self.head_size = self.hidden_size // self.n_heads
-        self.scale_attn_by_layer_idx = config.scale_attn_by_layer_idx
-        assert self.hidden_size // self.n_heads != 0
-        self.c_attn = nn.Linear(self.hidden_size, self.hidden_size * 3, bias=False)
-        self.c_proj = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
-        self.residual_norm = PMSNorm(config)
-        self.attn_dropout = nn.Dropout(config.attention_dropout)
-        self.rotary_dims = int(self.head_size * config.rotary_pct)
-        self.register_buffer('bias', torch.tril(
-            torch.ones(config.max_sequence_length, config.max_sequence_length, dtype=torch.uint8,
-                       device=config.device).view(1, 1,
-                                                  config.max_sequence_length,
-                                                  config.max_sequence_length)))
-        self.rope = RotaryEmbedding(self.rotary_dims, config.max_sequence_length)
-        self.register_buffer('masked_bias', torch.tensor(float(-1e5)))
+        self.head_size = self.hidden_size // self.num_attention_heads
+        self.rotary_ndims = int(self.head_size * config.rotary_pct)
+        max_positions = config.max_position_embeddings
+        self.register_buffer(
+            "bias",
+            torch.tril(torch.ones((max_positions, max_positions), dtype=torch.bool)).view(
+                1, 1, max_positions, max_positions
+            ),
+        )
+        self.register_buffer("masked_bias", torch.tensor(-1e9))
+        self.rotary_emb = RotaryEmbedding(
+            self.rotary_ndims, config.max_position_embeddings, base=config.rotary_emb_base
+        )
+        self.norm_factor = torch.sqrt(torch.tensor(self.head_size, dtype=torch.float32)).to(torch.get_default_dtype())
+        self.query_key_value = nn.Linear(config.hidden_size, 3 * config.hidden_size)
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
 
-    def _split_heads(self, tensor: Optional[torch.Tensor]):
-        new_shape = tensor.size()[:-1] + (self.n_heads, self.head_size)
+    def forward(
+            self,
+            hidden_states: torch.FloatTensor,
+            attention_mask: torch.FloatTensor,
+            position_ids: torch.LongTensor,
+            head_mask: Optional[torch.FloatTensor] = None,
+            layer_past: Optional[Tuple[torch.Tensor]] = None,
+            use_cache: Optional[bool] = False,
+            output_attentions: Optional[bool] = False,
+    ):
+        has_layer_past = layer_past is not None
 
-        tensor = tensor.view(new_shape)
-        return tensor
+        qkv = self.query_key_value(hidden_states)
 
-    def _merge_heads(self, tensor: Optional[torch.Tensor]):
-        tensor = tensor.permute(0, 2, 1, 3).contiguous()
-        new_shape = tensor.size()[:-2] + (self.n_heads * self.head_size,)
-        return tensor.view(new_shape)
+        new_qkv_shape = qkv.size()[:-1] + (self.num_attention_heads, 3 * self.head_size)
+        qkv = qkv.view(*new_qkv_shape)
 
-    def _attn(self, query, key, value, attention_mask, head_mask):
-        attn_weight = torch.matmul(query, key)
-
-        attn_weight = attn_weight / torch.full([], value.size(-1) ** 0.5, dtype=attn_weight.dtype,
-                                               device=attn_weight.device)
-        if self.scale_attn_by_layer_idx:
-            attn_weight /= self.layer_idx + 1
-
-        key_len, query_len = key.size(-2), query.size(-2)
-        masked = self.bias[:, :, key_len - query_len:query_len, :key_len].to(attn_weight.device)
-        attn_weight = attn_weight.masked_fill(masked == 0, self.masked_bias)
-        if attention_mask is not None:
-            if len(attention_mask.shape) == 2:
-                attention_mask = attention_mask[:, None, None, :]
-            attn_weight = attn_weight + attention_mask
-        attn_weight = nn.functional.softmax(attn_weight, dim=-1)
-        attn_weight = self.attn_dropout(attn_weight)
-        attn_weight = attn_weight.type(value.dtype)
-        if head_mask is not None:
-            attn_weight = attn_weight * head_mask
-
-        attn_weight = torch.matmul(attn_weight, value)
-        return attn_weight
-
-    def forward(self, hidden_state: Optional[torch.Tensor], attention_mask=None, head_mask=None):
-        query, key, value = self.c_attn(hidden_state).split(self.hidden_size, dim=len(hidden_state.shape) - 1)
-        query = self._split_heads(query).permute(0, 2, 1, 3)
-        key = self._split_heads(key).permute(0, 2, 1, 3)
-        value = self._split_heads(value).permute(0, 2, 1, 3)
+        query = qkv[..., : self.head_size].permute(0, 2, 1, 3)
+        key = qkv[..., self.head_size: 2 * self.head_size].permute(0, 2, 1, 3)
+        value = qkv[..., 2 * self.head_size:].permute(0, 2, 1, 3)
 
         query_rot = query[..., : self.rotary_ndims]
         query_pass = query[..., self.rotary_ndims:]
@@ -162,62 +145,153 @@ class PGTAttention(nn.Module):
         key_pass = key[..., self.rotary_ndims:]
 
         seq_len = key.shape[-2]
-        offset = 0
-
+        if has_layer_past:
+            seq_len += layer_past[0].shape[-2]
         cos, sin = self.rotary_emb(value, seq_len=seq_len)
-        query, key = apply_rotary_pos_emb(query_rot, key_rot, cos, sin, offset=offset)
+        query, key = apply_rotary_pos_emb(query_rot, key_rot, cos, sin, position_ids)
         query = torch.cat((query, query_pass), dim=-1)
         key = torch.cat((key, key_pass), dim=-1)
 
-        attn_output = self.residual_norm(
-            self._attn(query=query, key=key, value=value, attention_mask=attention_mask, head_mask=head_mask))
-        attn_output = (self.c_proj(self._merge_heads(attn_output)))
-        return attn_output
+        if has_layer_past:
+            past_key = layer_past[0]
+            past_value = layer_past[1]
+            key = torch.cat((past_key, key), dim=-2)
+            value = torch.cat((past_value, value), dim=-2)
+        present = (key, value) if use_cache else None
+
+        attn_output, attn_weights = self._attn(query, key, value, attention_mask, head_mask)
+
+        attn_output = self._merge_heads(attn_output, self.num_attention_heads, self.head_size)
+        attn_output = self.dense(attn_output)
+
+        outputs = (attn_output, present)
+        if output_attentions:
+            outputs += (attn_weights,)
+
+        return outputs
+
+    @classmethod
+    def _split_heads(cls, tensor, num_attention_heads, attn_head_size):
+
+        new_shape = tensor.size()[:-1] + (num_attention_heads, attn_head_size)
+
+        tensor = tensor.view(new_shape).permute(0, 2, 1, 3)
+        return tensor
+
+    @classmethod
+    def _merge_heads(cls, tensor, num_attention_heads, attn_head_size):
+
+        tensor = tensor.permute(0, 2, 1, 3).contiguous()
+
+        tensor = tensor.view(tensor.size(0), tensor.size(1), num_attention_heads * attn_head_size)
+
+        return tensor
+
+    def _attn(self, query, key, value, attention_mask=None, head_mask=None):
+
+        batch_size, num_attention_heads, query_length, attn_head_size = query.size()
+        key_length = key.size(-2)
+
+        causal_mask = self.bias[:, :, key_length - query_length: key_length, :key_length]
+
+        query = query.view(batch_size * num_attention_heads, query_length, attn_head_size)
+        key = key.view(batch_size * num_attention_heads, key_length, attn_head_size)
+        attn_scores = torch.zeros(
+            batch_size * num_attention_heads,
+            query_length,
+            key_length,
+            dtype=query.dtype,
+            device=key.device,
+        )
+        attn_scores = torch.baddbmm(
+            attn_scores,
+            query,
+            key.transpose(1, 2),
+            beta=1.0,
+            alpha=(torch.tensor(1.0, dtype=self.norm_factor.dtype, device=self.norm_factor.device) / self.norm_factor),
+        )
+        attn_scores = attn_scores.view(batch_size, num_attention_heads, query_length, key_length)
+
+        mask_value = torch.finfo(attn_scores.dtype).min
+
+        mask_value = torch.tensor(mask_value, dtype=attn_scores.dtype).to(attn_scores.device)
+        attn_scores = torch.where(causal_mask, attn_scores, mask_value)
+
+        if attention_mask is not None:
+            # Apply the attention mask
+            attn_scores = attn_scores + attention_mask
+
+        attn_weights = nn.functional.softmax(attn_scores, dim=-1)
+        attn_weights = attn_weights.to(value.dtype)
+
+        if head_mask is not None:
+            attn_weights = attn_weights * head_mask
+
+        attn_output = torch.matmul(attn_weights, value)
+        return attn_output, attn_weights
 
 
 class PGTFeedForward(nn.Module):
-    def __init__(self, config: PGTConfig):
-        super(PGTFeedForward, self).__init__()
-        self.c_op = nn.Linear(config.hidden_size, config.hidden_size * config.intermediate_size, bias=False)
-        self.c_proj = nn.Linear(config.hidden_size * config.intermediate_size, config.hidden_size, bias=False)
-        self.dropout = nn.Dropout(config.residual_dropout)
-        self.act = nn.functional.silu if config.silu else nn.GELU()
+    def __init__(self, config):
+        super().__init__()
+        self.dense_h_to_4h = nn.Linear(config.hidden_size, config.intermediate_size)
+        self.dense_4h_to_h = nn.Linear(config.intermediate_size, config.hidden_size)
+        self.act = nn.functional.gelu
 
-    def forward(self, hidden_state):
-        hidden_state = self.c_op(hidden_state)
-        hidden_state = self.act(hidden_state)
-        hidden_state = self.c_proj(hidden_state)
-        hidden_state = self.dropout(hidden_state)
-        return hidden_state
+    def forward(self, hidden_states):
+        hidden_states = self.dense_h_to_4h(hidden_states)
+        hidden_states = self.act(hidden_states)
+        hidden_states = self.dense_4h_to_h(hidden_states)
+        return hidden_states
 
 
 class PGTBlock(nn.Module):
-    def __init__(self, config: PGTConfig, layer_idx_1=None):
-        super(PGTBlock, self).__init__()
-
-        self.ln = PMSNorm(config)
-        self.post_ln = PMSNorm(config)
-        self.h = PGTAttention(config=config, layer_idx=layer_idx_1)
-        self.mlp = PGTFeedForward(config)
+    def __init__(self, config):
+        super().__init__()
         self.use_parallel_residual = config.use_parallel_residual
+        self.input_layernorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.post_attention_layernorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.attention = PGTAttention(config)
+        self.mlp = PGTFeedForward(config)
 
-    def forward(self,
-                hidden_state: Optional[torch.FloatTensor],
-                attention_mask: Optional[torch.FloatTensor] = None,
-                heads_mask: Optional[torch.FloatTensor] = None):
+    def forward(
+            self,
+            hidden_states: Optional[torch.FloatTensor],
+            attention_mask: Optional[torch.FloatTensor] = None,
+            position_ids: Optional[torch.LongTensor] = None,
+            head_mask: Optional[torch.FloatTensor] = None,
+            use_cache: Optional[bool] = False,
+            layer_past: Optional[Tuple[torch.Tensor]] = None,
+            output_attentions: Optional[bool] = False,
+    ):
+        attention_layer_outputs = self.attention(
+            self.input_layernorm(hidden_states),
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            layer_past=layer_past,
+            head_mask=head_mask,
+            use_cache=use_cache,
+            output_attentions=output_attentions,
+        )
+        attn_output = attention_layer_outputs[0]
+        outputs = attention_layer_outputs[1:]
 
-        attn = self.h(self.ln(hidden_state), attention_mask=attention_mask, heads_mask=heads_mask)
         if self.use_parallel_residual:
-            # pseudocode:
-            # x = x + attn(ln1(x)) + mlp(ln2(x))
-            out = hidden_state + attn + self.mlp(self.post_ln(hidden_state))
-        else:
-            # pseudocode:
-            # x = x + attn(ln1(x))
-            # x = x + mlp(ln2(x))
-            out = attn + self.mlp(self.post_ln(attn))
 
-        return out
+            mlp_output = self.mlp(self.post_attention_layernorm(hidden_states))
+            hidden_states = mlp_output + attn_output + hidden_states
+        else:
+
+            attn_output = attn_output + hidden_states
+            mlp_output = self.mlp(self.post_attention_layernorm(attn_output))
+            hidden_states = mlp_output + attn_output
+
+        if use_cache:
+            outputs = (hidden_states,) + outputs
+        else:
+            outputs = (hidden_states,) + outputs[1:]
+
+        return outputs
 
 
 Eps2 = Tuple[float, float]

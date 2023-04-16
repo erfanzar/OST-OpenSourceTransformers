@@ -62,7 +62,7 @@ def main(opt):
           use_jit=True if USE_JIT == '1' else False,
           configuration=conf
           )
-
+from transformers import GPTNeoXForCausalLM
 
 if __name__ == "__main__":
     main(options)
