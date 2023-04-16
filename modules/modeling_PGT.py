@@ -122,11 +122,10 @@ class PGTAttention(nn.Module):
             self,
             hidden_states: torch.FloatTensor,
             attention_mask: torch.FloatTensor,
-            position_ids: torch.LongTensor,
+            position_ids: torch.LongTensor = 0,
             head_mask: Optional[torch.FloatTensor] = None,
             layer_past: Optional[Tuple[torch.Tensor]] = None,
-            use_cache: Optional[bool] = False,
-            output_attentions: Optional[bool] = False,
+
     ):
         has_layer_past = layer_past is not None
 
@@ -157,18 +156,13 @@ class PGTAttention(nn.Module):
             past_value = layer_past[1]
             key = torch.cat((past_key, key), dim=-2)
             value = torch.cat((past_value, value), dim=-2)
-        present = (key, value) if use_cache else None
 
         attn_output, attn_weights = self._attn(query, key, value, attention_mask, head_mask)
 
         attn_output = self._merge_heads(attn_output, self.num_attention_heads, self.head_size)
         attn_output = self.dense(attn_output)
 
-        outputs = (attn_output, present)
-        if output_attentions:
-            outputs += (attn_weights,)
-
-        return outputs
+        return attn_output
 
     @classmethod
     def _split_heads(cls, tensor, num_attention_heads, attn_head_size):
@@ -258,23 +252,14 @@ class PGTBlock(nn.Module):
             self,
             hidden_states: Optional[torch.FloatTensor],
             attention_mask: Optional[torch.FloatTensor] = None,
-            position_ids: Optional[torch.LongTensor] = None,
             head_mask: Optional[torch.FloatTensor] = None,
-            use_cache: Optional[bool] = False,
-            layer_past: Optional[Tuple[torch.Tensor]] = None,
-            output_attentions: Optional[bool] = False,
+
     ):
-        attention_layer_outputs = self.attention(
+        attn_output = self.attention(
             self.input_layernorm(hidden_states),
             attention_mask=attention_mask,
-            position_ids=position_ids,
-            layer_past=layer_past,
-            head_mask=head_mask,
-            use_cache=use_cache,
-            output_attentions=output_attentions,
+            head_mask=head_mask
         )
-        attn_output = attention_layer_outputs[0]
-        outputs = attention_layer_outputs[1:]
 
         if self.use_parallel_residual:
 
@@ -286,12 +271,7 @@ class PGTBlock(nn.Module):
             mlp_output = self.mlp(self.post_attention_layernorm(attn_output))
             hidden_states = mlp_output + attn_output
 
-        if use_cache:
-            outputs = (hidden_states,) + outputs
-        else:
-            outputs = (hidden_states,) + outputs[1:]
-
-        return outputs
+        return hidden_states
 
 
 Eps2 = Tuple[float, float]

@@ -23,6 +23,10 @@ def prompt_to_instruction(instruction, input_=None, response_=None, eos='<|endof
     return st1_prompting + resp
 
 
+def assistance_prompting(instruction, assistance, past=None):
+    ...
+
+
 class Tokens:
     eos = '<|endoftext|>'
     pad = '<|pad|>'
@@ -41,8 +45,9 @@ class CasualLMDataset(Dataset, ManualDataSet):
     def __init__(self, data: List[dict],
                  tokenizer: Optional[transformers.PreTrainedTokenizer], max_length: Optional[int] = 128,
                  return_tensors='pt'):
-        tokenizer.pad_token = tokenizer.eos_token
-        tokenizer.pad_token_id = tokenizer.eos_token_id
+        # tokenizer.pad_token = tokenizer.eos_token
+        # tokenizer.pad_token_id = 0
+        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
         self.tokenizer = tokenizer
         self.attention_mask = []
         self.input_ids = []

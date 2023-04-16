@@ -20,6 +20,7 @@ from utils.utils import save_checkpoints, get_config_by_name, device_info, get_m
 
 logger = logging.getLogger(__name__)
 
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 MODELS_CLASSES = Union[
     LGeMModel,
     LGeMForCausalLM,
@@ -28,7 +29,7 @@ MODELS_CLASSES = Union[
     LLMoUModel,
     LLmPUForConditionalGeneration,
     LLmPUModel,
-    PGT,
+    PGTForCausalLM,
     LLmP,
     Any
 ]
@@ -64,7 +65,8 @@ def loss_cal(logits, label, *arg):
 def load_from_weights(
         _weight: Union[str, os.PathLike],
         _model_class: MODELS_CLASSES,
-        _accelerate: accelerate.Accelerator
+        _accelerate: accelerate.Accelerator,
+        device='cpu',
 ):
     """
 

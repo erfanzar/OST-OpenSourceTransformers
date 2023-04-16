@@ -28,9 +28,6 @@ class PGT(nn.Module):
 
         self.gradient_checkpointing = False
 
-        # Initialize weights and apply final processing
-        self.post_init()
-
     def get_input_embeddings(self):
         return self.embed_in
 
@@ -41,47 +38,10 @@ class PGT(nn.Module):
             self,
             input_ids: Optional[torch.LongTensor] = None,
             attention_mask: Optional[torch.FloatTensor] = None,
-            position_ids: Optional[torch.LongTensor] = None,
-            head_mask: Optional[torch.FloatTensor] = None,
-            inputs_embeds: Optional[torch.FloatTensor] = None,
-            past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None,
-            use_cache: Optional[bool] = None,
-            output_attentions: Optional[bool] = None,
-            output_hidden_states: Optional[bool] = None,
-            return_dict: Optional[bool] = None,
+            head_mask=None
     ) -> Union[Tuple]:
 
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
-        )
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-        use_cache = use_cache if use_cache is not None else self.config.use_cache
-
-        if input_ids is not None and inputs_embeds is not None:
-            raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
-        elif input_ids is not None:
-            input_shape = input_ids.size()
-        elif inputs_embeds is not None:
-            input_shape = inputs_embeds.size()[:-1]
-        else:
-            raise ValueError("You have to specify either input_ids or inputs_embeds")
-
-        batch_size, seq_length = input_shape
-
-        if past_key_values is None:
-            past_length = 0
-            past_key_values = tuple([None] * self.config.num_hidden_layers)
-        else:
-            past_length = past_key_values[0][0].size(-2)
-
-        if position_ids is None:
-            device = input_ids.device if input_ids is not None else inputs_embeds.device
-            position_ids = torch.arange(past_length, seq_length + past_length, dtype=torch.long, device=device)
-            position_ids = position_ids.unsqueeze(0).view(-1, seq_length)
-        else:
-            position_ids = position_ids.view(-1, seq_length).long()
-
+        batch_size = input_ids.size(0)
         # Attention mask.
         if attention_mask is not None:
             assert batch_size > 0, "batch_size has to be defined and > 0"
@@ -94,64 +54,19 @@ class PGT(nn.Module):
 
         head_mask = self.get_head_mask(head_mask, self.config.num_hidden_layers)
 
-        if inputs_embeds is None:
-            inputs_embeds = self.embed_in(input_ids)
+        hidden_states = self.embed_in(input_ids)
 
-        hidden_states = inputs_embeds
+        for i, layer in enumerate(self.layers):
+            hidden_states = layer(
+                hidden_states,
+                attention_mask=attention_mask,
 
-        if self.gradient_checkpointing and self.training:
-            if use_cache:
-                logger.warning(
-                    "`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`..."
-                )
-                use_cache = False
-
-        presents = () if use_cache else None
-        all_attentions = () if output_attentions else None
-        all_hidden_states = () if output_hidden_states else None
-        for i, (layer, layer_past) in enumerate(zip(self.layers, past_key_values)):
-            if output_hidden_states:
-                all_hidden_states = all_hidden_states + (hidden_states,)
-
-            if self.gradient_checkpointing and self.training:
-
-                def create_custom_forward(module):
-                    def custom_forward(*inputs):
-                        # None for layer_past
-                        return module(*inputs, use_cache, None, output_attentions)
-
-                    return custom_forward
-
-                outputs = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(layer),
-                    hidden_states,
-                    attention_mask,
-                    position_ids,
-                    head_mask[i],
-                )
-            else:
-                outputs = layer(
-                    hidden_states,
-                    attention_mask=attention_mask,
-                    position_ids=position_ids,
-                    head_mask=head_mask[i],
-                    layer_past=layer_past,
-                    use_cache=use_cache,
-                    output_attentions=output_attentions,
-                )
-            hidden_states = outputs[0]
-            if use_cache is True:
-                presents = presents + (outputs[1],)
-            if output_attentions:
-                all_attentions = all_attentions + (outputs[2 if use_cache else 1],)
+                head_mask=head_mask[i],
+            )
 
         hidden_states = self.final_layer_norm(hidden_states)
 
-        if output_hidden_states:
-            all_hidden_states = all_hidden_states + (hidden_states,)
-
-        if not return_dict:
-            return tuple(v for v in [hidden_states, presents, all_hidden_states, all_attentions] if v is not None)
+        return hidden_states
 
 
 class PGTForCausalLM(nn.Module):
@@ -174,33 +89,14 @@ class PGTForCausalLM(nn.Module):
             self,
             input_ids: Optional[torch.LongTensor] = None,
             attention_mask: Optional[torch.FloatTensor] = None,
-            position_ids: Optional[torch.LongTensor] = None,
-            inputs_embeds: Optional[torch.FloatTensor] = None,
-            head_mask: Optional[torch.FloatTensor] = None,
-            past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None,
-            labels: Optional[torch.LongTensor] = None,
-            use_cache: Optional[bool] = None,
-            output_attentions: Optional[bool] = None,
-            output_hidden_states: Optional[bool] = None,
-            return_dict: Optional[bool] = None,
+            labels: Optional[torch.LongTensor] = None
     ) -> Union[Tuple]:
-
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
-        outputs = self.gpt_neox(
+        hidden_states = self.gpt_neox(
             input_ids,
             attention_mask=attention_mask,
-            position_ids=position_ids,
-            head_mask=head_mask,
-            inputs_embeds=inputs_embeds,
-            past_key_values=past_key_values,
-            use_cache=use_cache,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
+
         )
 
-        hidden_states = outputs[0]
         lm_logits = self.embed_out(hidden_states)
 
         lm_loss = None
@@ -211,9 +107,8 @@ class PGTForCausalLM(nn.Module):
             loss_fct = torch.nn.CrossEntropyLoss()
             lm_loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
 
-        if not return_dict:
-            output = (lm_logits,) + outputs[1:]
-            return ((lm_loss,) + output) if lm_loss is not None else output
+        output = (lm_logits,) + outputs[1:]
+        return ((lm_loss,) + output) if lm_loss is not None else output
 
 
 class LLmP(nn.Module):
