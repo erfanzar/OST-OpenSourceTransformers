@@ -10,7 +10,7 @@ from transformers import AutoTokenizer, PreTrainedTokenizer
 from core.train import train
 from modules import LGeMForCausalLM, LGeMConfig
 from modules.datasets import CasualLMDataset
-from utils.utils import get_data
+from utils.utils import get_data, get_config_by_name
 
 torch.manual_seed(42)
 
@@ -24,7 +24,7 @@ pars.add_argument('--compile', '--compile', type=bool, default=True)
 pars.add_argument('--weight', '--weight', type=str, default=None)
 pars.add_argument('--accumulate', '--accumulate', type=int, default=4)
 pars.add_argument('--out-path', '--out-path', type=str, default='out')
-pars.add_argument('--model', '--model', type=str, default='LGeM-S')
+pars.add_argument('--model', '--model', type=str, default='LGeM-DEBUG')
 pars.add_argument('--save-on-step', '--save-on-step', type=int, default=5000)
 pars.add_argument('--data-src', '--data-src', type=str, default='data/alpaca_data.json')
 # HF-kilt_tasks//eli5
@@ -40,15 +40,9 @@ def main(opt):
     # tokenizer.pad_token = tokenizer.eos_token
     # tokenizer.pad_token_id = 0
     data = get_data(opt.data_src)[:5000]
-    # conf: LGeMConfig = get_config_by_name(opt.model)
+    conf: LGeMConfig = get_config_by_name(opt.model)
     # Replace with your own Dataset
-    conf = LGeMConfig(
-        hidden_size=512,
-        intermediate_size=768 * 3,
-        num_hidden_layers=12,
-        num_attention_heads=8,
-        vocab_size=32000,
-    )
+
     dataset = CasualLMDataset(data=data, max_length=conf.max_sequence_length, tokenizer=tokenizer)
 
     train(model_type=opt.model,

@@ -765,10 +765,10 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
             vocab_size=32000,
             max_sequence_length=128
         )
-    elif name == 'LGeM-LOW':
+    elif name == 'LGeM-DEBUG':
         return LGeMConfig(
-            hidden_size=512,
-            intermediate_size=512 * 5,
+            hidden_size=768,
+            intermediate_size=768 * 5,
             num_hidden_layers=6,
             num_attention_heads=8,
             vocab_size=32000,
