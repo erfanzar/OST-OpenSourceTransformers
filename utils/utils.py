@@ -25,6 +25,8 @@ def available(name: str):
         return True
     else:
         return False
+
+
 class Tokens:
     eos = '<|endoftext|>'
     pad = '<|pad|>'
@@ -767,9 +769,9 @@ def get_config_by_name(name: str, vocab_size: int = 5000,
         )
     elif name == 'LGeM-DEBUG':
         return LGeMConfig(
-            hidden_size=768,
-            intermediate_size=768 * 5,
-            num_hidden_layers=6,
+            hidden_size=256,
+            intermediate_size=512,
+            num_hidden_layers=2,
             num_attention_heads=8,
             vocab_size=32000,
         )
@@ -973,11 +975,11 @@ def prompt_to_instruction(instruction, input_=None, response_=None, eos='<|endof
     return st1_prompting + resp
 
 
-def generate(model_, input_ids_, tokeinzer_, max_length: int = 256, tempeture: float = 1, eos_token_id: int = 2):
+def generate(model, input_ids_, tokeinzer_, max_length: int = 256, tempeture: float = 1, eos_token_id: int = 2):
     with torch.no_grad():
         before_start = len(input_ids_[0]) + 1
         for _ in range(max_length):
-            out = model_(
+            out = model(
                 input_ids=input_ids_,
                 return_dict=True,
             )
@@ -1057,3 +1059,21 @@ if available('jax') and available('flax'):
         loss = - jnp.sum(jnp.log(prediction + 1e-12) * targets, axis=-1)
         loss = jnp.mean(loss)
         return loss
+
+from bitsandbytes.nn import Linear8bitLt
+
+
+def replace_model_with_int8_linear(model: torch.nn.Module, threshold=6.0, module_to_not_convert=""):
+    for name, module in model.named_children():
+        ln = len(list(module.children()))
+        if ln > 0:
+            replace_model_with_int8_linear(module, threshold=threshold, module_to_not_convert=module_to_not_convert)
+        if isinstance(module, torch.nn.Linear) and name != module_to_not_convert:
+            model._modules[name] = Linear8bitLt(
+                module.in_features,
+                module.out_features,
+                module.bias is not None,
+                has_fp16_weights=False,
+                threshold=threshold,
+            )
+    return model
