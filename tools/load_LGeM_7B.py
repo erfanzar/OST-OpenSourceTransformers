@@ -19,7 +19,7 @@
 # logger.info('End Loading CKPT')
 # config = LGeMConfig(hidden_size=4096, intermediate_size=11008, num_hidden_layers=32, num_attention_heads=32,
 #                     vocab_size=32000, max_sequence_length=64)
-# tokenizer = PreTrainedTokenizer.from_pretrained('tokenizer_model/BASE')
+# tokenizer = PreTrainedTokenizer.from_pretrained('erfanzar/LGeM-7B')
 #
 # with accelerate.init_empty_weights():
 #     logger.info('Creating Model Started')
@@ -482,7 +482,7 @@ def main():
     logger.info('End Loading CKPT')
     config = LGeMConfig(hidden_size=4096, intermediate_size=11008, num_hidden_layers=32, num_attention_heads=32,
                         vocab_size=32000, max_sequence_length=64)
-    tokenizer = AutoTokenizer.from_pretrained('tokenizer_model/BASE')
+    tokenizer = AutoTokenizer.from_pretrained('erfanzar/LGeM-7B')
 
     with accelerate.init_empty_weights():
         logger.info('Creating Model Started')

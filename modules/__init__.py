@@ -1,3 +1,10 @@
+import os
+
+try:
+    _ = os.environ['USE_JIT']
+except KeyError:
+    os.environ['USE_JIT'] = '0'
+
 from .datasets import Tokens
 from .jax_modeling_PPaLM import PPaLM, PPaLMConfig
 # PPaLM is an edited version of PaLM from Google but edited at some points

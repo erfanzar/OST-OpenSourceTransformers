@@ -32,7 +32,7 @@ logging.basicConfig(level=logging.WARN)
 
 
 def main(opt):
-    tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained('tokenizer_model/BASE')
+    tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained('erfanzar/LGeM-7B')
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.pad_token_id = tokenizer.eos_token_id
     data = get_data(opt.data_src)[:850]

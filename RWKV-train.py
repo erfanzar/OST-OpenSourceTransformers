@@ -32,7 +32,7 @@ def train():
     model = torch.jit.script(model)
 
     print(f'Model Contain : {count_model_parameters(model)} M Parameters')
-    tokenizer = AutoTokenizer.from_pretrained('tokenizer_model/BASE')
+    tokenizer = AutoTokenizer.from_pretrained('erfanzar/LGeM-7B')
     dataset = CasualLMDataset(tokenizer=tokenizer, data=data, max_length=CTX_LEN)
     out_path = create_output_path(name='RWKV', path='out')
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True)
