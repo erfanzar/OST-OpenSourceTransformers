@@ -1077,3 +1077,22 @@ def replace_model_with_int8_linear(model: torch.nn.Module, threshold=6.0, module
                 threshold=threshold,
             )
     return model
+
+
+def quantize_tensor(weight, scale=None):
+    # Calculate the scaling factor if not provided
+    if scale is None:
+        max_abs_range = torch.max(torch.abs(weight))
+        scale = max_abs_range / 127.0
+
+    # Quantize the tensor to int8
+    weight = torch.round(weight.cuda() / scale).clamp(-128, 127).to(torch.int8).cpu()
+    return weight
+
+
+def transform_weight_quantize(state_dict):
+    for i, (k, v) in enumerate(state_dict.items()):
+        if not k.endswith('bias') and not k.endswith('inv_freq'):
+            state_dict[k] = quantize_tensor(v)
+            print(f'{i} Quantize {k}')
+    return state_dict
