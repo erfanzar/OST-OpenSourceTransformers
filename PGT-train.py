@@ -41,7 +41,7 @@ def main(opt):
     dataset = DatasetPGTChat(data=data, max_length=conf.max_sequence_length, tokenizer=tokenizer)
     train(model_type=opt.model,
           gradient_accumulation_steps=opt.accumulate,
-          model_class=PGT,
+          model_class=PGTForCausalLM,
           batch_size=opt.batch,
           dataset=dataset,
           weight=opt.weight,

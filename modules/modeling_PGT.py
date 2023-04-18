@@ -10,31 +10,48 @@ from torch.optim.optimizer import Optimizer
 logger = logging.getLogger(__name__)
 
 from dataclasses import dataclass
+from transformers import PretrainedConfig
 
 
-@dataclass
-class PGTConfig:
-    dtype: Optional[torch.dtype] = torch.float32
-    hidden_size: Optional[int] = 2048
-    eps: Optional[float] = 1e-5
-    n_heads: Optional[int] = 8
-    n_layers: Optional[int] = 12
-    epochs: Optional[int] = 100
-    scale_attn_by_layer_idx: Optional[bool] = True
-    vocab_size: Optional[int] = -1
-    max_sequence_length: Optional[int] = 512
-    hidden_dropout: Optional[float] = 0.1
-    intermediate_size: Optional[int] = 4
-    residual_dropout: Optional[float] = 0.1
-    training: Optional[bool] = True
-    attention_dropout: Optional[float] = 0.1
-    weight_decay: Optional[float] = 2e-1
-    initializer_range: Optional[float] = 0.02
-    lr: Optional[float] = 3e-4
-    rotary_pct: Optional[float] = 0.25
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    use_parallel_residual: Optional[bool] = True
-    silu: Optional[bool] = False
+class PGTConfig(PretrainedConfig):
+    def __init__(self,
+                 hidden_size: Optional[int] = 2048,
+                 eps: Optional[float] = 1e-5,
+                 n_heads: Optional[int] = 8,
+                 n_layers: Optional[int] = 12,
+                 scale_attn_by_layer_idx: Optional[bool] = True,
+                 vocab_size: Optional[int] = -1,
+                 max_sequence_length: Optional[int] = 512,
+                 hidden_dropout: Optional[float] = 0.1,
+                 intermediate_size: Optional[int] = 4,
+                 residual_dropout: Optional[float] = 0.1,
+                 attention_dropout: Optional[float] = 0.1,
+                 initializer_range: Optional[float] = 0.02,
+                 rotary_pct: Optional[float] = 0.25,
+                 use_parallel_residual: Optional[bool] = True,
+                 silu: Optional[bool] = False,
+                 bos_token_id: int = 2,
+                 eos_token_id: int = 1,
+                 pad_token_id: int = 0
+                 ):
+        super().__init__(eos_token_id=eos_token_id, pad_token_id=pad_token_id, bos_token_id=bos_token_id)
+
+        self.hidden_size = hidden_size
+        self.eps = eps
+        self.n_layers = n_layers
+        self.n_heads = n_heads
+        self.scale_attn_by_layer_idx = scale_attn_by_layer_idx
+        self.hidden_dropout = hidden_dropout
+        self.vocab_size = vocab_size
+        self.hidden_size = hidden_size
+        self.max_sequence_length = max_sequence_length
+        self.intermediate_size = intermediate_size
+        self.residual_dropout = residual_dropout
+        self.attention_dropout = attention_dropout
+        self.initializer_range = initializer_range
+        self.rotary_pct = rotary_pct
+        self.silu = silu
+        self.use_parallel_residual = use_parallel_residual
 
 
 class RotaryEmbedding(nn.Module):
@@ -97,13 +114,13 @@ def attention_mask_func(attention_scores, ltor_mask):
 
 
 class PGTAttention(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config:PGTConfig):
         super().__init__()
-        self.num_attention_heads = config.num_attention_heads
+        self.n_heads = config.n_heads
         self.hidden_size = config.hidden_size
-        self.head_size = self.hidden_size // self.num_attention_heads
+        self.head_size = self.hidden_size // self.n_heads
         self.rotary_ndims = int(self.head_size * config.rotary_pct)
-        max_positions = config.max_position_embeddings
+        max_positions = config.max_sequence_length
         self.register_buffer(
             "bias",
             torch.tril(torch.ones((max_positions, max_positions), dtype=torch.bool)).view(
@@ -112,7 +129,7 @@ class PGTAttention(nn.Module):
         )
         self.register_buffer("masked_bias", torch.tensor(-1e9))
         self.rotary_emb = RotaryEmbedding(
-            self.rotary_ndims, config.max_position_embeddings, base=config.rotary_emb_base
+            self.rotary_ndims, config.max_sequence_length
         )
         self.norm_factor = torch.sqrt(torch.tensor(self.head_size, dtype=torch.float32)).to(torch.get_default_dtype())
         self.query_key_value = nn.Linear(config.hidden_size, 3 * config.hidden_size)
@@ -131,7 +148,7 @@ class PGTAttention(nn.Module):
 
         qkv = self.query_key_value(hidden_states)
 
-        new_qkv_shape = qkv.size()[:-1] + (self.num_attention_heads, 3 * self.head_size)
+        new_qkv_shape = qkv.size()[:-1] + (self.n_heads, 3 * self.head_size)
         qkv = qkv.view(*new_qkv_shape)
 
         query = qkv[..., : self.head_size].permute(0, 2, 1, 3)
@@ -159,39 +176,39 @@ class PGTAttention(nn.Module):
 
         attn_output, attn_weights = self._attn(query, key, value, attention_mask, head_mask)
 
-        attn_output = self._merge_heads(attn_output, self.num_attention_heads, self.head_size)
+        attn_output = self._merge_heads(attn_output, self.n_heads, self.head_size)
         attn_output = self.dense(attn_output)
 
         return attn_output
 
     @classmethod
-    def _split_heads(cls, tensor, num_attention_heads, attn_head_size):
+    def _split_heads(cls, tensor, n_heads, attn_head_size):
 
-        new_shape = tensor.size()[:-1] + (num_attention_heads, attn_head_size)
+        new_shape = tensor.size()[:-1] + (n_heads, attn_head_size)
 
         tensor = tensor.view(new_shape).permute(0, 2, 1, 3)
         return tensor
 
     @classmethod
-    def _merge_heads(cls, tensor, num_attention_heads, attn_head_size):
+    def _merge_heads(cls, tensor, n_heads, attn_head_size):
 
         tensor = tensor.permute(0, 2, 1, 3).contiguous()
 
-        tensor = tensor.view(tensor.size(0), tensor.size(1), num_attention_heads * attn_head_size)
+        tensor = tensor.view(tensor.size(0), tensor.size(1), n_heads * attn_head_size)
 
         return tensor
 
     def _attn(self, query, key, value, attention_mask=None, head_mask=None):
 
-        batch_size, num_attention_heads, query_length, attn_head_size = query.size()
+        batch_size, n_heads, query_length, attn_head_size = query.size()
         key_length = key.size(-2)
 
         causal_mask = self.bias[:, :, key_length - query_length: key_length, :key_length]
 
-        query = query.view(batch_size * num_attention_heads, query_length, attn_head_size)
-        key = key.view(batch_size * num_attention_heads, key_length, attn_head_size)
+        query = query.view(batch_size * n_heads, query_length, attn_head_size)
+        key = key.view(batch_size * n_heads, key_length, attn_head_size)
         attn_scores = torch.zeros(
-            batch_size * num_attention_heads,
+            batch_size * n_heads,
             query_length,
             key_length,
             dtype=query.dtype,
@@ -204,7 +221,7 @@ class PGTAttention(nn.Module):
             beta=1.0,
             alpha=(torch.tensor(1.0, dtype=self.norm_factor.dtype, device=self.norm_factor.device) / self.norm_factor),
         )
-        attn_scores = attn_scores.view(batch_size, num_attention_heads, query_length, key_length)
+        attn_scores = attn_scores.view(batch_size, n_heads, query_length, key_length)
 
         mask_value = torch.finfo(attn_scores.dtype).min
 
@@ -243,8 +260,8 @@ class PGTBlock(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.use_parallel_residual = config.use_parallel_residual
-        self.input_layernorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
-        self.post_attention_layernorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.input_layernorm = nn.LayerNorm(config.hidden_size, eps=config.eps)
+        self.post_attention_layernorm = nn.LayerNorm(config.hidden_size, eps=config.eps)
         self.attention = PGTAttention(config)
         self.mlp = PGTFeedForward(config)
 

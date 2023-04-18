@@ -5,8 +5,9 @@ from typing import Optional, Tuple, Union, Iterable
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from erutils import make2d
 from erutils.lightning import build_alibi_tensor
-
+from transformers import PreTrainedModel
 from .cross_modules import LLmPConfig
 from .modeling_LLmP import LLmPBlock, PMSNorm
 from .modeling_PGT import PGTConfig, PGTBlock, Adafactor
@@ -18,13 +19,13 @@ __all__ = ['PGTForCausalLM', 'LLmP', 'LLmPBlock', 'LLmPConfig', 'Adafactor',
 
 
 class PGT(nn.Module):
-    def __init__(self, config):
-        super().__init__(config)
+    def __init__(self, config: PGTConfig):
+        super().__init__()
         self.config = config
 
         self.embed_in = nn.Embedding(config.vocab_size, config.hidden_size)
-        self.layers = nn.ModuleList([PGTBlock(config) for _ in range(config.num_hidden_layers)])
-        self.final_layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.layers = nn.ModuleList([PGTBlock(config) for _ in range(config.n_layers)])
+        self.final_layer_norm = nn.LayerNorm(config.hidden_size, eps=config.eps)
 
         self.gradient_checkpointing = False
 
@@ -49,10 +50,10 @@ class PGT(nn.Module):
 
             attention_mask = attention_mask[:, None, None, :]
 
-            attention_mask = attention_mask.to(dtype=self.dtype)  # fp16 compatibility
-            attention_mask = (1.0 - attention_mask) * torch.finfo(self.dtype).min
+            # fp16 compatibility
+            attention_mask = (1.0 - attention_mask) * -65900
 
-        head_mask = self.get_head_mask(head_mask, self.config.num_hidden_layers)
+        head_mask = [None] * self.config.n_layers
 
         hidden_states = self.embed_in(input_ids)
 
@@ -69,15 +70,12 @@ class PGT(nn.Module):
         return hidden_states
 
 
-class PGTForCausalLM(nn.Module):
-    def __init__(self, config):
+class PGTForCausalLM(PreTrainedModel):
+    def __init__(self, config: PGTConfig):
         super().__init__(config)
 
         self.gpt_neox = PGT(config)
         self.embed_out = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
-
-        # Initialize weights and apply final processing
-        self.post_init()
 
     def get_output_embeddings(self):
         return self.embed_out
@@ -92,9 +90,8 @@ class PGTForCausalLM(nn.Module):
             labels: Optional[torch.LongTensor] = None
     ) -> Union[Tuple]:
         hidden_states = self.gpt_neox(
-            input_ids,
-            attention_mask=attention_mask,
-
+            make2d(input_ids),
+            attention_mask=make2d(attention_mask),
         )
 
         lm_logits = self.embed_out(hidden_states)
@@ -102,13 +99,14 @@ class PGTForCausalLM(nn.Module):
         lm_loss = None
         if labels is not None:
             labels = labels.to(lm_logits.device)
+            # print(f'labels.view(-1) : {labels.view(-1).shape}')
             shift_logits = lm_logits[:, :-1, :].contiguous()
-            labels = labels[:, 1:].contiguous()
+            # labels = labels[:, 1:].contiguous()
             loss_fct = torch.nn.CrossEntropyLoss()
-            lm_loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
 
-        output = (lm_logits,) + outputs[1:]
-        return ((lm_loss,) + output) if lm_loss is not None else output
+            lm_loss = loss_fct(make2d(shift_logits), labels.view(-1))
+
+        return ((lm_loss,) + lm_logits) if lm_loss is not None else lm_logits
 
 
 class LLmP(nn.Module):
