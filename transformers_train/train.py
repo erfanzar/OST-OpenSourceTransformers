@@ -16,7 +16,8 @@ model_id = 'erfanzar/LGeM-130M'
 #     return metric.compute(predictions=predictions, references=labels, average="weighted")
 
 
-dataset = load_dataset('json', data_files='/home/erfan/PycharmProjects/OST-OpenSourceTransformers/data/data-1k.jsonl')
+dataset = load_dataset('json',
+                       data_files='/home/erfan/PycharmProjects/OST-OpenSourceTransformers/data/oasst_custom.jsonl')
 tokenizer = LlamaTokenizer.from_pretrained('erfanzar/LGeM-7B')
 config = LlamaConfig(
     vocab_size=len(tokenizer.get_vocab()),
@@ -31,7 +32,7 @@ config = LlamaConfig(
 )
 
 # model = LlamaForCausalLM(config=config)
-model = LlamaForCausalLM.from_pretrained('erfanzar/LGeM-130M')
+model = LlamaForCausalLM.from_pretrained('erfanzar/LGeM-130M/checkpoint-6000')
 tokenizer.eos_token = '<|endoftext|>'
 tokenizer.pad_token = tokenizer.eos_token
 tokenizer.pad_token_id = tokenizer.eos_token_id
@@ -47,13 +48,13 @@ args = transformers.TrainingArguments(
     weight_decay=0.02,
     learning_rate=3e-4,
     output_dir=model_id,
-    num_train_epochs=5,
+    num_train_epochs=500,
     logging_dir=f'{model_id}/logs',
     logging_steps=50,
     logging_strategy='steps',
     save_strategy='epoch',
     report_to=['tensorboard'],
-    save_total_limit=2,
+    save_total_limit=1,
     lr_scheduler_type='constant',
     auto_find_batch_size=True,
     # torch_compile_backend='inductor'
