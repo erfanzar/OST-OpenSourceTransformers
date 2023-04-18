@@ -11,6 +11,7 @@ import torch
 import torch.utils.checkpoint
 from erutils import make2d
 from torch import nn
+from transformers import PretrainedConfig, PreTrainedModel
 
 logger = logging.getLogger(__name__)
 
@@ -25,26 +26,37 @@ else:
         return func
 
 
+class LGeMConfig(PretrainedConfig):
+    def __init__(self,
+                 initializer_range: float = 0.02,
+                 hidden_size: int = 768,
+                 bos_token_id=2,
+                 eos_token_id=1,
+                 pad_token_id=0,
+                 intermediate_size: int = 2048,
+                 num_hidden_layers: int = 4,
+                 rms_norm_eps: int = 1e-6,
+                 vocab_size: int = 32000,
+                 num_attention_heads: int = 8,
+                 use_cache: bool = True,
+                 weight_decay: float = 0.02,
+                 max_sequence_length: int = 768,
 
-@dataclass
-class LGeMConfig:
-    initializer_range: float = 0.02
-    hidden_size: int = 768
-    dtype: torch.dtype = torch.float16
-    intermediate_size: int = 2048
-    num_hidden_layers: int = 4
-    rms_norm_eps: int = 1e-6
-    vocab_size: int = -1
-    num_attention_heads: int = 8
-    use_cache: bool = True
-    pad_token_id: int = 0
-    bos_token_id: int = 1
-    eos_token_id: int = 2
-    device: Union[str, torch.device] = 'cuda' if torch.cuda.is_available() else 'cpu'
-    weight_decay: float = 0.02
-    lr: float = 3e-4
-    max_sequence_length: int = 768
-    epochs: int = 500
+                 ):
+        super().__init__(eos_token_id=eos_token_id, bos_token_id=bos_token_id, pad_token_id=pad_token_id)
+        self.max_sequence_length = max_sequence_length
+        self.weight_decay = weight_decay
+        self.use_cache = use_cache
+        self.num_attention_heads = num_attention_heads
+        self.vocab_size = vocab_size
+        self.rms_norm_eps = rms_norm_eps
+        self.num_hidden_layers = num_hidden_layers
+        self.intermediate_size = intermediate_size
+        self.pad_token_id = pad_token_id
+        self.bos_token_id = bos_token_id
+        self.eos_token_id = eos_token_id
+        self.hidden_size = hidden_size
+        self.initializer_range = initializer_range
 
 
 class LGeMRMSNorm(Module):
@@ -321,11 +333,11 @@ class LGeMBlock(Module):
         return outputs
 
 
-class LGeMModel(Module):
+class LGeMModel(PreTrainedModel):
 
     def __init__(self, config: LGeMConfig):
-        super(LGeMModel, self).__init__()
-        self.dt = config.dtype
+        super(LGeMModel, self).__init__(config)
+
         self.padding_idx = config.pad_token_id
         self.vocab_size = config.vocab_size
 
@@ -384,9 +396,13 @@ class LGeMModel(Module):
             input_ids: torch.LongTensor = None,
             attention_mask: Optional[torch.Tensor] = None,
     ):
-
+        if not isinstance(input_ids, torch.Tensor):
+            input_ids = torch.tensor(input_ids)
+        if not isinstance(attention_mask, torch.Tensor):
+            attention_mask = torch.tensor(attention_mask)
+        attention_mask = make2d(attention_mask)
+        input_ids = make2d(input_ids)
         batch_size, seq_lengthgth = input_ids.shape
-        shape = input_ids.shape
         seq_lengthgth_with_past = seq_lengthgth
         # logger.info(f'input_ids : {input_ids.dtype}')
         hidden_states = self.embed_tokens(input_ids)
@@ -415,9 +431,9 @@ class LGeMModel(Module):
         return hidden_states
 
 
-class LGeMForCausalLM(Module):
-    def __init__(self, config):
-        super(LGeMForCausalLM, self).__init__()
+class LGeMForCausalLM(PreTrainedModel):
+    def __init__(self, config: LGeMConfig):
+        super(LGeMForCausalLM, self).__init__(config)
         self.model = LGeMModel(config)
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         self.config = config
@@ -434,6 +450,7 @@ class LGeMForCausalLM(Module):
             input_ids: torch.LongTensor = None,
             attention_mask: Optional[torch.Tensor] = None,
             labels: Optional[torch.LongTensor] = None,
+            **kwargs
     ):
         outputs = self.model.forward(input_ids=input_ids, attention_mask=attention_mask)
         hidden_states = outputs
@@ -447,7 +464,8 @@ class LGeMForCausalLM(Module):
                                                      shift_labels.view(-1))
         else:
             loss = None
-        return logits, loss
+
+        return loss, logits
 
     def prepare_inputs_for_generation(
             self, input_ids, past_key_values=None, attention_mask=None, inputs_embeds=None, **kwargs
@@ -468,19 +486,3 @@ class LGeMForCausalLM(Module):
             }
         )
         return model_inputs
-
-    def configure_optimizers(self) -> Any:
-        optimizer_kwargs = dict(lr=self.config.lr, weight_decay=self.config.weight_decay)
-        optimizer = torch.optim.AdamW(self.parameters(), **optimizer_kwargs)
-        return optimizer
-
-    # def training_step(self, train_batch) :
-    #     input_ids, attention_mask = train_batch
-    #     targets = input_ids.detach()
-    #     labels: Optional[Tensor] = make2d(targets.type(torch.long))
-    #     input_ids: Optional[Tensor] = make2d(input_ids.type(torch.long))
-    #     attention_mask: Optional[Tensor] = make2d(attention_mask).to(input_ids)
-    #
-    #     loss, _ = self.forward(input_ids=input_ids, labels=labels, attention_mask=attention_mask)
-    #     self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True)
-    #     return loss
