@@ -9,6 +9,7 @@ __pycache__/
 #*.json
 env.py
 env.ipynb
+erfanzar/
 env-train.py
 # Distribution / packaging
 out/
