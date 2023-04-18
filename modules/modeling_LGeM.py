@@ -162,47 +162,47 @@ class LGeMAttention(Module):
 
         assert (self.head_dim * num_heads) == self.hidden_size
 
-        self.q_proj = Conv1D(
-            hidden_size,
-            num_heads * self.head_dim,
-            bias=False,
-        )
-        self.k_proj = Conv1D(
-            hidden_size,
-            num_heads * self.head_dim,
-            bias=False,
-        )
-        self.v_proj = Conv1D(
-            hidden_size,
-            num_heads * self.head_dim,
-            bias=False,
-        )
-        self.o_proj = Conv1D(
-            num_heads * self.head_dim,
-            hidden_size,
-            bias=False,
-        )
+        # self.q_proj = Conv1D(
+        #     hidden_size,
+        #     num_heads * self.head_dim,
+        #     bias=False,
+        # )
+        # self.k_proj = Conv1D(
+        #     hidden_size,
+        #     num_heads * self.head_dim,
+        #     bias=False,
+        # )
+        # self.v_proj = Conv1D(
+        #     hidden_size,
+        #     num_heads * self.head_dim,
+        #     bias=False,
+        # )
+        # self.o_proj = Conv1D(
+        #     num_heads * self.head_dim,
+        #     hidden_size,
+        #     bias=False,
+        # )
 
-        # self.q_proj = nn.Linear(
-        #     hidden_size,
-        #     num_heads * self.head_dim,
-        #     bias=False,
-        # )
-        # self.k_proj = nn.Linear(
-        #     hidden_size,
-        #     num_heads * self.head_dim,
-        #     bias=False,
-        # )
-        # self.v_proj = nn.Linear(
-        #     hidden_size,
-        #     num_heads * self.head_dim,
-        #     bias=False,
-        # )
-        # self.o_proj = nn.Linear(
-        #     num_heads * self.head_dim,
-        #     hidden_size,
-        #     bias=False,
-        # )
+        self.q_proj = nn.Linear(
+            hidden_size,
+            num_heads * self.head_dim,
+            bias=False,
+        )
+        self.k_proj = nn.Linear(
+            hidden_size,
+            num_heads * self.head_dim,
+            bias=False,
+        )
+        self.v_proj = nn.Linear(
+            hidden_size,
+            num_heads * self.head_dim,
+            bias=False,
+        )
+        self.o_proj = nn.Linear(
+            num_heads * self.head_dim,
+            hidden_size,
+            bias=False,
+        )
 
         self.rotary_emb = LGeMRotaryEmbedding(self.head_dim)
 
