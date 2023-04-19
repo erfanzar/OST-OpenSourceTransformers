@@ -1,74 +1,103 @@
-from transformers import LlamaConfig, LlamaForCausalLM, LlamaTokenizer, Trainer
+from transformers import LlamaTokenizer, Trainer, LlamaForCausalLM, LlamaConfig
+from modules import LGeMForCausalLM, LGeMConfig
 import torch
+
 import transformers
 from datasets import load_dataset
-import evaluate
-import numpy as np
+from peft import prepare_model_for_int8_training, LoraConfig, get_peft_model, TaskType
 
-model_id = 'erfanzar/LGeM-130M'
+model_id = 'erfanzar/LGeM-100M'
+dataset_train = load_dataset('json',
+                             data_files='/home/erfan/PycharmProjects/OST-OpenSourceTransformers/data/oasst_custom_valid_train.jsonl',
+                             field='train', split='train')
 
-# metric = evaluate.load('f1')
-#
-#
-# def compute_metrics(eval_pred):
-#     predictions, labels = eval_pred
-#     predictions = np.argmax(predictions, axis=1)
-#     return metric.compute(predictions=predictions, references=labels, average="weighted")
+dataset_eval = load_dataset('json',
+                            data_files='/home/erfan/PycharmProjects/OST-OpenSourceTransformers/data/oasst_custom_valid_train.jsonl',
+                            field='validation', split='train')
 
-
-dataset = load_dataset('json',
-                       data_files='/home/erfan/PycharmProjects/OST-OpenSourceTransformers/data/oasst_custom.jsonl')
 tokenizer = LlamaTokenizer.from_pretrained('erfanzar/LGeM-7B')
-config = LlamaConfig(
-    vocab_size=len(tokenizer.get_vocab()),
-    hidden_act='silu',
-    hidden_size=768,
-    num_hidden_layers=12,
-    num_attention_heads=16,
-    intermediate_size=1024 * 3,
-    torchscript=False,
-    torch_dtype=torch.float16,
-    use_cache=False
-)
 
-# model = LlamaForCausalLM(config=config)
-model = LlamaForCausalLM.from_pretrained('erfanzar/LGeM-130M/checkpoint-6000')
 tokenizer.eos_token = '<|endoftext|>'
 tokenizer.pad_token = tokenizer.eos_token
 tokenizer.pad_token_id = tokenizer.eos_token_id
-dataset = dataset.map(
+# config = LGeMConfig(
+#     vocab_size=len(tokenizer.get_vocab()),
+#     hidden_size=768,
+#     num_hidden_layers=14,
+#     num_attention_heads=16,
+#     intermediate_size=768 * 4,
+#     bos_token_id=tokenizer.bos_token_id,
+#     pad_token_id=tokenizer.pad_token_id,
+#     eos_token_id=tokenizer.eos_token_id,
+#     use_cache=False
+# )
+
+config = LlamaConfig(
+    vocab_size=len(tokenizer.get_vocab()),
+    hidden_size=768,
+    num_hidden_layers=10,
+    num_attention_heads=12,
+    intermediate_size=768 * 2,
+    bos_token_id=tokenizer.bos_token_id,
+    pad_token_id=tokenizer.pad_token_id,
+    eos_token_id=tokenizer.eos_token_id,
+    use_cache=False,
+    torchscript=True, name_or_path=model_id,
+    torch_dtype=torch.float16
+)
+
+# low_rank_config = LoraConfig(
+#     r=config.hidden_size // config.num_attention_heads,
+#     lora_alpha=32,
+#     target_modules=['q_proj', 'k_proj', 'v_proj', 'o_proj', 'down_proj', 'gate_proj', 'up_proj'],
+#     bias='none',
+#     task_type=TaskType.CAUSAL_LM,
+#     lora_dropout=0.05
+# )
+
+model = LlamaForCausalLM(config=config)
+# model = LGeMForCausalLM(config=config)
+# model = get_peft_model(prepare_model_for_int8_training(model), low_rank_config)
+# model.print_trainable_parameters()
+print(sum(m.numel() for m in model.parameters()) / 1e6, '  Million Parameters IN MODEL')
+dataset_train = dataset_train.map(
+    lambda data_point: tokenizer(data_point['prompt'], max_length=512, padding='max_length',
+                                 truncation=True,
+                                 add_special_tokens=False))
+
+dataset_eval = dataset_eval.map(
     lambda data_point: tokenizer(data_point['prompt'], max_length=512, padding='max_length',
                                  truncation=True,
                                  add_special_tokens=False))
 
 args = transformers.TrainingArguments(
     # torch_compile=True,
-    optim='adamw_torch_fused',
+    optim='adamw_torch',
     # fp16=True,
     weight_decay=0.02,
-    learning_rate=3e-4,
+    learning_rate=2e-4,
     output_dir=model_id,
     num_train_epochs=500,
     logging_dir=f'{model_id}/logs',
     logging_steps=50,
     logging_strategy='steps',
-    save_strategy='epoch',
-    report_to=['tensorboard'],
+    save_strategy='steps',
+    save_steps=500,
+    report_to=['tensorboard', 'wandb'],
     save_total_limit=1,
     lr_scheduler_type='constant',
     auto_find_batch_size=True,
-    # torch_compile_backend='inductor'
+    evaluation_strategy='epoch',
 )
 
 trainer = Trainer(
     model=model,
     tokenizer=tokenizer,
-    train_dataset=dataset['train'],
+    train_dataset=dataset_train,
+    eval_dataset=dataset_eval,
     data_collator=transformers.DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False),
     args=args,
-    # callbacks=transformers.TrainerCallback()
 )
-# trainer.create_scheduler(800)
 
 if __name__ == "__main__":
-    trainer.train(resume_from_checkpoint=True)
+    trainer.train(resume_from_checkpoint=False)
