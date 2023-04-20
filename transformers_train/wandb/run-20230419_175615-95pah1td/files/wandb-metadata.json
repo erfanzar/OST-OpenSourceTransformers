@@ -1,0 +1,105 @@
+{
+    "os": "Linux-5.19.0-40-generic-x86_64-with-glibc2.35",
+    "python": "3.10.6",
+    "heartbeatAt": "2023-04-19T14:26:17.136448",
+    "startedAt": "2023-04-19T14:26:15.529201",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "/home/erfan/PycharmProjects/OST-OpenSourceTransformers/transformers_train/train.py",
+    "codePath": "transformers_train/train.py",
+    "git": {
+        "remote": "https://github.com/erfanzar/OST-OpenSourceTransformers.git",
+        "commit": "0ef16a21f84df81b97ad84dee18a0d4b39f8fea5"
+    },
+    "email": "erfanzare82@yahoo.com",
+    "root": "/home/erfan/PycharmProjects/OST-OpenSourceTransformers",
+    "host": "Erfan",
+    "username": "erfan",
+    "executable": "/usr/bin/python3.10",
+    "cpu_count": 6,
+    "cpu_count_logical": 12,
+    "cpu_freq": {
+        "current": 4725.432583333333,
+        "min": 800.0,
+        "max": 4800.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 4776.75,
+            "min": 800.0,
+            "max": 4800.0
+        },
+        {
+            "current": 4766.972,
+            "min": 800.0,
+            "max": 4800.0
+        },
+        {
+            "current": 4775.504,
+            "min": 800.0,
+            "max": 4800.0
+        },
+        {
+            "current": 4701.583,
+            "min": 800.0,
+            "max": 4800.0
+        },
+        {
+            "current": 4700.148,
+            "min": 800.0,
+            "max": 4800.0
+        },
+        {
+            "current": 4723.602,
+            "min": 800.0,
+            "max": 4800.0
+        },
+        {
+            "current": 4701.091,
+            "min": 800.0,
+            "max": 4800.0
+        },
+        {
+            "current": 4701.215,
+            "min": 800.0,
+            "max": 4800.0
+        },
+        {
+            "current": 4700.493,
+            "min": 800.0,
+            "max": 4800.0
+        },
+        {
+            "current": 4700.86,
+            "min": 800.0,
+            "max": 4800.0
+        },
+        {
+            "current": 4706.292,
+            "min": 800.0,
+            "max": 4800.0
+        },
+        {
+            "current": 4714.626,
+            "min": 800.0,
+            "max": 4800.0
+        }
+    ],
+    "disk": {
+        "total": 109.24721145629883,
+        "used": 76.13888168334961
+    },
+    "gpu": "NVIDIA GeForce GTX 1650 SUPER",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA GeForce GTX 1650 SUPER",
+            "memory_total": 4294967296
+        }
+    ],
+    "memory": {
+        "total": 31.214637756347656
+    }
+}
