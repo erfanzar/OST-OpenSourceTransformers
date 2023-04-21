@@ -16,7 +16,7 @@ config = LlamaConfig(
     hidden_size=1536,
     num_hidden_layers=16,
     num_attention_heads=16,
-    intermediate_size=1536 * 6,
+    intermediate_size=1536 * 5,
     bos_token_id=tokenizer.bos_token_id,
     pad_token_id=tokenizer.pad_token_id,
     eos_token_id=tokenizer.eos_token_id,
@@ -45,7 +45,8 @@ openassistant_oasst1 = openassistant_oasst1.map(
     lambda data_point: tokenizer(data_point['edited'], max_length=512, padding='max_length',
                                  truncation=True,
                                  add_special_tokens=False))
-print(sum(m.numel() for m in model.parameters()) / 1e6, '  MP')
+
+
 trainer = Trainer(
     model=model,
     tokenizer=tokenizer,
@@ -72,9 +73,11 @@ trainer = Trainer(
         # gradient_accumulation_steps=4,
         gradient_checkpointing=True,
 
-        push_to_hub_model_id=model_id
+        push_to_hub_model_id=model_id,
+
     ),
 )
 
 if __name__ == '__main__':
+    print('Model PARAM ==>  ', sum(m.numel() for m in model.parameters()) / 1e6, '  MP')
     trainer.train(resume_from_checkpoint=False)
