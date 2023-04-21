@@ -1,0 +1,9 @@
+!conda create -n py39 python=3.9 anaconda --yes
+!source /opt/conda/bin/activate py39 && conda install -c py39 python -y
+!sudo rm /opt/conda/bin/python3
+!sudo ln -sf /opt/conda/envs/py39/bin/python3 /opt/conda/bin/python3
+!sudo rm /opt/conda/bin/python3.7
+!sudo ln -sf /opt/conda/envs/py39/bin/python3 /opt/conda/bin/python3.7
+!sudo rm /opt/conda/bin/python
+!sudo ln -s /opt/conda/envs/py39/bin/python3 /opt/conda/bin/python
+!python --version
