@@ -70,10 +70,11 @@ trainer = Trainer(
         auto_find_batch_size=True,
         evaluation_strategy='epoch',
         do_train=True,
-        # gradient_accumulation_steps=4,
+        gradient_accumulation_steps=8,
         gradient_checkpointing=True,
         push_to_hub_model_id=model_id,
-
+        fsdp="full_shard auto_wrap",
+        fsdp_transformer_layer_cls_to_wrap='LlamaDecoderLayer'
 
     ),
 )
