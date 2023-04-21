@@ -36,21 +36,7 @@ def generate_prompt(data_point):
     return ot
 
 
-dataset_train = load_dataset('json',
-                             data_files='/content/drive/MyDrive/OST-OpenSourceTransformers/data/alpaca_data.json',
-                             split='train'
-                             )
-dataset_train_cc = load_dataset('json',
-                                data_files='/content/drive/MyDrive/OST-OpenSourceTransformers/data/oasst_custom_valid_train.jsonl',
-                                split='train'
-                                , field='train'
-                                )
-
 openassistant_oasst1 = load_dataset('h2oai/openassistant_oasst1')
-
-dataset_eval = load_dataset('json',
-                            data_files='/content/drive/MyDrive/OST-OpenSourceTransformers/data/oasst_custom_valid_train.jsonl',
-                            field='validation', split='train')
 
 openassistant_oasst1 = openassistant_oasst1.map(lambda x: {
     'edited': x['input'].replace('<human>:', 'User:').replace('<bot>:', '<|endoftext|>Assistant:') + '<|endoftext|>'})
@@ -60,29 +46,10 @@ openassistant_oasst1 = openassistant_oasst1.map(
                                  truncation=True,
                                  add_special_tokens=False))
 
-dataset_train_cc = dataset_train_cc.map(
-    lambda data_point: tokenizer(data_point['prompt'], max_length=512, padding='max_length',
-                                 truncation=True,
-                                 add_special_tokens=False))
-dataset_train = dataset_train.map(
-    lambda dp: {'prompt': generate_prompt(dp)}
-)
-dataset_train = dataset_train.map(
-    lambda data_point: tokenizer(data_point['prompt'], max_length=512, padding='max_length',
-                                 truncation=True,
-                                 add_special_tokens=False)
-)
-
-dataset_eval = dataset_eval.map(
-    lambda data_point: tokenizer(data_point['prompt'], max_length=512, padding='max_length',
-                                 truncation=True,
-                                 add_special_tokens=False))
-
 trainer = Trainer(
     model=model,
     tokenizer=tokenizer,
     train_dataset=openassistant_oasst1['train'],
-    eval_dataset=dataset_eval,
     data_collator=DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False),
     args=TrainingArguments(
         # torch_compile=True,
