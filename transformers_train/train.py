@@ -45,7 +45,7 @@ openassistant_oasst1 = openassistant_oasst1.map(
     lambda data_point: tokenizer(data_point['edited'], max_length=512, padding='max_length',
                                  truncation=True,
                                  add_special_tokens=False))
-
+print(sum(m.numel() for m in model.parameters()) / 1e6, '  MP')
 trainer = Trainer(
     model=model,
     tokenizer=tokenizer,
