@@ -13,7 +13,7 @@ tokenizer.pad_token_id = tokenizer.eos_token_id
 
 config = LlamaConfig(
     vocab_size=len(tokenizer.get_vocab()),
-    hidden_size=1536,
+    hidden_size=1280,
     num_hidden_layers=16,
     num_attention_heads=16,
     intermediate_size=1536 * 5,
@@ -72,8 +72,8 @@ trainer = Trainer(
         do_train=True,
         # gradient_accumulation_steps=4,
         gradient_checkpointing=True,
-
         push_to_hub_model_id=model_id,
+
 
     ),
 )
