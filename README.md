@@ -1,6 +1,6 @@
 # OST 
 
-some researchs in NLP
+some researchs in `NLP`
 
 OST  Collection: An AI-powered suite of models that predict the next word matches with remarkable accuracy (Text Generative Models). OST  Collection is based on a novel approach to work as a full and intelligent NLP Model.
 
