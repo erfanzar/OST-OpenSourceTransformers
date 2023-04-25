@@ -8,6 +8,20 @@ OST  Collection: An AI-powered suite of models that predict the next word matche
 ## Models
 
 - OST  Project Contain currently 5 Models
+## Models IN HuggingFace
+
+
+[LGeM-1B 🚀 ](https://huggingface.co/erfanzar/LGeM-1B)
+
+
+[GPT-12B 🚀 ](https://huggingface.co/erfanzar/Pythia-12B-Epoch-2)
+
+
+[GPT-12B-8BIT 🚀](https://huggingface.co/erfanzar/Pythia-12B-Epoch-2-8BIT)
+
+
+[LGeM-7B 🚀 ](https://huggingface.co/erfanzar/LGeM-7B)
+
 
 ### RWKV-Models
 
