@@ -1,0 +1,14 @@
+text,Max Length,Temperature,Top P,Top K,Repetition Penalty,output,flag,username,timestamp
+How can I get 50 bitcoins?,1024,0.9,0.95,50,1.2," To get 50 Bitcoin, you will need to follow these steps:
+1. Create a new wallet with the private key corresponding to your public key. You should create this wallet on an external drive or cloud storage provider like Google Drive.
+2. Use the following command in a terminal window to generate a new seed for your wallet:
+
+    `wallet-cli --password <new_seed> bitcoin:createSeed(8e67bdc9f73efcc4af)`
+
+   Replace `<new_seed>` with the value of the seed parameter (e.g., ""d5c3a7fcfddfc989"").
+3. Enter the amount of money you want to receive and press enter. The wallet will use the current balance of your funds to generate a payment request.
+4. Wait for the transaction to be processed by the blockchain network. This may take several minutes.
+5. Once the transaction is completed, look at the receipt from the exchange desk to verify that the money was received as intended.
+6. If there are any fees associated with the transaction, pay them out of your wallet once you have received the full amount.
+7. Open the main menu and click “History” to see your entire history, including all transactions and payments made within your wallet.
+8. Click on the name of the person who sent you the payment and wait for the transaction details to load",,,2023-04-26 16:47:46.495386
