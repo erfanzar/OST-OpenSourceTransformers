@@ -181,19 +181,29 @@ def gradio_ui(main_class_conversation):
     interface.launch(share=True)
 
 
+image_classes = {
+    'erfanzar/PGT-1B': 'https://raw.githubusercontent.com/erfanzar/Assets/main/IMG_20230427_152247_986.png',
+    'erfanzar/PGT-1B-2EP': 'https://raw.githubusercontent.com/erfanzar/Assets/main/1W.png',
+    'erfanzar/Pythia-12B-Epoch-2-8BIT': 'https://raw.githubusercontent.com/erfanzar/Assets/main/IMG_20230427_152248_550.png',
+    'erfanzar/Pythia-12B-Epoch-2': 'https://raw.githubusercontent.com/erfanzar/Assets/main/IMG_20230427_152248_688.png'
+}
+
+
 def gradio_ui_chat(main_class_conversation: Conversation):
     with gr.Blocks(theme=gr.themes.Soft()) as block:
+        img = image_classes[main_class_conversation.config.model_id]
         gr.Markdown(
-            f"""
-            # {main_class_conversation.config.model_id} Is here To Assist You 
-            \n\n## [OST-OpenSourceTransformers](https://github.com/erfanzar/OST-OpenSourceTransformers) From LucidBrains 🧠
-            LucidBrains is a platform that makes AI accessible and easy to use for everyone.
-            Our mission is to empower individuals and businesses
-            with the tools they need to harness the power of AI and machine learning,
-            without requiring a background in data science or anything we
-            will just build what you want for you and help you to have better time and living life
-             with using Artificial Intelligence and Pushing Technology Beyond Limits
-            """)
+            f'# {main_class_conversation.config.model_id} Is here To Assist You \n'
+            f'![image]({img})'
+            '\n\n## [OST-OpenSourceTransformers](https://github.com/erfanzar/OST-OpenSourceTransformers) From LucidBrains 🧠\n'
+            'LucidBrains is a platform that makes AI accessible and easy to use for everyone. '
+            'Our mission is to empower individuals and businesses '
+            'with the tools they need to harness the power of AI and machine learning,'
+            'without requiring a background in data science or anything we '
+            'will just build what you want for you and help you to have better time and living life'
+            'with using Artificial Intelligence and Pushing Technology Beyond Limits'
+
+        )
         with gr.Row():
             with gr.Column(scale=4):
                 cache = gr.Chatbot(elem_id=main_class_conversation.config.model_id,
