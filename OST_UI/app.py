@@ -1,14 +1,14 @@
-from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig, PreTrainedTokenizer
+from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig, PreTrainedTokenizer, logging
 import torch
 import textwrap
 import os
 from dataclasses import field, dataclass
-from transformers.utils import logging
 from transformers import HfArgumentParser
 import gradio as gr
+from typing import List, Optional
 
 logger = logging.get_logger(__name__)
-logging.set_verbosity_warning()
+logging.set_verbosity_info()
 
 
 @dataclass
@@ -85,12 +85,13 @@ class Conversation:
         self.tokenizer: PreTrainedTokenizer = tokenizer
         self.config: LoadConfig = config
 
-    def run(self, text, cache=None, max_length=1024, temperature=1, top_p=0.95, top_k=50,
-            repetition_penalty=1.2, max_new_tokens=512):
-        print(cache)
-        cache = '' if cache is None else cache
-        # print(f'text : {text}')
-        text = cache + prompt_to_instruction(text)
+    def run(self, text,
+            cache, max_length, temperature, top_p, top_k,
+            repetition_penalty
+            ):
+        opt = sort_cache_pgt(cache)
+        original_text = text
+        text = opt + prompt_to_instruction(text)
         final_res = ''
         generation_config = GenerationConfig(
             eos_token_id=self.tokenizer.eos_token_id,
@@ -109,8 +110,51 @@ class Conversation:
             final_res = byte
             yield byte[len(text):].replace('<|endoftext|>', '')
         answer = final_res[len(text):len(final_res) - len('<|endoftext|>')]
-        print(f'answer : {answer}')
-        return '', cache + [[text, final_res]]
+        cache.append([original_text, answer])
+        return '', cache
+
+
+def sort_cache_pgt(cache_):
+    if len(cache_) == 0:
+        opt = ''
+    else:
+        opt = ''
+        for f in cache_:
+            opt += f"<|prompter|>{f[0]}<|endoftext|><|assistant|>{f[1]}<|endoftext|>"
+
+    return opt
+
+
+def chat_bot_run(text: str, cache, max_new_tokens,
+                 max_length,
+                 temperature,
+                 top_p,
+                 top_k,
+                 repetition_penalty):
+    opt = sort_cache_pgt(cache)
+    original_text = text
+    text = opt + prompt_to_instruction(text)
+    final_res = ''
+    generation_config = GenerationConfig(
+        max_length=max_length,
+        max_new_tokens=max_new_tokens,
+        temperature=temperature, top_p=top_p, top_k=top_k, repetition_penalty=repetition_penalty,
+        eos_token_id=tokenizer.eos_token_id,
+        pad_token_id=tokenizer.pad_token_id,
+        bos_token_id=tokenizer.bos_token_id
+    )
+    cache_f = cache
+    cache_f.append([original_text, ''])
+    for byte in generate(model, tokenizer, text=text, b_pair=False,
+                         generation_config=generation_config,
+                         use_prompt_to_instruction=False):
+        final_res = byte
+        chosen_byte = byte[len(text):].replace('<|endoftext|>', '')
+        cache_f[-1][1] = chosen_byte
+        yield '', cache_f
+    answer = final_res[len(text):len(final_res) - len('<|endoftext|>')]
+    cache.append([original_text, answer])
+    return '', cache
 
 
 def gradio_ui(main_class_conversation):
@@ -127,35 +171,41 @@ def gradio_ui(main_class_conversation):
 
 
 def gradio_ui_chat(main_class_conversation: Conversation):
-    with gr.Blocks(theme='darkdefault') as block:
-        gr.Markdown(f'`{main_class_conversation.config.model_id}` Is here To Assist You \n\nOST-OpenSourceTransformers')
+    with gr.Blocks(theme=gr.themes.Soft()) as block:
+        gr.Markdown(
+            f'# {main_class_conversation.config.model_id} Is here To Assist You '
+            f'\n\n## [OST-OpenSourceTransformers](https://github.com/erfanzar/OST-OpenSourceTransformers) '
+            f'From LucidBrains')
         with gr.Row():
             with gr.Column(scale=4):
                 cache = gr.Chatbot(elem_id=main_class_conversation.config.model_id,
                                    label=main_class_conversation.config.model_id).style(container=True,
                                                                                         height=680)
             with gr.Column(scale=1):
-                max_length = gr.inputs.Slider(default=1024, maximum=1024, minimum=1, label='Max Length', step=1)
-                temperature = gr.inputs.Slider(default=0.9, maximum=1, minimum=0.2, label='Temperature', step=0.01)
-                top_p = gr.inputs.Slider(default=0.95, maximum=0.9999, minimum=0.1, label='Top P', step=0.01)
-                top_k = gr.inputs.Slider(default=50, maximum=100, minimum=1, label='Top K', step=1)
-                penalty = gr.inputs.Slider(default=1.2, maximum=5, minimum=1, label='Repetition Penalty', step=0.1)
+                max_length = gr.Slider(value=1024, maximum=1024, minimum=1, label='Max Length', step=1)
+                max_steam_tokens = gr.Slider(value=1, maximum=3, minimum=1, label='Max Stream Tokens', step=1)
+                temperature = gr.Slider(value=0.9, maximum=1, minimum=0.2, label='Temperature', step=0.01)
+                top_p = gr.Slider(value=0.95, maximum=0.9999, minimum=0.1, label='Top P', step=0.01)
+                top_k = gr.Slider(value=50, maximum=100, minimum=1, label='Top K', step=1)
+                penalty = gr.Slider(value=1.2, maximum=5, minimum=1, label='Repetition Penalty', step=0.1, visible=True)
         with gr.Row():
             with gr.Column(scale=4):
                 text = gr.Textbox(show_label=False).style(container=False)
 
             with gr.Column(scale=1):
                 submit = gr.Button()
-        submit.click(main_class_conversation.run, [text, cache, max_length, temperature, top_p, top_k, penalty, 512],
-                     [text, cache])
-        text.submit(main_class_conversation.run, [text, cache, max_length, temperature, top_p, top_k, penalty, 512],
-                    [text, cache])
-    block.queue().launch(debug=True)
+
+        submit.click(fn=chat_bot_run,
+                     inputs=[text, cache, max_steam_tokens, max_length, temperature, top_p, top_k, penalty],
+                     outputs=[text, cache])
+        text.submit(fn=chat_bot_run,
+                    inputs=[text, cache, max_steam_tokens, max_length, temperature, top_p, top_k, penalty],
+                    outputs=[text, cache])
+
+        block.queue().launch(debug=False)
 
 
 def main(config):
-    print(f'Running WITH MODE : {config.mode}')
-    model, tokenizer = load_model(config=config)
     mcc = Conversation(model=model, tokenizer=tokenizer, config=config)
     if config.mode == 'cli':
         conversation(model=model, tokenizer=tokenizer)
@@ -169,4 +219,6 @@ def main(config):
 
 if __name__ == "__main__":
     config_ = HfArgumentParser(LoadConfig).parse_args_into_dataclasses()[0]
+    print(f'Running WITH MODE : {config_.mode}')
+    model, tokenizer = load_model(config=config_)
     main(config_)
