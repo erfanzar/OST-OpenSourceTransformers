@@ -184,9 +184,16 @@ def gradio_ui(main_class_conversation):
 def gradio_ui_chat(main_class_conversation: Conversation):
     with gr.Blocks(theme=gr.themes.Soft()) as block:
         gr.Markdown(
-            f'# {main_class_conversation.config.model_id} Is here To Assist You '
-            f'\n\n## [OST-OpenSourceTransformers](https://github.com/erfanzar/OST-OpenSourceTransformers) '
-            f'From LucidBrains')
+            f"""
+            # {main_class_conversation.config.model_id} Is here To Assist You 
+            \n\n## [OST-OpenSourceTransformers](https://github.com/erfanzar/OST-OpenSourceTransformers) From LucidBrains 🧠
+            LucidBrains is a platform that makes AI accessible and easy to use for everyone.
+            Our mission is to empower individuals and businesses
+            with the tools they need to harness the power of AI and machine learning,
+            without requiring a background in data science or anything we
+            will just build what you want for you and help you to have better time and living life
+             with using Artificial Intelligence and Pushing Technology Beyond Limits
+            """)
         with gr.Row():
             with gr.Column(scale=4):
                 cache = gr.Chatbot(elem_id=main_class_conversation.config.model_id,
@@ -199,8 +206,11 @@ def gradio_ui_chat(main_class_conversation: Conversation):
                 top_p = gr.Slider(value=0.95, maximum=0.9999, minimum=0.1, label='Top P', step=0.01)
                 top_k = gr.Slider(value=50, maximum=100, minimum=1, label='Top K', step=1)
                 penalty = gr.Slider(value=1.2, maximum=5, minimum=1, label='Repetition Penalty', step=0.1, visible=True)
+                # TODO
                 penalty_ = gr.Slider(value=1.2, maximum=10, minimum=1, label='Repetition', step=0.1, visible=True)
                 gre_mode = gr.Checkbox(label='Greedy Mode')
+                smart_mode = gr.Checkbox(label='Smart Mode')
+                informational_mode = gr.Checkbox(label='Informational Mode')
         with gr.Row():
             with gr.Column(scale=4):
                 text = gr.Textbox(show_label=False).style(container=False)
