@@ -125,6 +125,17 @@ def sort_cache_pgt(cache_):
     return opt
 
 
+def sort_cache_lgem(cache_):
+    if len(cache_) == 0:
+        opt = ''
+    else:
+        opt = ''
+        for f in cache_:
+            opt += f"User:{f[0]}\nAI:{f[1]}"
+
+    return opt
+
+
 def chat_bot_run(text: str, cache, max_new_tokens,
                  max_length,
                  temperature,
@@ -188,6 +199,8 @@ def gradio_ui_chat(main_class_conversation: Conversation):
                 top_p = gr.Slider(value=0.95, maximum=0.9999, minimum=0.1, label='Top P', step=0.01)
                 top_k = gr.Slider(value=50, maximum=100, minimum=1, label='Top K', step=1)
                 penalty = gr.Slider(value=1.2, maximum=5, minimum=1, label='Repetition Penalty', step=0.1, visible=True)
+                penalty_ = gr.Slider(value=1.2, maximum=10, minimum=1, label='Repetition', step=0.1, visible=True)
+                gre_mode = gr.Checkbox(label='Greedy Mode')
         with gr.Row():
             with gr.Column(scale=4):
                 text = gr.Textbox(show_label=False).style(container=False)
@@ -202,7 +215,7 @@ def gradio_ui_chat(main_class_conversation: Conversation):
                     inputs=[text, cache, max_steam_tokens, max_length, temperature, top_p, top_k, penalty],
                     outputs=[text, cache])
 
-        block.queue().launch(debug=False)
+        block.queue().launch(debug=False, share=True)
 
 
 def main(config):
