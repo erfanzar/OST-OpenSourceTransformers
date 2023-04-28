@@ -143,30 +143,29 @@ def chat_bot_run(text: str, cache, max_new_tokens,
                  top_p,
                  top_k,
                  repetition_penalty):
-    # opt = sort_cache_pgt(cache)
-    # original_text = text
-    # text = opt + prompt_to_instruction(text)
-    # final_res = ''
-    # generation_config = GenerationConfig(
-    #     max_length=max_length,
-    #     max_new_tokens=max_new_tokens,
-    #     temperature=temperature, top_p=top_p, top_k=top_k, repetition_penalty=repetition_penalty,
-    #     eos_token_id=tokenizer.eos_token_id,
-    #     pad_token_id=tokenizer.pad_token_id,
-    #     bos_token_id=tokenizer.bos_token_id
-    # )
-    # cache_f = cache
-    # cache_f.append([original_text, ''])
-    # for byte in generate(model, tokenizer, text=text, b_pair=False,
-    #                      generation_config=generation_config,
-    #                      use_prompt_to_instruction=False):
-    #     final_res = byte
-    #     chosen_byte = byte[len(text):].replace('<|endoftext|>', '')
-    #     cache_f[-1][1] = chosen_byte
-    #     yield '', cache_f
-    # answer = final_res[len(text):len(final_res) - len('<|endoftext|>')]
-    # cache.append([original_text, answer])
-    cache.append([text, 'ok to khobi '])
+    opt = sort_cache_pgt(cache)
+    original_text = text
+    text = opt + prompt_to_instruction(text)
+    final_res = ''
+    generation_config = GenerationConfig(
+        max_length=max_length,
+        max_new_tokens=max_new_tokens,
+        temperature=temperature, top_p=top_p, top_k=top_k, repetition_penalty=repetition_penalty,
+        eos_token_id=tokenizer.eos_token_id,
+        pad_token_id=tokenizer.pad_token_id,
+        bos_token_id=tokenizer.bos_token_id
+    )
+    cache_f = cache
+    cache_f.append([original_text, ''])
+    for byte in generate(model, tokenizer, text=text, b_pair=False,
+                         generation_config=generation_config,
+                         use_prompt_to_instruction=False):
+        final_res = byte
+        chosen_byte = byte[len(text):].replace('<|endoftext|>', '')
+        cache_f[-1][1] = chosen_byte
+        yield '', cache_f
+    answer = final_res[len(text):len(final_res) - len('<|endoftext|>')]
+    cache.append([original_text, answer])
     return '', cache
 
 
