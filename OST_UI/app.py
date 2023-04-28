@@ -29,8 +29,9 @@ def load_model(config: LoadConfig):
         config.model_id,
         load_in_8bit=config.load_in_8bit,
         torch_dtype=config.torch_type,
-    ) if load_model else None
-    logger.info(f'Done Loading Model with {sum(m.numel() for m in _model.parameters()) / 1e9} Billion Parameters')
+    ) if config.load_model else None
+    logger.info(
+        f'Done Loading Model with {(sum(m.numel() for m in _model.parameters()) / 1e9) if _model is not None else "NONE"} Billion Parameters')
     logger.info(f'Loading Tokenizer FROM : {config.model_id}')
     _tokenizer = AutoTokenizer.from_pretrained(config.model_id)
     logger.info('Done Loading Tokenizer')
@@ -142,29 +143,30 @@ def chat_bot_run(text: str, cache, max_new_tokens,
                  top_p,
                  top_k,
                  repetition_penalty):
-    opt = sort_cache_pgt(cache)
-    original_text = text
-    text = opt + prompt_to_instruction(text)
-    final_res = ''
-    generation_config = GenerationConfig(
-        max_length=max_length,
-        max_new_tokens=max_new_tokens,
-        temperature=temperature, top_p=top_p, top_k=top_k, repetition_penalty=repetition_penalty,
-        eos_token_id=tokenizer.eos_token_id,
-        pad_token_id=tokenizer.pad_token_id,
-        bos_token_id=tokenizer.bos_token_id
-    )
-    cache_f = cache
-    cache_f.append([original_text, ''])
-    for byte in generate(model, tokenizer, text=text, b_pair=False,
-                         generation_config=generation_config,
-                         use_prompt_to_instruction=False):
-        final_res = byte
-        chosen_byte = byte[len(text):].replace('<|endoftext|>', '')
-        cache_f[-1][1] = chosen_byte
-        yield '', cache_f
-    answer = final_res[len(text):len(final_res) - len('<|endoftext|>')]
-    cache.append([original_text, answer])
+    # opt = sort_cache_pgt(cache)
+    # original_text = text
+    # text = opt + prompt_to_instruction(text)
+    # final_res = ''
+    # generation_config = GenerationConfig(
+    #     max_length=max_length,
+    #     max_new_tokens=max_new_tokens,
+    #     temperature=temperature, top_p=top_p, top_k=top_k, repetition_penalty=repetition_penalty,
+    #     eos_token_id=tokenizer.eos_token_id,
+    #     pad_token_id=tokenizer.pad_token_id,
+    #     bos_token_id=tokenizer.bos_token_id
+    # )
+    # cache_f = cache
+    # cache_f.append([original_text, ''])
+    # for byte in generate(model, tokenizer, text=text, b_pair=False,
+    #                      generation_config=generation_config,
+    #                      use_prompt_to_instruction=False):
+    #     final_res = byte
+    #     chosen_byte = byte[len(text):].replace('<|endoftext|>', '')
+    #     cache_f[-1][1] = chosen_byte
+    #     yield '', cache_f
+    # answer = final_res[len(text):len(final_res) - len('<|endoftext|>')]
+    # cache.append([original_text, answer])
+    cache.append([text, 'ok to khobi '])
     return '', cache
 
 
@@ -190,25 +192,9 @@ image_classes = {
 
 
 def gradio_ui_chat(main_class_conversation: Conversation):
-    with gr.Blocks(theme=gr.themes.Soft()) as block:
-        img = image_classes[main_class_conversation.config.model_id]
-        gr.Markdown(
-            f'# {main_class_conversation.config.model_id} Is here To Assist You \n'
-            f'![image]({img})'
-            '\n\n## [OST-OpenSourceTransformers](https://github.com/erfanzar/OST-OpenSourceTransformers) From LucidBrains 🧠\n'
-            'LucidBrains is a platform that makes AI accessible and easy to use for everyone. '
-            'Our mission is to empower individuals and businesses '
-            'with the tools they need to harness the power of AI and machine learning,'
-            'without requiring a background in data science or anything we '
-            'will just build what you want for you and help you to have better time and living life'
-            'with using Artificial Intelligence and Pushing Technology Beyond Limits'
-
-        )
+    with gr.Blocks(
+            theme=gr.themes.Soft(primary_hue=gr.themes.colors.blue, secondary_hue=gr.themes.colors.purple)) as block:
         with gr.Row():
-            with gr.Column(scale=4):
-                cache = gr.Chatbot(elem_id=main_class_conversation.config.model_id,
-                                   label=main_class_conversation.config.model_id).style(container=True,
-                                                                                        height=680)
             with gr.Column(scale=1):
                 max_length = gr.Slider(value=1024, maximum=1024, minimum=1, label='Max Length', step=1)
                 max_steam_tokens = gr.Slider(value=1, maximum=3, minimum=1, label='Max Stream Tokens', step=1)
@@ -221,12 +207,15 @@ def gradio_ui_chat(main_class_conversation: Conversation):
                 gre_mode = gr.Checkbox(label='Greedy Mode')
                 smart_mode = gr.Checkbox(label='Smart Mode')
                 informational_mode = gr.Checkbox(label='Informational Mode')
-        with gr.Row():
             with gr.Column(scale=4):
-                text = gr.Textbox(show_label=False).style(container=False)
-
+                cache = gr.Chatbot(elem_id=main_class_conversation.config.model_id,
+                                   label=main_class_conversation.config.model_id).style(container=True,
+                                                                                        height=680)
+        with gr.Row():
             with gr.Column(scale=1):
                 submit = gr.Button()
+            with gr.Column(scale=4):
+                text = gr.Textbox(show_label=False).style(container=False)
 
         submit.click(fn=chat_bot_run,
                      inputs=[text, cache, max_steam_tokens, max_length, temperature, top_p, top_k, penalty],
@@ -234,8 +223,16 @@ def gradio_ui_chat(main_class_conversation: Conversation):
         text.submit(fn=chat_bot_run,
                     inputs=[text, cache, max_steam_tokens, max_length, temperature, top_p, top_k, penalty],
                     outputs=[text, cache])
-
-        block.queue().launch(debug=False, share=True)
+        gr.Markdown(
+            'LucidBrains is a platform that makes AI accessible and easy to use for everyone. '
+            'Our mission is to empower individuals and businesses '
+            'with the tools they need to harness the power of AI and machine learning,'
+            'without requiring a background in data science or anything we '
+            'will just build what you want for you and help you to have better time and living life'
+            'with using Artificial Intelligence and Pushing Technology Beyond Limits'
+            '\n[OST-OpenSourceTransformers](https://github.com/erfanzar/OST-OpenSourceTransformers) From LucidBrains 🧠\n'
+        )
+    block.queue().launch(debug=False, share=True, inline=True, show_tips=True, width='100%')
 
 
 def main(config):
