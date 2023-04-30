@@ -1,4 +1,4 @@
-from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig, PreTrainedTokenizer, logging
+from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig, PreTrainedTokenizer, logging, BloomModel
 import torch
 import textwrap
 import os
@@ -158,7 +158,7 @@ def chat_bot_run(text: str, cache, max_new_tokens,
     cache_f = cache
     cache_f.append([original_text, ''])
     for byte in generate(model, tokenizer, text=text, b_pair=False,
-                         generation_config=generation_config,
+                         generation_config=generation_config, max_new_tokens=max_new_tokens,
                          use_prompt_to_instruction=False):
         final_res = byte
         chosen_byte = byte[len(text):].replace('<|endoftext|>', '')
@@ -191,8 +191,17 @@ image_classes = {
 
 
 def gradio_ui_chat(main_class_conversation: Conversation):
+    theme = gr.themes.Soft(
+        primary_hue="cyan",
+        secondary_hue="teal",
+        neutral_hue=gr.themes.Color(c100="#f3f4f6", c200="#e5e7eb", c300="#d1d5db",
+                                    c400="#9ca3af", c50="#f9fafb", c500="#6b7280",
+                                    c600="#4b5563", c700="#374151", c800="#1f2937",
+                                    c900="#47a9c2", c950="#0b0f19"),
+    )
+
     with gr.Blocks(
-            theme=gr.themes.Soft(primary_hue=gr.themes.colors.blue, secondary_hue=gr.themes.colors.purple)) as block:
+            theme=theme) as block:
         with gr.Row():
             with gr.Column(scale=1):
                 max_length = gr.Slider(value=1024, maximum=1024, minimum=1, label='Max Length', step=1)
@@ -251,3 +260,4 @@ if __name__ == "__main__":
     print(f'Running WITH MODE : {config_.mode}')
     model, tokenizer = load_model(config=config_)
     main(config_)
+  
