@@ -10,7 +10,6 @@ from typing import List, Optional
 logger = logging.get_logger(__name__)
 logging.set_verbosity_info()
 
-
 @dataclass
 class LoadConfig:
     mode: str = field(default='gui-chat', metadata={'help': 'mode to use ai in '})
@@ -34,6 +33,7 @@ def load_model(config: LoadConfig):
         f'Done Loading Model with {(sum(m.numel() for m in _model.parameters()) / 1e9) if _model is not None else "NONE"} Billion Parameters')
     logger.info(f'Loading Tokenizer FROM : {config.model_id}')
     _tokenizer = AutoTokenizer.from_pretrained(config.model_id)
+
     logger.info('Done Loading Tokenizer')
     return _model, _tokenizer
 
