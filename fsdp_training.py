@@ -1,5 +1,6 @@
 import math
 
+import erutils
 from torch.distributed.fsdp import (
     FullyShardedDataParallel as FSDP,
     MixedPrecision,
@@ -7,7 +8,8 @@ from torch.distributed.fsdp import (
     ShardingStrategy,
     FullStateDictConfig,
     StateDictType,
-    CPUOffload
+    CPUOffload,
+
 )
 import time
 from datasets import load_dataset
@@ -30,41 +32,19 @@ import os
 from transformers import AutoTokenizer, AutoModelForCausalLM, get_scheduler, logging, PreTrainedTokenizer, \
     HfArgumentParser
 from dataclasses import field, dataclass
-from transformers.models.bloom.modeling_bloom import BloomBlock
-from utils.utils import make2d
+from modules.modeling_LGeM import LGeMBlock
+from utils.utils import make2d, count_model_parameters
 
-logging.set_verbosity_debug()
+logging.set_verbosity_warning()
 logger = logging.get_logger(__name__)
-logger.setLevel('INFO')
+logger.setLevel('WARNING')
 
-fp16 = MixedPrecision(
-    param_dtype=torch.float16,
-    buffer_dtype=torch.float16,
-    reduce_dtype=torch.float16
-)
-
-bf16 = MixedPrecision(
-    param_dtype=torch.bfloat16,
-    buffer_dtype=torch.bfloat16,
-    reduce_dtype=torch.bfloat16
-)
-
-fp32 = MixedPrecision(
-    param_dtype=torch.float32,
-    buffer_dtype=torch.float32,
-    reduce_dtype=torch.float32
-)
-
-fp64 = MixedPrecision(
-    param_dtype=torch.float64,
-    reduce_dtype=torch.float64,
-    buffer_dtype=torch.float64
-)
+WARP_LAYER = LGeMBlock
 
 
 @dataclass
 class Arguments:
-    model_id: str = field(default='bigscience/bigscience-small-testing', init=True)
+    model_id: str = field(default='facebook/opt-125m', init=True)
     scheduler: str = field(default='cosine',
                            metadata={'help': 'scheduler for optimizer options are ["cosine","constant","linear"]'})
     max_sequence_length: int = field(default=768, metadata={
@@ -95,14 +75,22 @@ class Arguments:
     num_processes: int = field(default=1, metadata={
         'help': 'number of processes run at the time set this to you machine number of gpus'
     })
-    transformer_cls_to_wrap: Any = field(default=BloomBlock, metadata={
+    transformer_cls_to_wrap: Any = field(default=WARP_LAYER, metadata={
         'help': 'model Layer to be wraped'
     })
+    logging_steps: int = field(default=1,
+                               metadata={
+                                   'help': 'steps takes in training to log'
+                               })
 
 
-def setup_model(model_id: str) -> Tuple[nn.Module, PreTrainedTokenizer]:
+def setup_model(model_id: str, config=None) -> Tuple[nn.Module, PreTrainedTokenizer]:
+    if config is not None:
+        model = AutoModelForCausalLM(config)
+    else:
+        model = AutoModelForCausalLM.from_pretrained(model_id)
     tokenizer = AutoTokenizer.from_pretrained(model_id)
-    model = AutoModelForCausalLM.from_pretrained(model_id)
+
     return model, tokenizer
 
 
@@ -116,7 +104,7 @@ def cleanup():
 
 def get_date_and_time():
     date_of_run = datetime.now().strftime('%Y-%m-%d-%I:%M:%S_%p')
-    logger.debug(f'DATE AND TIME : {date_of_run}')
+    print_(f'DATE AND TIME : {date_of_run}')
     return date_of_run
 
 
@@ -126,8 +114,61 @@ def format_metrics_to_gb(item):
     return metric_num
 
 
-def train_model(model: nn.Module, rank: int, world_size: int, train_loader, optimizer: torch.optim.Optimizer,
-                epoch: int, sampler=None):
+fp16 = MixedPrecision(
+    param_dtype=torch.float16,
+    buffer_dtype=torch.float16,
+    reduce_dtype=torch.float16
+)
+
+bf16 = MixedPrecision(
+    param_dtype=torch.bfloat16,
+    buffer_dtype=torch.bfloat16,
+    reduce_dtype=torch.bfloat16
+)
+
+fp32 = MixedPrecision(
+    param_dtype=torch.float32,
+    buffer_dtype=torch.float32,
+    reduce_dtype=torch.float32
+)
+
+fp64 = MixedPrecision(
+    param_dtype=torch.float64,
+    reduce_dtype=torch.float64,
+    buffer_dtype=torch.float64
+)
+
+
+class CDataSet(torch.utils.data.Dataset):
+    def __init__(self, dataset, num_row):
+        self.dataset = dataset
+        self.num_row = num_row
+
+    def __len__(self):
+        return self.num_row
+
+    def __getitem__(self, item):
+        input_ids = torch.tensor(self.dataset[item]['input_ids'])
+        attention_mask = torch.tensor(self.dataset[item]['attention_mask'])
+        labels = torch.tensor(self.dataset[item]['labels'])
+        return input_ids, attention_mask, labels
+
+
+def sprint(func):
+    if os.environ['LOCAL_RANK'] == 0:
+        return func
+    else:
+        return print
+
+
+@sprint
+def print_(*args, **kwargs):
+    print(*(f"{arg}" for arg in args), **kwargs)
+
+
+def train_model(args, model: nn.Module, rank: int, world_size: int, train_loader, optimizer: torch.optim.Optimizer,
+                scheduler,
+                epoch: int, num_samples: int, sampler=None):
     model.train()
     local_rank = int(os.environ['LOCAL_RANK'])
     fs_dp_loss = torch.zeros(2).to(local_rank)
@@ -135,37 +176,38 @@ def train_model(model: nn.Module, rank: int, world_size: int, train_loader, opti
         sampler.set_epoch(epoch)
     if rank == 0:
         in_pbar = tqdm(
-            range(train_loader['train'].num_rows), colour="blue", desc="Training Epoch"
+            range(num_samples), colour="blue", desc="Training Epoch"
         )
-    for batch in train_loader['train']:
-
-        for key in ['input_ids', 'attention_mask', 'labels']:
-            print(batch[key])
-            batch[key] = make2d(torch.cat(batch[key])).to(local_rank)
+    for i, (input_ids, attention_mask, labels) in enumerate(train_loader):
+        input_ids, attention_mask, labels = make2d(input_ids), make2d(attention_mask), make2d(labels)
         optimizer.zero_grad()
-        print(batch["input_ids"].shape)
-        output = model(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"], labels=batch["labels"])
+
+        output = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
         loss = output["loss"]
 
         loss.backward()
         optimizer.step()
+        scheduler.step()
         fs_dp_loss[0] += loss.item()
-        fs_dp_loss[1] += len(batch)
-        if rank == 0:
-            in_pbar.update(1)
+        fs_dp_loss[1] += input_ids.shape[0]
+        if rank == 0 and (i + 1) % args.logging_steps == 0:
+            in_pbar.update(args.logging_steps)
+            in_pbar.set_postfix(loss=loss.item(), learning_rate=scheduler.get_lr())
 
     dist.all_reduce(fs_dp_loss, op=dist.ReduceOp.SUM)
     loss_train = fs_dp_loss[0] / fs_dp_loss[1]
 
     if rank == 0:
         in_pbar.close()
-        logger.debug(
+
+        print_(
             f"Train Epoch: \t{epoch}, Loss: \t{loss_train:.4f}"
         )
     return loss_train
 
 
 def main_process(args: Arguments):
+
     model, tokenizer = setup_model(args.model_id)
 
     local_rank = int(os.environ['LOCAL_RANK'])
@@ -173,39 +215,49 @@ def main_process(args: Arguments):
     world_size = int(os.environ['WORLD_SIZE'])
 
     dataset = load_dataset(args.dataset_name)
-    logger.debug(dataset.keys())
-    logger.debug("train dataset: ", dataset['train'])
+
+    print_(dataset.keys())
+    print_("train dataset: ", dataset['train'])
     try:
-        logger.debug("validation dataset: ", dataset['validation'])
+        print_("validation dataset: ", dataset['validation'])
     except KeyError:
-        logger.debug('No validation Data Found')
+        print_('No validation Data Found')
+
+    def tokenize(x):
+        x = tokenizer(x[args.dataset_field], max_length=args.max_sequence_length, truncation=True,
+                      return_tensors='pt', padding='max_length', add_special_tokens=False
+                      )
+        x.input_ids = x.input_ids.view(1, -1)
+        x.attention_mask = x.attention_mask.view(1, -1)
+        x['labels'] = x.input_ids
+        return x
 
     train_dataset = dataset.map(
-        lambda x: tokenizer(x[args.dataset_field], max_length=args.max_sequence_length, truncation=True,
-                            return_tensors='pt', padding='max_length'),
-
-        batched=True,
-        batch_size=args.batch_size,
+        tokenize,
+        # batched=True,
+        remove_columns=dataset['train'].column_names,
+        batch_size=32,
         desc=f'Running Tokenize World Size : {world_size}'
     )
-
-    sampler = DistributedSampler(train_dataset, rank=rank, num_replicas=world_size, shuffle=True)
+    dataset_ = CDataSet(train_dataset['train'], train_dataset['train'].num_rows)
+    sampler = DistributedSampler(dataset_, rank=rank, num_replicas=world_size, shuffle=True)
 
     setup()
 
     train_kwargs = {'batch_size': args.batch_size, 'sampler': sampler}
-    cuda_kwargs = {'num_workers': 2,
+    cuda_kwargs = {'num_workers': world_size,
                    'pin_memory': True,
                    'shuffle': False}
     train_kwargs.update(cuda_kwargs)
 
-    # train_loader = torch.utils.data.DataLoader(train_dataset_['train'], **train_kwargs)
+    train_loader = torch.utils.data.DataLoader(dataset_,
+                                               **train_kwargs)
     # exec(f'from transformers import {args.transformer_cls_to_wrap}')
     auto_wrap_policy = functools.partial(
         transformer_auto_wrap_policy,
         transformer_layer_cls={
             # eval(args.transformer_cls_to_wrap)
-            BloomBlock
+            args.transformer_cls_to_wrap
         },
     )
     sharding_strategy: ShardingStrategy = ShardingStrategy.FULL_SHARD
@@ -217,7 +269,7 @@ def main_process(args: Arguments):
             and dist.is_nccl_available()
             and torch.cuda.nccl.version() >= (2, 10)
     )
-    logger.debug(f'BFloat 16 Status {bf16_ready} 😇 ')
+    print_(f'BFloat 16 Status {bf16_ready} 😇 ')
     if bf16_ready:
         mp_policy = bf16
     else:
@@ -229,11 +281,13 @@ def main_process(args: Arguments):
                  device_id=torch.cuda.current_device()
                  )
     if rank == 0:
-        logger.debug(f"Model : {model}")
+        # print_(f"Model : {model}")
+        print_(model)
+        print_(f'Model Parameters : {count_model_parameters(model)} Million ')
     optimizer = AdamW(model.parameters(), lr=args.learning_rate)
-    num_train_steps = math.ceil(train_dataset['train'].num_rows / args.batch_size) * args.epochs
+    num_train_steps = math.ceil(train_dataset['train'].num_rows / args.batch_size)
     scheduler = get_scheduler(args.scheduler, optimizer=optimizer, num_warmup_steps=0,
-                              num_training_steps=num_train_steps)
+                              num_training_steps=num_train_steps * args.epochs)
     file_save_name = "OST-"
 
     if rank == 0:
@@ -247,14 +301,13 @@ def main_process(args: Arguments):
         mem_reserved_tracker = []
 
     for epoch in range(1, args.epochs + 1):
-        train_accuracy = train_model(model=model, rank=rank, train_loader=train_dataset, optimizer=optimizer,
-                                     epoch=epoch, sampler=sampler, world_size=world_size)
-
-        scheduler.step()
+        train_accuracy = train_model(args=args, model=model, rank=rank, train_loader=train_loader, optimizer=optimizer,
+                                     scheduler=scheduler,
+                                     epoch=epoch, sampler=sampler, world_size=world_size, num_samples=num_train_steps)
 
         if rank == 0:
 
-            logger.debug(f"[ACTION] >  epoch {epoch} completed...entering save and stats zone")
+            print_(f"[ACTION] >  epoch {epoch} completed...entering save and stats zone")
 
             train_acc_tracking.append(train_accuracy.item())
 
@@ -265,11 +318,11 @@ def main_process(args: Arguments):
                 mem_reserved_tracker.append(
                     format_metrics_to_gb(torch.cuda.memory_reserved())
                 )
-            logger.debug(f"completed save and stats zone...")
+            print_(f"completed save and stats zone...")
 
             # save
             if rank == 0:
-                logger.debug(f"[ACTION] >  entering save model state")
+                print_(f"[ACTION] >  entering save model state")
 
             save_policy = FullStateDictConfig(offload_to_cpu=True, rank0_only=True)
             with FSDP.state_dict_type(
@@ -278,13 +331,13 @@ def main_process(args: Arguments):
                 cpu_state = model.state_dict()
 
             if rank == 0:
-                logger.debug(f"[ACTION] >  saving model ...")
+                print_(f"[ACTION] >  saving model ...")
                 curr_epoch = (
                         "-" + str(epoch) + "-" + str(round(train_accuracy.item(), 4)) + ".pt"
                 )
-                logger.debug(f"[ACTION] >  attempting to save model prefix {curr_epoch}")
-                save_name = file_save_name + "-" + time_of_run + "-" + curr_epoch
-                logger.debug(f"[ACTION] >  saving as model name {save_name}")
+                print_(f"[ACTION] >  attempting to save model prefix {curr_epoch}")
+                save_name = file_save_name + time_of_run + "-" + curr_epoch
+                print_(f"[ACTION] >  saving as model name {save_name}")
 
                 torch.save(cpu_state, save_name)
 
