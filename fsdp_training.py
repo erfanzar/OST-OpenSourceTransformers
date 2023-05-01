@@ -264,6 +264,7 @@ def main_process(args: Arguments):
             args.transformer_cls_to_wrap
         },
     )
+
     sharding_strategy: ShardingStrategy = ShardingStrategy.FULL_SHARD
     torch.cuda.set_device(local_rank)
 
@@ -281,7 +282,7 @@ def main_process(args: Arguments):
 
     model = FSDP(model,
                  auto_wrap_policy=auto_wrap_policy,
-                 mixed_precision=mp_policy,
+                 mixed_precision=mp_policy, sharding_strategy=sharding_strategy,
                  device_id=torch.cuda.current_device()
                  )
     if rank == 0:
@@ -297,6 +298,7 @@ def main_process(args: Arguments):
     save_dir.mkdir(exist_ok=True)
     log_dir = Path(f"{save_dir}" + '/' + args.logdir)
     log_dir.mkdir(exist_ok=True)
+
     if rank == 0:
         time_of_run = get_date_and_time()
         dur = []
