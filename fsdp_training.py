@@ -28,6 +28,7 @@ from typing import Type, Tuple, Any
 import torch.distributed as dist
 from datetime import datetime
 import torch.multiprocessing as mp
+from pathlib import Path
 import os
 from transformers import AutoTokenizer, AutoModelForCausalLM, get_scheduler, logging, PreTrainedTokenizer, \
     HfArgumentParser
@@ -82,6 +83,10 @@ class Arguments:
                                metadata={
                                    'help': 'steps takes in training to log'
                                })
+    logdir: str = field(default='logs',
+                        metadata={
+                            'help': 'directory to write logs in'
+                        })
 
 
 def setup_model(model_id: str, config=None) -> Tuple[nn.Module, PreTrainedTokenizer]:
@@ -207,7 +212,6 @@ def train_model(args, model: nn.Module, rank: int, world_size: int, train_loader
 
 
 def main_process(args: Arguments):
-
     model, tokenizer = setup_model(args.model_id)
 
     local_rank = int(os.environ['LOCAL_RANK'])
@@ -289,7 +293,10 @@ def main_process(args: Arguments):
     scheduler = get_scheduler(args.scheduler, optimizer=optimizer, num_warmup_steps=0,
                               num_training_steps=num_train_steps * args.epochs)
     file_save_name = "OST-"
-
+    save_dir = Path(args.model_id)
+    save_dir.mkdir(exist_ok=True)
+    log_dir = Path(f"{save_dir}" + '/' + args.logdir)
+    log_dir.mkdir(exist_ok=True)
     if rank == 0:
         time_of_run = get_date_and_time()
         dur = []
