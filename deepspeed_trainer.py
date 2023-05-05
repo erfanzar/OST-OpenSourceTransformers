@@ -4,31 +4,46 @@ from modules import LGeMConfig, LGeMForCausalLM
 from utils.utils import count_model_parameters
 import os
 import multiprocessing as mp
-from dataclasses import dataclass, field
+from transformers import HfArgumentParser
+import argparse
 
 
-@dataclass
-class RunArgument:
-    with_cuda: bool = field(default=False, metadata={
-        'help': "train model using gpu"
-    })
-    use_ema: bool = field(default=False, metadata={
-        'help': "whether use exponential moving average"
-    })
-    batch_size: int = field(default=8, metadata={
-        'help': 'batch size to train model'
-    })
-    learning_rate: float = field(default=1e-4, metadata={
-        'help': 'optimizer learning rate for training'
-    })
-    epochs: int = field(default=5, metadata={
-        'help': 'number of training epochs'
-    })
+def add_argument():
+    parser = argparse.ArgumentParser(description='OST DeepSpeed')
+    parser.add_argument('--with_cuda', default=False, action='store_true')
+    parser.add_argument('-b', '--batch_size', default=32, type=int)
+    parser.add_argument('-e', '--epochs', default=30, type=int)
+    parser.add_argument('--local_rank', type=int, default=-1)
 
-    local_rank: int = field(default=-1, metadata={
-        'help': 'local rank passed from distributed launcher'
-    })
+    parser = deepspeed.add_config_arguments(parser)
+
+    args = parser.parse_args()
+    print(args)
+    return args
 
 
+def train():
+    ...
 
 
+def run():
+    ...
+
+
+def main():
+    deepspeed.init_distributed()
+    args = add_argument()
+    config = LGeMConfig(
+        hidden_size=256,
+        intermediate_size=512,
+        num_hidden_layers=2,
+        num_attention_heads=8,
+    )
+    model = LGeMForCausalLM(config=config)
+    model_p = filter(lambda p: p.requires_grad, model.parameters())
+    model, optimizer, _, _ = deepspeed.initialize(args=args, model_parameters=model_p, model=model)
+    print(model)
+
+
+if __name__ == '__main__':
+    main()
