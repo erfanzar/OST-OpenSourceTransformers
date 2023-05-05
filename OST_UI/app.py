@@ -3,7 +3,7 @@ import torch
 import textwrap
 import os
 from dataclasses import field, dataclass
-from transformers import HfArgumentParser
+from transformers import HfArgumentParser,GPTNeoXForCausalLM
 import gradio as gr
 from typing import List, Optional
 
