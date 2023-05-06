@@ -6,19 +6,19 @@ from einops import rearrange
 from typing import Optional, Union
 
 
-def gen_slopes(n_heads, alibi_bias_max=8, device=None):
-    closest_power_2 = 2 ** math.ceil(math.log2(n_heads))
-    m = torch.arange(1, n_heads + 1).to(device)
-    m = m.mul(alibi_bias_max / n_heads)
+def gen_slopes(number_of_attention_heads, alibi_bias_max=8, device=None):
+    closest_power_2 = 2 ** math.ceil(math.log2(number_of_attention_heads))
+    m = torch.arange(1, number_of_attention_heads + 1).to(device)
+    m = m.mul(alibi_bias_max / number_of_attention_heads)
     slope = 1 / math.pow(2, m)
-    if closest_power_2 != n_heads:
-        slope = torch.cat([slope[1::2], slope[::2]], dim=-1)[:n_heads]
-    return slope.view(1, n_heads, 1, 1)
+    if closest_power_2 != number_of_attention_heads:
+        slope = torch.cat([slope[1::2], slope[::2]], dim=-1)[:number_of_attention_heads]
+    return slope.view(1, number_of_attention_heads, 1, 1)
 
 
-def build_alibi_bias(max_length, n_heads, alibi_bias_max=8):
+def build_alibi_bias(max_length, number_of_attention_heads, alibi_bias_max=8):
     t = torch.arange(1 - max_length, 1).reshape(1, 1, 1, max_length)
-    slopes = gen_slopes(n_heads=n_heads, alibi_bias_max=alibi_bias_max)
+    slopes = gen_slopes(number_of_attention_heads=number_of_attention_heads, alibi_bias_max=alibi_bias_max)
     t = t * slopes
     return t
 
@@ -70,45 +70,33 @@ class MultiheadAttention(nn.Module):
     additive bias.
     """
 
-    def __init__(self, d_model: int, n_heads: int, attn_impl: str = 'triton', clip_qkv: Optional[float] = None,
-                 qk_ln: bool = False, softmax_scale: Optional[float] = None, attn_pdrop: float = 0.0,
-                 low_precision_layernorm: bool = False, device: Optional[str] = None):
+    def __init__(self, hidden_size: int, number_of_attention_heads: int, clip_qkv: Optional[float] = None,
+                 softmax_scale: Optional[float] = None,
+                 device: Optional[str] = None):
         super().__init__()
-        self.attn_impl = attn_impl
-        self.clip_qkv = clip_qkv
-        self.qk_ln = qk_ln
-        self.d_model = d_model
-        self.n_heads = n_heads
+
+        self.hidden_size = hidden_size
+        self.number_of_attention_heads = number_of_attention_heads
         self.softmax_scale = softmax_scale
         if self.softmax_scale is None:
-            self.softmax_scale = 1 / math.sqrt(self.d_model // self.n_heads)
-        self.attn_dropout_p = attn_pdrop
-        self.Wqkv = nn.Linear(self.d_model, 3 * self.d_model, device=device)
-        fuse_splits = (d_model, 2 * d_model)
-        self.Wqkv._fused = (0, fuse_splits)
-        if self.qk_ln:
-            layernorm_class = LPLayerNorm if low_precision_layernorm else nn.LayerNorm
-            self.q_ln = layernorm_class(self.d_model, device=device)
-            self.k_ln = layernorm_class(self.d_model, device=device)
-        if self.attn_impl == 'torch':
-            self.attn_fn = scale_dot_production
+            self.softmax_scale = 1 / math.sqrt(self.hidden_size // self.number_of_attention_heads)
 
-        else:
-            raise ValueError(f'attn_impl={attn_impl!r} is an invalid setting.')
-        self.out_proj = nn.Linear(self.d_model, self.d_model, device=device)
-        self.out_proj._is_residual = True
+        self.qkv = nn.Linear(self.hidden_size, 3 * self.hidden_size, device=device)
+
+        self.q_ln = nn.LayerNorm(self.hidden_size, device=device)
+        self.k_ln = nn.LayerNorm(self.hidden_size, device=device)
+
+        self.out_proj = nn.Linear(self.hidden_size, self.hidden_size, device=device)
 
     def forward(self, x, attn_bias=None, attention_mask=None):
-        qkv = self.Wqkv(x)
-        if self.clip_qkv:
-            qkv.clamp_(min=-self.clip_qkv, max=self.clip_qkv)
+        qkv = self.qkv(x)
+
         (query, key, value) = qkv.chunk(3, dim=2)
-        key_padding_mask = attention_mask
-        if self.qk_ln:
-            dtype = query.dtype
-            query = self.q_ln(query).to(dtype)
-            key = self.k_ln(key).to(dtype)
+        dtype = query.dtype
+        query = self.q_ln(query).to(dtype)
+        key = self.k_ln(key).to(dtype)
         if attn_bias is not None:
             attn_bias = attn_bias[:, :, -query.size(1):, -key.size(1):]
-        attn_weights = self.attn_fn(query, key, value, self.n_heads, bias=attn_bias, softmax_scale=self.softmax_scale)
+        attn_weights = scale_dot_production(query, key, value, self.number_of_attention_heads, bias=attn_bias,
+                                            softmax_scale=self.softmax_scale)
         return self.out_proj(attn_weights)
