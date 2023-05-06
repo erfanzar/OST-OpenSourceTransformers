@@ -6,21 +6,15 @@ from typing import Optional, Union, Tuple, List
 import torch
 from erutils.loggers import show_hyper_parameters
 from torch import nn
-from transformers import GPT2Tokenizer
+from transformers import GPT2Tokenizer, PretrainedConfig
 
-from .datasets import Tokens
+from modules.datasets import Tokens
 
 logger = logging.getLogger(__name__)
 
 
-class Tokenizer(Tokens):
-    def __init__(self):
-        self.tokenizer = GPT2Tokenizer.from_pretrained('gpt2', bos_token=self.sos, eos_token=self.eos,
-                                                       pad_token=self.pad)
-
-
 @dataclass
-class LLamaConfig:
+class LLamaConfig(PretrainedConfig):
     eps: Optional[float] = 1e-6
     hidden_size: Optional[int] = 1200
     n_heads: Optional[int] = 12
@@ -32,6 +26,9 @@ class LLamaConfig:
     weight_decay: Optional[float] = 2e-1
     epochs: Optional[int] = 100
     device: Union[torch.device, str] = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    def __init__(self):
+        super().__init__()
 
 
 class PMSNorm(nn.Module):

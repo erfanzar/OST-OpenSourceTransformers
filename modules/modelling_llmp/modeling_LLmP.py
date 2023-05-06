@@ -1,112 +1,60 @@
-import logging
-
-from typing import Optional, Tuple, Union, Iterable
+from typing import Optional
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from erutils import make2d
+from torch import nn
+
+from modules.cross_modules import PMSNorm, FeedForward, Attention
+from dataclasses import dataclass
+from typing import Union, Tuple, Iterable
 from erutils.lightning import build_alibi_tensor
-from transformers import PreTrainedModel
-from .cross_modules import LLmPConfig
-from .modeling_LLmP import LLmPBlock, PMSNorm
-from .modeling_PGT import PGTConfig, PGTBlock, Adafactor
-
-logger = logging.getLogger(__name__)
-
-__all__ = ['PGTForCausalLM', 'LLmP', 'LLmPBlock', 'LLmPConfig', 'Adafactor',
-           'PGTConfig']
+from transformers import PretrainedConfig
 
 
-class PGT(nn.Module):
-    def __init__(self, config: PGTConfig):
-        super().__init__()
-        self.config = config
-
-        self.embed_in = nn.Embedding(config.vocab_size, config.hidden_size)
-        self.layers = nn.ModuleList([PGTBlock(config) for _ in range(config.n_layers)])
-        self.final_layer_norm = nn.LayerNorm(config.hidden_size, eps=config.eps)
-
-        self.gradient_checkpointing = False
-
-    def get_input_embeddings(self):
-        return self.embed_in
-
-    def set_input_embeddings(self, value):
-        self.embed_in = value
-
-    def forward(
-            self,
-            input_ids: Optional[torch.LongTensor] = None,
-            attention_mask: Optional[torch.FloatTensor] = None,
-            head_mask=None
-    ) -> Union[Tuple]:
-
-        batch_size = input_ids.size(0)
-        # Attention mask.
-        if attention_mask is not None:
-            assert batch_size > 0, "batch_size has to be defined and > 0"
-            attention_mask = attention_mask.view(batch_size, -1)
-
-            attention_mask = attention_mask[:, None, None, :]
-
-            # fp16 compatibility
-            attention_mask = (1.0 - attention_mask) * -65900
-
-        head_mask = [None] * self.config.n_layers
-
-        hidden_states = self.embed_in(input_ids)
-
-        for i, layer in enumerate(self.layers):
-            hidden_states = layer(
-                hidden_states,
-                attention_mask=attention_mask,
-
-                head_mask=head_mask[i],
-            )
-
-        hidden_states = self.final_layer_norm(hidden_states)
-
-        return hidden_states
+@dataclass
+class LLmPConfig(PretrainedConfig):
+    eps: Optional[float] = 1e-5
+    hidden_size: Optional[int] = 1200
+    use_layer_index_scaling: Optional[bool] = False
+    n_heads: Optional[int] = 12
+    n_layers: Optional[int] = 14
+    vocab_size: Optional[int] = None
+    lr: Optional[float] = 3e-4
+    weight_decay: Optional[float] = 2e-1
+    epochs: Optional[int] = 100
+    hidden_dropout: Optional[float] = 0.1
+    embed_dropout: Optional[float] = 0.1
+    device: Union[torch.device, str] = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
-class PGTForCausalLM(PreTrainedModel):
-    def __init__(self, config: PGTConfig):
-        super().__init__(config)
+def sample_top_p(probs, p):
+    probs_sort, probs_idx = torch.sort(probs, dim=-1, descending=True)
+    probs_sum = torch.cumsum(probs_sort, dim=-1)
+    mask = probs_sum - probs_sort > p
+    probs_sort[mask] = 0.0
+    probs_sort.div_(probs_sort.sum(dim=-1, keepdim=True))
 
-        self.gpt_neox = PGT(config)
-        self.embed_out = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+    next_token = torch.multinomial(probs_sort, num_samples=1)
 
-    def get_output_embeddings(self):
-        return self.embed_out
+    next_token = torch.gather(probs_idx, -1, next_token)
+    return next_token
 
-    def set_output_embeddings(self, new_embeddings):
-        self.embed_out = new_embeddings
 
-    def forward(
-            self,
-            input_ids: Optional[torch.LongTensor] = None,
-            attention_mask: Optional[torch.FloatTensor] = None,
-            labels: Optional[torch.LongTensor] = None
-    ) -> Union[Tuple]:
-        hidden_states = self.gpt_neox(
-            make2d(input_ids),
-            attention_mask=make2d(attention_mask),
-        )
+class LLmPBlock(nn.Module):
+    def __init__(self, config: Optional[LLmPConfig], layer_index: Optional[int] = None):
+        super(LLmPBlock, self).__init__()
+        self.block = Attention(config=config, layer_index=layer_index)
+        self.ln1 = PMSNorm(config)
+        self.ln2 = PMSNorm(config)
+        self.config: LLmPConfig = config
+        self.ffd = FeedForward(config)
 
-        lm_logits = self.embed_out(hidden_states)
-
-        lm_loss = None
-        if labels is not None:
-            labels = labels.to(lm_logits.device)
-            # print(f'labels.view(-1) : {labels.view(-1).shape}')
-            shift_logits = lm_logits[:, :-1, :].contiguous()
-            # labels = labels[:, 1:].contiguous()
-            loss_fct = torch.nn.CrossEntropyLoss()
-
-            lm_loss = loss_fct(make2d(shift_logits), labels.view(-1))
-
-        return ((lm_loss,) + lm_logits) if lm_loss is not None else lm_logits
+    def forward(self, hidden: Optional[torch.Tensor], alibi: Optional[torch.Tensor],
+                attention_mask: Optional[torch.Tensor] = None) -> Optional[torch.Tensor]:
+        residual = self.ln1(hidden)
+        hidden = hidden + self.block(residual, alibi=alibi, attention_mask=attention_mask)
+        residual = self.ln2(hidden)
+        hidden = hidden + self.ffd(residual)
+        return hidden
 
 
 class LLmP(nn.Module):
@@ -152,8 +100,7 @@ class LLmP(nn.Module):
                 attention_mask = attention_mask[:, None, :, :]
             if attention_mask.ndim == 2:
                 attention_mask = attention_mask[:, None, None, :]
-        logger.debug(
-            f'We Got INPUT ---**--- :  [ input _ids : {input_ids.shape}] [ attention _mask : {attention_mask.shape if attention_mask is not None else None} ]')
+
         # self.freq = self.freq.to(input_ids.device)
         # chosen_freq = self.freq[:seq_len]
         # logger.debug(f'chosen_freq : {chosen_freq.shape}')
@@ -163,9 +110,8 @@ class LLmP(nn.Module):
                                    n_heads=self.config.n_heads).to(input_ids.device)
 
         x = self.wte_ln(self.wte(input_ids))
-        logger.debug(f'word tokenizing shape ==> : {x.shape}')
+
         for i, h in enumerate(self.h):
-            logger.debug(f'At Block Index  : \033[32m{i}\033[92m')
             x = h(x, attention_mask=attention_mask, alibi=alibi)
         logits = self.out(self.ln(x))
         loss = None

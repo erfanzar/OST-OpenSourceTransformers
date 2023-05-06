@@ -8,7 +8,6 @@ from flax import linen as nn
 from jax import jit, random
 from tqdm.auto import tqdm
 import logging
-import jax_metrics
 import einops
 import optax
 
@@ -161,7 +160,7 @@ class Block(nn.Module):
         up = self.up(hidden)
         gu = act_gate * up
         hidden = self.down(gu)
-        hidden = hidden_size + attn
+        hidden = hidden + attn
         return hidden
 
 
@@ -184,7 +183,7 @@ class LGeM_Jax(nn.Module):
 
 
 @jax.jit
-def cross_entropy(params, x, targets):
+def cross_entropy(params, model, x, targets):
     logits = model.apply(params, x)
     logits = logits.reshape(-1, logits.shape[-2], logits.shape[-1])
     targets = jax.nn.one_hot(targets, logits.shape[-1])

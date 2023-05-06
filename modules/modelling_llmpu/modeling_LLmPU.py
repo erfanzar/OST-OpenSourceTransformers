@@ -8,7 +8,7 @@ import torch
 from erutils.lightning import BaseModelOutput, BaseModelOutputWithPastAndCrossAttentions
 from torch import nn
 from torch.utils.checkpoint import checkpoint
-from transformers import GenerationMixin, GenerationConfig
+from transformers import GenerationMixin, GenerationConfig, PretrainedConfig
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +82,7 @@ class DVS:
         self.type = type
 
 
-class LLmPUConfig:
+class LLmPUConfig(PretrainedConfig):
 
     def __init__(
             self,
@@ -106,6 +106,7 @@ class LLmPUConfig:
             max_length=1024,
             **kwargs
     ):
+        super().__init__()
         self.vocab_size = vocab_size
         self.d_model = d_model
         self.d_kv = d_kv

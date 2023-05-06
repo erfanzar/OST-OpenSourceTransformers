@@ -15,7 +15,7 @@ from transformers import PretrainedConfig, PreTrainedModel
 
 logger = logging.getLogger(__name__)
 
-if os.environ['USE_JIT'] == '1':
+if os.getenv('USE_JIT', '0') == '1':
     Module = torch.jit.ScriptModule
     function = torch.jit.script_method
 else:

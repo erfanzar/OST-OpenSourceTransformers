@@ -10,7 +10,9 @@ from torch.optim.optimizer import Optimizer
 logger = logging.getLogger(__name__)
 
 from dataclasses import dataclass
-from transformers import PretrainedConfig
+from transformers import PretrainedConfig, PreTrainedModel
+from erutils.utils import make2d
+from typing import Union, Optional
 
 
 class PGTConfig(PretrainedConfig):
@@ -114,7 +116,7 @@ def attention_mask_func(attention_scores, ltor_mask):
 
 
 class PGTAttention(nn.Module):
-    def __init__(self, config:PGTConfig):
+    def __init__(self, config: PGTConfig):
         super().__init__()
         self.n_heads = config.n_heads
         self.hidden_size = config.hidden_size
@@ -460,3 +462,94 @@ class Adafactor(Optimizer):
                 p.data.add_(-update)
 
         return loss
+
+
+class PGT(nn.Module):
+    def __init__(self, config: PGTConfig):
+        super().__init__()
+        self.config = config
+
+        self.embed_in = nn.Embedding(config.vocab_size, config.hidden_size)
+        self.layers = nn.ModuleList([PGTBlock(config) for _ in range(config.n_layers)])
+        self.final_layer_norm = nn.LayerNorm(config.hidden_size, eps=config.eps)
+
+        self.gradient_checkpointing = False
+
+    def get_input_embeddings(self):
+        return self.embed_in
+
+    def set_input_embeddings(self, value):
+        self.embed_in = value
+
+    def forward(
+            self,
+            input_ids: Optional[torch.LongTensor] = None,
+            attention_mask: Optional[torch.FloatTensor] = None,
+            head_mask=None
+    ) -> Union[Tuple]:
+
+        batch_size = input_ids.size(0)
+        # Attention mask.
+        if attention_mask is not None:
+            assert batch_size > 0, "batch_size has to be defined and > 0"
+            attention_mask = attention_mask.view(batch_size, -1)
+
+            attention_mask = attention_mask[:, None, None, :]
+
+            # fp16 compatibility
+            attention_mask = (1.0 - attention_mask) * -65900
+
+        head_mask = [None] * self.config.n_layers
+
+        hidden_states = self.embed_in(input_ids)
+
+        for i, layer in enumerate(self.layers):
+            hidden_states = layer(
+                hidden_states,
+                attention_mask=attention_mask,
+
+                head_mask=head_mask[i],
+            )
+
+        hidden_states = self.final_layer_norm(hidden_states)
+
+        return hidden_states
+
+
+class PGTForCausalLM(PreTrainedModel):
+    def __init__(self, config: PGTConfig):
+        super().__init__(config)
+
+        self.gpt_neox = PGT(config)
+        self.embed_out = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+
+    def get_output_embeddings(self):
+        return self.embed_out
+
+    def set_output_embeddings(self, new_embeddings):
+        self.embed_out = new_embeddings
+
+    def forward(
+            self,
+            input_ids: Optional[torch.LongTensor] = None,
+            attention_mask: Optional[torch.FloatTensor] = None,
+            labels: Optional[torch.LongTensor] = None
+    ) -> Union[Tuple]:
+        hidden_states = self.gpt_neox(
+            make2d(input_ids),
+            attention_mask=make2d(attention_mask),
+        )
+
+        lm_logits = self.embed_out(hidden_states)
+
+        lm_loss = None
+        if labels is not None:
+            labels = labels.to(lm_logits.device)
+            # print(f'labels.view(-1) : {labels.view(-1).shape}')
+            shift_logits = lm_logits[:, :-1, :].contiguous()
+            # labels = labels[:, 1:].contiguous()
+            loss_fct = torch.nn.CrossEntropyLoss()
+
+            lm_loss = loss_fct(make2d(shift_logits), labels.view(-1))
+
+        return ((lm_loss,) + lm_logits) if lm_loss is not None else lm_logits

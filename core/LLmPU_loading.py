@@ -6,7 +6,7 @@ from typing import Union, Tuple
 import torch
 from transformers import AutoTokenizer, BasicTokenizer
 
-from modules.modeling_LLmPU import LLmPUForConditionalGeneration, LLmPUConfig
+from modules.modelling_llmpu.modeling_LLmPU import LLmPUForConditionalGeneration, LLmPUConfig
 
 logger = logging.getLogger(__name__)
 

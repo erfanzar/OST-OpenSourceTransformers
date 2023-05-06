@@ -9,20 +9,7 @@ from torch import nn
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class LLmPConfig:
-    eps: Optional[float] = 1e-5
-    hidden_size: Optional[int] = 1200
-    use_layer_index_scaling: Optional[bool] = False
-    n_heads: Optional[int] = 12
-    n_layers: Optional[int] = 14
-    vocab_size: Optional[int] = None
-    lr: Optional[float] = 3e-4
-    weight_decay: Optional[float] = 2e-1
-    epochs: Optional[int] = 100
-    hidden_dropout: Optional[float] = 0.1
-    embed_dropout: Optional[float] = 0.1
-    device: Union[torch.device, str] = 'cuda' if torch.cuda.is_available() else 'cpu'
+
 
 
 def precompute_frq_cis(dim: int, end: int, theta: float = 10000.0):
