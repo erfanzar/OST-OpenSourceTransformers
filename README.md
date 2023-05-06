@@ -20,9 +20,14 @@ Generative Models). OST Collection is based on a novel approach to work as a ful
 | [PGT-1B-2EP 🚀 ](https://huggingface.co/erfanzar/PGT-1B-2EP)               | 1024                | 1B         |
 | [PGT-1B 🚀 ](https://huggingface.co/erfanzar/PGT-1B)                       | 1280                | 1B         |
 
-### PGT-Neo-Models
+### LT (LucidTransformers)-Models
 
 - upcoming soon
+- LLM
+- uses ALIBI as positionnal embeddings significantly outperforms other embeddings for zero-shot generalization.
+- flash attention
+- 1B , 3B ,7B ,12B 50B
+- context length 9K
 
 ### LGeM 🚀
 
