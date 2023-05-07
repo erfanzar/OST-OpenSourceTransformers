@@ -6,7 +6,15 @@ from dataclasses import field, dataclass
 import os
 import torch
 from utils.utils import count_model_parameters
+from torch.distributed import get_rank, is_initialized
+import time
+from torch.utils.tensorboard import SummaryWriter
+from pathlib import Path
 
+try:
+    import wandb
+except ModuleNotFoundError:
+    pass
 # this will be used for default tokenizer LT and LGeM if you want to train your own model you can skip ahead
 
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', '0'))
@@ -94,23 +102,6 @@ DEEPSPEED_CONFIG = {
 }
 
 
-def check_tokenizer(tokenizer: LlamaTokenizer):
-    print_rank_0('CHANGING TOKENIZER OPTIONS')
-    tokenizer.pad_token = DEFAULT_PAD_TOKEN
-    tokenizer.bos_token = DEFAULT_BOS_TOKEN
-    tokenizer.eos_token = DEFAULT_EOS_TOKEN
-    tokenizer.unk_token = DEFAULT_UNK_TOKEN
-
-    tokenizer.pad_token_id = tokenizer.eos_token_id
-    tokenizer.bos_token_id = tokenizer.eos_token_id
-    tokenizer.unk_token_id = tokenizer.eos_token_id
-
-    tokenizer.add_tokens(EXTRA_TOKENS)
-
-    print_rank_0('DONE - CHANGING TOKENIZER OPTIONS')
-    return tokenizer
-
-
 @dataclass
 class Arguments:
     # Your Model id Here
@@ -185,6 +176,97 @@ class Arguments:
     })
 
 
+class Timer:
+
+    def __init__(self, name):
+        self.name_ = name
+        self.elapsed_ = 0.0
+        self.started_ = False
+        self.start_time = time.time()
+
+    def start(self):
+        assert not self.started_, "timer has already been started"
+        torch.cuda.synchronize()
+        self.start_time = time.time()
+        self.started_ = True
+
+    def stop(self):
+        assert self.started_, "timer is not started"
+        torch.cuda.synchronize()
+        self.elapsed_ += time.time() - self.start_time
+        self.started_ = False
+
+    def reset(self):
+        self.elapsed_ = 0.0
+        self.started_ = False
+
+    def elapsed(self, reset=True):
+        started_ = self.started_
+        if self.started_:
+            self.stop()
+        elapsed_ = self.elapsed_
+        if reset:
+            self.reset()
+        if started_:
+            self.start()
+        return elapsed_
+
+
+class Timers:
+    """Group of timers."""
+
+    def __init__(self, use_wandb, tensorboard_writer):
+        self.timers = {}
+        self.use_wandb = use_wandb
+        self.tensorboard_writer = tensorboard_writer
+
+    def __call__(self, name):
+        if name not in self.timers:
+            self.timers[name] = Timer(name)
+        return self.timers[name]
+
+    def write(self, names, iteration, normalizer=1.0, reset=False):
+
+        assert normalizer > 0.0
+        for name in names:
+            value = self.timers[name].elapsed(reset=reset) / normalizer
+
+            if self.tensorboard_writer:
+                self.tensorboard_writer.add_scalar(f"timers/{name}", value, iteration)
+
+            if self.use_wandb:
+                wandb.log({f"timers/{name}": value}, step=iteration)
+
+    def log(self, names, normalizer=1.0, reset=True):
+        assert normalizer > 0.0
+        string = "time (ms)"
+        for name in names:
+            elapsed_time = self.timers[name].elapsed(reset=reset) * 1000.0 / normalizer
+            string += " | {}: {:.2f}".format(name, elapsed_time)
+        if is_initialized():
+            if LOCAL_RANK == 0:
+                print(string, flush=True)
+        else:
+            print(string, flush=True)
+
+
+def check_tokenizer(tokenizer: LlamaTokenizer):
+    print_rank_0('CHANGING TOKENIZER OPTIONS')
+    tokenizer.pad_token = DEFAULT_PAD_TOKEN
+    tokenizer.bos_token = DEFAULT_BOS_TOKEN
+    tokenizer.eos_token = DEFAULT_EOS_TOKEN
+    tokenizer.unk_token = DEFAULT_UNK_TOKEN
+
+    tokenizer.pad_token_id = tokenizer.eos_token_id
+    tokenizer.bos_token_id = tokenizer.eos_token_id
+    tokenizer.unk_token_id = tokenizer.eos_token_id
+
+    tokenizer.add_tokens(EXTRA_TOKENS)
+
+    print_rank_0('DONE - CHANGING TOKENIZER OPTIONS')
+    return tokenizer
+
+
 def main():
     args: Arguments = HfArgumentParser(Arguments).parse_args_into_dataclasses()[0]
     if args.use_deepspeed:
@@ -199,19 +281,37 @@ def main():
         f'{"DEEPSPEED TRAGEDY" if args.use_deepspeed else ("Fully Sharded Data Parallel" if args.use_fsdp else "No Option")}'
         f'\nRecommended Run command => \n\t {tip} '
     )
+    log_t_path = Path('out/performance_metrics')
+    log_t_path.mkdir(exist_ok=True)
+    writer = SummaryWriter(log_dir=f'{log_t_path}')
+    timers = Timers(
+        use_wandb=False,
+        tensorboard_writer=writer
+    )
+    timers('getting tokenizer').start()
     tokenizer = LlamaTokenizer.from_pretrained(args.tokenizer_id)
     tokenizer = check_tokenizer(tokenizer)
+    timers('getting tokenizer').stop()
+
+    timers('building model ...').start()
     config = LtConfig(vocab_size=len(tokenizer.get_vocab()), num_attention_heads=8, num_hidden_layers=4,
                       hidden_size=256,
                       intermediate_size=512)
     model = LtModelForCausalLM(config=config)
-    dataset = load_dataset(args.dataset)
+    timers('building model ...').stop()
 
+    timers('getting data').start()
+    dataset = load_dataset(args.dataset)
+    timers('getting data').stop()
+
+    timers('mapping data').start()
     dataset = dataset.map(
         lambda data_point: tokenizer(data_point[args.dataset_field], max_length=args.max_length, padding='max_length',
                                      truncation=True,
                                      add_special_tokens=False))
+    timers('mapping data').stop()
 
+    timers('creat or eval training arguments').start()
     if args.use_deepspeed:
         extra_kwargs = {
             'deepspeed': DEEPSPEED_CONFIG
@@ -229,15 +329,25 @@ def main():
     else:
         print_rank_0('ENGINE DIDNT GET ANY FSDP CONFIG OR DEEPSPEED - SKIP')
         extra_kwargs = {}
+
+    if args.do_eval:
+        try:
+            eval_dataset = dataset['valid']
+        except KeyError:
+            print_rank_0('NO EVALUATION DATA FOUND SETTING DO EVAL TO FALSE INCASE IGNORE ANY BUG DURING TRAINING')
+            args.do_eval = False
+            eval_dataset = None
+    else:
+        eval_dataset = None
     training_args = TrainingArguments(
         output_dir=args.model_id,
         hub_model_id=args.model_id,
         lr_scheduler_type=args.lr_scheduler_type,
         learning_rate=args.learning_rate,
         auto_find_batch_size=args.auto_batch,
-        do_train=True,
-        do_eval=False,
-        do_predict=True,
+        do_train=args.do_train,
+        do_eval=args.do_eval,
+        do_predict=args.do_eval,
         per_device_train_batch_size=args.per_device_batch_size,
         logging_steps=args.logging_step,
         logging_dir=f'{args.model_id}/logs',
@@ -255,15 +365,18 @@ def main():
     )
 
     print_rank_0(model)
-
+    timers('creat or eval training arguments').end()
     trainer = Trainer(
         model=model,
         train_dataset=dataset['train'],
+        eval_dataset=eval_dataset,
         tokenizer=tokenizer,
         args=training_args
     )
     print_rank_0(f'MODEL CONTAIN {count_model_parameters(model, div=1e9)} BILLION PARAMETERS')
+    timers('training model').start()
     trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
+    timers('training model').stop()
 
 
 if __name__ == "__main__":
