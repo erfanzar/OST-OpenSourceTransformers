@@ -35,8 +35,8 @@ FSDP Example
 
 ```shell
 torchrun --nproc-per-node=<number_of_your_gpus_here> --master-port=4008 --standalone train.py \
---use_deepspeed\
---dataset <your dataset>\
+--use_fsdp \
+--dataset <your dataset> \
 --dataset_field <field in dataset that tokenizer tokeniz > \
 --max_length=<your_max_length> \
 --auto_batch \
