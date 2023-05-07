@@ -114,30 +114,75 @@ def check_tokenizer(tokenizer: LlamaTokenizer):
 @dataclass
 class Arguments:
     # Your Model id Here
-    cls_to_wrap: str = field()
-    model_id: str = field(default='erfanzar/LT-1B')
-    tokenizer_id: str = field(default='erfanzar/LGeM-7B')
-    dataset: str = field(default='erfanzar/Base-Data')
-    dataset_field: str = field(default='prompt')
-    max_length: int = field(default=1536)
-    from_safetensors: bool = field(default=True)
-    lr_sc: str = field(default='cosine')
-    use_deepspeed: bool = field(default=False)
-    use_fsdp: bool = field(default=True)
-    per_device_batch_size: int = field(default=8)
-    auto_batch: bool = field(default=False)
-    learning_rate: float = field(default=1e-4)
-    lr_scheduler_type: str = field(default='cosine')
-    do_train: bool = field(default=True)
-    do_eval: bool = field(default=False)
-    do_predict: bool = field(default=True)
-    save_safetensors: bool = field(default=True)
-    logging_step: int = field(default=15)
-    report_to: list[str] = field(default='tensorboard')
-    save_steps: int = field(default=1500)
-    save_strategy: str = field(default='epoch')
-    save_total_limit: int = field(default=1)
-    resume_from_checkpoint: bool = field(default=False)
+    cls_to_wrap: str = field(metadata={
+        'help': 'transformer layer class to warp for fully sharded data parallel'
+    })
+    model_id: str = field(default='erfanzar/LT-1B', metadata={
+        'help': 'model id to save output and push to hub'
+    })
+    tokenizer_id: str = field(default='erfanzar/LGeM-7B', metadata={
+        'help': 'tokenizer repo id to read from the specific tokenizer that you want to use on model'
+    })
+    dataset: str = field(default='erfanzar/Base-Data', metadata={
+        'help': 'hugging face dataset to download or path to data.json file'
+    })
+    dataset_field: str = field(default='prompt', metadata={
+        'help': 'the specific field ub dataset to look for and run tokenizer on that'
+    })
+    max_length: int = field(default=1536, metadata={
+        'help': 'train max sequence length'
+    })
+    from_safetensors: bool = field(default=True, metadata={
+        'help': 'load model from safetensors checkpoints instance of .bin .pt or .pth'
+    })
+    use_deepspeed: bool = field(default=False, metadata={
+        'help': 'use deepspeed for training'
+    })
+    use_fsdp: bool = field(default=True, metadata={
+        'help': 'use fully sharded data parallel for training'
+    })
+    per_device_batch_size: int = field(default=8, metadata={
+        'help': 'pre device batch size'
+    })
+    auto_batch: bool = field(default=False, metadata={
+        'help': 'find batch size automatic'
+    })
+    learning_rate: float = field(default=1e-4, metadata={
+        'help': 'learning rate for the optimzer'
+    })
+    lr_scheduler_type: str = field(default='cosine', metadata={
+        'help': 'learning rate scheduler type type for optimizer'
+    })
+    do_train: bool = field(default=True, metadata={
+        'help': 'do the training or not'
+    })
+    do_eval: bool = field(default=False, metadata={
+        'help': 'do the evaluation or not'
+    })
+    do_predict: bool = field(default=True, metadata={
+        'help': 'do the prediction or not'
+    })
+    save_safetensors: bool = field(default=True, metadata={
+        'help': 'save model in safetensors after training'
+    })
+    logging_step: int = field(default=15, metadata={
+        'help': 'logging steps default to 15'
+    })
+    report_to: list[str] = field(default='tensorboard', metadata={
+        'help': 'report training metrics to '
+    })
+    save_steps: int = field(default=1500, metadata={
+        'help': 'steps to save model in training'
+    })
+    save_strategy: str = field(default='epoch', metadata={
+        'help': 'save strategy [epoch or steps]'
+    })
+    save_total_limit: int = field(default=1, metadata={
+        'help': 'total limit of saving model'
+    })
+    resume_from_checkpoint: bool = field(default=False, metadata={
+        'help': 'resume from the last trained checkpoint'
+    })
 
 
 def main():
