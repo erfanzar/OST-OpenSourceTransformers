@@ -319,9 +319,9 @@ def main():
     timers('getting tokenizer').stop()
 
     timers('building model ...').start()
-    config = LtConfig(vocab_size=len(tokenizer.get_vocab()), num_attention_heads=8, num_hidden_layers=4,
+    config = LtConfig(vocab_size=len(tokenizer.get_vocab()), num_attention_heads=8, num_hidden_layers=2,
                       hidden_size=256,
-                      intermediate_size=512)
+                      intermediate_size=256)
     model = LtModelForCausalLM(config=config)
     timers('building model ...').stop()
 

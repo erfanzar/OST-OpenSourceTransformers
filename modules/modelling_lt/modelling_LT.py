@@ -6,6 +6,9 @@ from einops import rearrange
 from typing import Optional, Union, List, Tuple, Type
 from transformers import PreTrainedModel, PretrainedConfig
 from transformers.modeling_outputs import BaseModelOutputWithNoAttention, CausalLMOutput
+import triton
+from triton import language as tl
+from triton.ops import matmul
 
 
 class LtConfig(PretrainedConfig):
@@ -108,6 +111,34 @@ def scale_dot_production(
     return out
 
 
+@triton.jit
+def scale_dot_production_triton(
+        q, k, v, attention_head: int, bias=None, softmax_scale: float = None
+):
+    q = rearrange(q, 'b s (h d) -> b h s d', h=attention_head)
+    k = rearrange(k, 'b s (h d) -> b h d s', h=attention_head)
+    v = rearrange(v, 'b s (h d) -> b h s d', h=attention_head)
+    min_val = torch.finfo(q.dtype).min
+    s_q, s_k = q.size(-2), k.size(-1)
+    if softmax_scale is None:
+        softmax_scale = 1 / math.sqrt(q.size(-1))
+
+    attn_weight = matmul(q, k) * softmax_scale
+    if bias is not None:
+        attn_weight += bias
+    s = max(s_q, s_k)
+    causal_mask = attn_weight.new_ones(s, s, dtype=torch.float16)
+    causal_mask = causal_mask.tril()
+    causal_mask = causal_mask.to(torch.bool)
+    causal_mask = ~causal_mask
+    causal_mask = causal_mask[-s_q:, -s_k:]
+    attn_weight = attn_weight.masked_fill(causal_mask.view(1, 1, s_q, s_k), min_val)
+    attn_weight = tl.softmax(attn_weight)
+    out = matmul(attn_weight, v)
+    out = rearrange(out, 'b h s d -> b s (h d)')
+    return out
+
+
 class LTAttention(nn.Module):
     def __init__(self, config: LtConfig):
         super().__init__()
@@ -134,8 +165,8 @@ class LTAttention(nn.Module):
         key = self.k_ln(key).to(dtype)
         if attention_bias is not None:
             attention_bias = attention_bias[:, :, -query.size(1):, -key.size(1):]
-        attn_weights = scale_dot_production(query, key, value, self.num_attention_heads, bias=attention_bias,
-                                            softmax_scale=self.softmax_scale)
+        attn_weights = scale_dot_production_triton(query, key, value, self.num_attention_heads, bias=attention_bias,
+                                                   softmax_scale=self.softmax_scale)
         return self.out_proj(attn_weights)
 
 
