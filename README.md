@@ -5,6 +5,53 @@ some researchs in `NLP`
 OST Collection: An AI-powered suite of models that predict the next word matches with remarkable accuracy (Text
 Generative Models). OST Collection is based on a novel approach to work as a full and intelligent NLP Model.
 
+## Train or Finetune 
+
+you have many options to choose which code to choose for train the models but we recommend using train.py that you can use fsdp and deepspeed 
+
+
+DeepSpeed Example
+
+```shell
+deepspeed --no_python --master_addr=4008 --num_gpus=<number_of_your_gpus_here> train.py \
+--use_deepspeed \
+--dataset <your dataset> \
+--dataset_field <field in dataset that tokenizer tokeniz > \
+--max_length=<your_max_length> \
+--auto_batch \
+--save_safetensors \
+--model_id='trainer' \
+--no_resume_from_checkpoint \
+--cls_to_wrap=<YourModelBlock> \
+--logging_step=10 \
+--report_to='wandb' \
+--save_total_limit=2 \
+--no_do_eval \
+--lr_scheduler_type='cosine'
+```
+
+FSDP Example
+
+
+```shell
+torchrun --nproc-per-node=<number_of_your_gpus_here> --master-port=4008 --standalone train.py \
+--use_deepspeed\
+--dataset <your dataset>\
+--dataset_field <field in dataset that tokenizer tokeniz > \
+--max_length=<your_max_length> \
+--auto_batch \
+--save_safetensors\
+--model_id='trainer' \
+--no_resume_from_checkpoint\
+--cls_to_wrap=<YourModelBlock> \
+--logging_step=10 \
+--report_to='wandb' \
+--save_total_limit=2 \
+--no_do_eval \
+--lr_scheduler_type='cosine'
+```
+
+
 ## Models
 
 - OST Project Contain currently 5 Models
