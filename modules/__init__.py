@@ -17,6 +17,7 @@ from modules.modelling_llmpu.modeling_LLmPU import LLmPUForConditionalGeneration
 from modules.modelling_rwkv.modelling_RWKV import RWKVConfig, RWKV_GPT_CasualLM, RWKVConfigTrain
 from modules.modelling_pgt import PGT, PGTConfig, PGTForCausalLM
 from modules.modelling_llmp import LLmP, LLmPConfig
+from modules.modelling_lt import LtModel, LtModelForCausalLM, LtConfig
 
 # except ImportError:
 #     pass

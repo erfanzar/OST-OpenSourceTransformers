@@ -24,7 +24,7 @@ from datetime import datetime
 from pathlib import Path
 import os
 from transformers import AutoTokenizer, AutoModelForCausalLM, get_scheduler, logging, PreTrainedTokenizer, \
-    HfArgumentParser
+    HfArgumentParser, PreTrainedModel
 from dataclasses import field, dataclass
 from modules.modelling_lgem.modeling_LGeM import LGeMBlock
 from utils.utils import make2d, count_model_parameters
@@ -82,7 +82,7 @@ class Arguments:
                         })
 
 
-def setup_model(model_id: str, config=None) -> Tuple[nn.Module, PreTrainedTokenizer]:
+def setup_model(model_id: str, config=None) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
     if config is not None:
         model = AutoModelForCausalLM(config)
     else:

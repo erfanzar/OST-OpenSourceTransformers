@@ -9,9 +9,6 @@ from torch import nn
 logger = logging.getLogger(__name__)
 
 
-
-
-
 def precompute_frq_cis(dim: int, end: int, theta: float = 10000.0):
     freq = 1.0 / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim))
     t = torch.arange(end, device=freq.device)  # type: ignore
@@ -36,7 +33,7 @@ class PMSNorm(nn.Module):
 
 
 class Attention(nn.Module):
-    def __init__(self, config: Optional[LLmPConfig], layer_index: Optional[int] = None):
+    def __init__(self, config, layer_index: Optional[int] = None):
         super(Attention, self).__init__()
         self.layer_index = layer_index
         self.local_rank = config.n_heads

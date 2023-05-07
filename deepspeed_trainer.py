@@ -1,7 +1,8 @@
+import time
+
 import deepspeed
 
 from modules import LGeMConfig, LGeMForCausalLM
-from utils.utils import count_model_parameters
 import os
 import multiprocessing as mp
 from transformers import HfArgumentParser
@@ -42,8 +43,9 @@ def main():
     model = LGeMForCausalLM(config=config)
     model_p = filter(lambda p: p.requires_grad, model.parameters())
     model, optimizer, _, _ = deepspeed.initialize(args=args, model_parameters=model_p, model=model)
-    print(model)
 
 
+# pipeline('text_generation',)
 if __name__ == '__main__':
     main()
+
