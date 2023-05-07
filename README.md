@@ -5,6 +5,10 @@ some researchs in `NLP`
 OST Collection: An AI-powered suite of models that predict the next word matches with remarkable accuracy (Text
 Generative Models). OST Collection is based on a novel approach to work as a full and intelligent NLP Model.
 
+# TODO
+
+- Move all the models from only native pytorch to the triton / pytorch
+
 ## Train or Finetune 
 
 you have many options to choose which code to choose for train the models but we recommend using train.py that you can use fsdp and deepspeed 
