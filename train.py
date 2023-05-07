@@ -1,12 +1,11 @@
 from modules import LtConfig, LtModelForCausalLM
 from transformers import Trainer, TrainingArguments, HfArgumentParser, LlamaTokenizer
-from transformers.training_args import OptimizerNames
 from datasets import load_dataset
 from dataclasses import field, dataclass
 import os
 import torch
 from utils.utils import count_model_parameters
-from torch.distributed import get_rank, is_initialized
+from torch.distributed import is_initialized
 import time
 from torch.utils.tensorboard import SummaryWriter
 from pathlib import Path
@@ -24,6 +23,29 @@ DEFAULT_EOS_TOKEN = '<|endoftext|>'
 DEFAULT_BOS_TOKEN = '<|endoftext|>'
 DEFAULT_PAD_TOKEN = '<|endoftext|>'
 DEFAULT_UNK_TOKEN = '<|endoftext|>'
+ADAMW_HF = "adamw_hf"
+ADAMW_TORCH = "adamw_torch"
+ADAMW_TORCH_FUSED = "adamw_torch_fused"
+ADAMW_TORCH_XLA = "adamw_torch_xla"
+ADAMW_APEX_FUSED = "adamw_apex_fused"
+ADAFACTOR = "adafactor"
+ADAMW_BNB = "adamw_bnb_8bit"
+ADAMW_ANYPRECISION = "adamw_anyprecision"
+SGD = "sgd"
+ADAGRAD = "adagrad"
+
+OPTIMIZERS = [
+    ADAGRAD,
+    ADAMW_HF,
+    ADAMW_APEX_FUSED,
+    ADAMW_TORCH,
+    SGD,
+    ADAMW_ANYPRECISION,
+    ADAMW_BNB,
+    ADAFACTOR,
+    ADAMW_TORCH_XLA,
+    ADAMW_TORCH_FUSED
+]
 
 
 def print_rank_0(*args, **kwargs):
@@ -174,6 +196,9 @@ class Arguments:
     resume_from_checkpoint: bool = field(default=False, metadata={
         'help': 'resume from the last trained checkpoint'
     })
+    optimizer: str = field(default='adamw_torch', metadata={
+        'help': f'Optimizer to train model available optimizers are {OPTIMIZERS}'
+    })
 
 
 class Timer:
@@ -312,6 +337,8 @@ def main():
     timers('mapping data').stop()
 
     timers('creat or eval training arguments').start()
+
+    assert args.optimizer in OPTIMIZERS, f'invalid optimizer {args.optimizer}'
     if args.use_deepspeed:
         extra_kwargs = {
             'deepspeed': DEEPSPEED_CONFIG
@@ -356,7 +383,7 @@ def main():
         save_total_limit=args.save_total_limit,
         seed=42,
         fp16=True,
-        optim=OptimizerNames.ADAMW_TORCH,
+        optim=args.optimizer,
         weight_decay=1e-2,
         report_to=['tensorboard'],
         save_safetensors=args.save_safetensors,
