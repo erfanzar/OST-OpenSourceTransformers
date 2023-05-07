@@ -114,6 +114,7 @@ def check_tokenizer(tokenizer: LlamaTokenizer):
 @dataclass
 class Arguments:
     # Your Model id Here
+    cls_to_wrap: str = field()
     model_id: str = field(default='erfanzar/LT-1B')
     tokenizer_id: str = field(default='erfanzar/LGeM-7B')
     dataset: str = field(default='erfanzar/Base-Data')
@@ -175,7 +176,7 @@ def main():
             dict(
                 fsdp='auto_wrap full_shard',
                 fsdp_config={
-                    'fsdp_transformer_layer_cls_to_wrap': 'LtBlock'
+                    'fsdp_transformer_layer_cls_to_wrap': args.cls_to_wrap
                 }
             )
         )
