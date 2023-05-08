@@ -169,11 +169,10 @@ class LtMLP(nn.Module):
         # self.up = nn.Linear(config.hidden_size, config.intermediate_size)
         self.gate = nn.Linear(config.hidden_size, config.intermediate_size, bias=False)
         self.down = nn.Linear(config.intermediate_size, config.hidden_size, bias=False)
-        self.act = nn.GELU('none')
 
     def forward(self, x):
         # return self.down(self.act(self.gate(x)) * self.up(x))
-        return self.down(self.act(self.gate(x)))
+        return self.down(torch.nn.functional.silu(self.gate(x)))
 
 
 class LtBlock(nn.Module):
