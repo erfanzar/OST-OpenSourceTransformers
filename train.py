@@ -127,7 +127,7 @@ DEEPSPEED_CONFIG = {
 @dataclass
 class Arguments:
     # Your Model id Here
-    cls_to_wrap: str = field(default='NONE', metadata={
+    cls_to_wrap: str = field(metadata={
         'help': 'transformer layer class to warp for fully sharded data parallel'
     })
     model_id: str = field(default='erfanzar/LT-1B', metadata={

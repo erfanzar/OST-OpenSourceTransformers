@@ -25,10 +25,12 @@ def add_argument():
 
 def train():
     ...
+    # TODO : CREATE DEEPSPEED TRAINER
 
 
 def run():
     ...
+    # TODO : CREATE DEEPSPEED TRAINER
 
 
 def main():
@@ -48,4 +50,3 @@ def main():
 # pipeline('text_generation',)
 if __name__ == '__main__':
     main()
-
