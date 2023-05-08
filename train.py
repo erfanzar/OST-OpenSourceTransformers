@@ -448,3 +448,4 @@ if __name__ == "__main__":
     args_: Arguments = HfArgumentParser((Arguments,)).parse_args_into_dataclasses()[0]
     # print_rank_0(args_)
     main(args_)
+
