@@ -396,7 +396,7 @@ def main(args: Arguments):
         save_strategy=args.save_strategy,
         save_total_limit=args.save_total_limit,
         seed=42,
-        fp16=True,
+        # fp16=True,
         optim=args.optimizer,
         weight_decay=1e-2,
         report_to=['tensorboard'],
