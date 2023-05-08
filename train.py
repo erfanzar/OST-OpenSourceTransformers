@@ -384,7 +384,7 @@ def main(args: Arguments):
             eval_dataset = None
     else:
         eval_dataset = None
-    print_rank_0(args.report_to)
+
     training_args = TrainingArguments(
         output_dir=args.model_id,
         hub_model_id=args.model_id,
@@ -404,7 +404,7 @@ def main(args: Arguments):
         # fp16=True,
         optim=args.optimizer,
         weight_decay=1e-2,
-        report_to=args.report_to,
+        report_to=args.report_to if args.report_to is not None else 'none',
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         save_safetensors=args.save_safetensors,
         torch_compile=args.do_compile, gradient_checkpointing=False,
