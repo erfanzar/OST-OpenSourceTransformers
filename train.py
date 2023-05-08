@@ -406,7 +406,7 @@ def main(args: Arguments):
         report_to=['tensorboard'],
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         save_safetensors=args.save_safetensors,
-        torch_compile=args.do_compile, gradient_checkpointing=args.gradient_checkpointing,
+        torch_compile=args.do_compile, gradient_checkpointing=False,
         **extra_kwargs,
 
     )
@@ -441,4 +441,4 @@ if __name__ == "__main__":
     args_: Arguments = HfArgumentParser((Arguments,)).parse_args_into_dataclasses()[0]
     # print_rank_0(args_)
     main(args_)
-    from transformers import GPTNeoXForCausalLM
+
