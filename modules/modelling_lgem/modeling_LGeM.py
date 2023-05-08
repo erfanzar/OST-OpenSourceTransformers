@@ -345,7 +345,7 @@ class LGeMModel(PreTrainedModel):
         self.layers = nn.ModuleList([LGeMBlock(config) for _ in range(config.num_hidden_layers)])
         self.norm = LGeMRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
-        self.gradient_checkpointing = False
+        self.gradient_checkpointing = True
         self.config = config
         self.apply(self._init_weights)
 
@@ -419,12 +419,23 @@ class LGeMModel(PreTrainedModel):
         attention_mask = attention_mask.to(hidden_states)
 
         for idx, block in enumerate(self.layers):
-            # logger.info(f'hidden_states {idx}: {hidden_states.dtype}')
-            hidden_states = block(
-                hidden_states,
-                attention_mask=attention_mask,
+            if self.gradient_checkpointing and self.training:
+                def ckpt_forward(module):
+                    def rt_func(*inputs):
+                        return module(*inputs, attention_mask=attention_mask)
 
-            )
+                    return rt_func
+
+                hidden_states = torch.utils.checkpoint.checkpoint(
+                    ckpt_forward(block),
+                    hidden_states
+                )
+            else:
+                hidden_states = block(
+                    hidden_states,
+                    attention_mask=attention_mask,
+
+                )
 
         hidden_states = self.norm(hidden_states)
 

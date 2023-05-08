@@ -464,16 +464,17 @@ class Adafactor(Optimizer):
         return loss
 
 
-class PGT(nn.Module):
+class PGT(PreTrainedModel):
+
     def __init__(self, config: PGTConfig):
-        super().__init__()
+        super().__init__(config=config)
         self.config = config
 
         self.embed_in = nn.Embedding(config.vocab_size, config.hidden_size)
         self.layers = nn.ModuleList([PGTBlock(config) for _ in range(config.n_layers)])
         self.final_layer_norm = nn.LayerNorm(config.hidden_size, eps=config.eps)
 
-        self.gradient_checkpointing = False
+        self.gradient_checkpointing = True
 
     def get_input_embeddings(self):
         return self.embed_in
@@ -504,12 +505,23 @@ class PGT(nn.Module):
         hidden_states = self.embed_in(input_ids)
 
         for i, layer in enumerate(self.layers):
-            hidden_states = layer(
-                hidden_states,
-                attention_mask=attention_mask,
+            if self.training and self.gradient_checkpointing:
+                def ckpt_forward(module):
+                    def rt_func(*inputs):
+                        return module(*inputs)
 
-                head_mask=head_mask[i],
-            )
+                    return rt_func
+
+                hidden_states = torch.utils.checkpoint.checkpoint(
+                    ckpt_forward(layer),
+                    hidden_states, attention_mask, head_mask[i]
+                )
+            else:
+                hidden_states = layer(
+                    hidden_states,
+                    attention_mask=attention_mask,
+                    head_mask=head_mask[i],
+                )
 
         hidden_states = self.final_layer_norm(hidden_states)
 

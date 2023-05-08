@@ -2,7 +2,7 @@ import logging
 import math
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union, Iterable
- 
+
 import torch
 from torch import Tensor
 from torch import nn
@@ -253,7 +253,7 @@ class LLMoUModel(nn.Module):
         self.ln_f = LLMoUPMSNorm(config)
         self.htw = nn.Linear(self.embed_dim, config.vocab_size)
 
-        self.gradient_checkpointing = False
+        self.gradient_checkpointing = True
 
         self.apply(self._init_weights)
 
@@ -353,14 +353,30 @@ class LLMoUModel(nn.Module):
         alibi = build_alibi_tensor(attention_mask=attention_mask, n_heads=self.n_heads, dtype=self.dtype)
 
         for i, (block, layer_past) in enumerate(zip(self.h, past_key_values)):
-            hidden_states = block(
-                hidden_states,
-                layer_past=layer_past,
+            if self.gradient_checkpointing and self.training:
+                def ckpt_forward(module):
+                    def rt_func(*inputs):
+                        return module(*inputs, layer_past=layer_past,
 
-                alibi=alibi,
-                attention_mask=causal_mask,
-                head_mask=head_mask[i],
-            )
+                                      alibi=alibi,
+                                      attention_mask=causal_mask,
+                                      head_mask=head_mask[i], )
+
+                    return rt_func
+
+                hidden_states = torch.utils.checkpoint.checkpoint(
+                    ckpt_forward(block),
+                    hidden_states
+                )
+            else:
+                hidden_states = block(
+                    hidden_states,
+                    layer_past=layer_past,
+
+                    alibi=alibi,
+                    attention_mask=causal_mask,
+                    head_mask=head_mask[i],
+                )
 
         logits = self.htw(self.ln_f(hidden_states))
         loss = None

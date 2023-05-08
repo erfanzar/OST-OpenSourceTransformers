@@ -70,6 +70,7 @@ class LLmP(nn.Module):
         #     self.dtype)
         # i dont use freq or rotaty embedding in LLmP anymore
         self.config = config
+        self.gradient_checkpointing = True
         # self.apply(self._init_weights)
 
     @staticmethod
@@ -112,7 +113,20 @@ class LLmP(nn.Module):
         x = self.wte_ln(self.wte(input_ids))
 
         for i, h in enumerate(self.h):
-            x = h(x, attention_mask=attention_mask, alibi=alibi)
+            if self.training and self.gradient_checkpointing:
+                def ckpt_forward(module):
+                    def rt_func(*inputs):
+                        return module(*inputs)
+
+                    return rt_func
+
+                x = torch.utils.checkpoint.checkpoint(
+                    ckpt_forward(h),
+                    x, attention_mask, alibi
+                )
+            else:
+                x = h(x, attention_mask=attention_mask, alibi=alibi)
+
         logits = self.out(self.ln(x))
         loss = None
         if labels is not None:
