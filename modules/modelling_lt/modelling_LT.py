@@ -120,7 +120,7 @@ def scale_dot_production_triton(
     min_val = torch.finfo(q.dtype).min
     s_q, s_k = q.size(-2), k.size(-1)
     if softmax_scale is None:
-        softmax_scale = 1 / math.sqrt(q.size(-1))
+        softmax_scale = math.sqrt(q.size(-1))
 
     attn_weight = matmul(q, k) * softmax_scale
     if bias is not None:
@@ -146,7 +146,7 @@ class LTAttention(nn.Module):
         self.num_attention_heads = config.num_attention_heads
         self.softmax_scale = config.softmax_scale
         if self.softmax_scale is None:
-            self.softmax_scale = 1 / math.sqrt(self.hidden_size // self.num_attention_heads)
+            self.softmax_scale = math.sqrt(self.hidden_size // self.num_attention_heads)
 
         self.qkv = nn.Linear(self.hidden_size, 3 * self.hidden_size, bias=False)
 
@@ -283,6 +283,7 @@ class LtModelForCausalLM(LtPreTrainedModel):
     def __init__(self, config: LtConfig):
         super().__init__(config=config)
         self.model = LtModel(config=config)
+        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
     def get_input_embeddings(self) -> nn.Module:
         return self.model.wte
@@ -311,7 +312,8 @@ class LtModelForCausalLM(LtPreTrainedModel):
                 return_dict: Optional[bool] = None):
         out = self.model(input_ids, attention_mask, use_attn_bias, output_attentions, past_key_values, return_dict)
         hidden_sate = out.last_hidden_state if return_dict else out[0]
-        logits = torch.nn.functional.linear(hidden_sate, self.model.wte.weight)
+        # logits = torch.nn.functional.linear(hidden_sate, self.model.wte.weight)
+        logits = self.lm_head(hidden_sate)
         loss = None
         if labels is not None:
             # labels = torch.roll(labels, shifts=-1)
