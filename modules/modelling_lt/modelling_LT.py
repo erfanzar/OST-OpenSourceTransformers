@@ -159,7 +159,7 @@ class LTAttention(nn.Module):
         key = self.k_proj(x)
         if attention_bias is not None:
             attention_bias = attention_bias[:, :, -query.size(1):, -key.size(1):]
-        attn_weights = scale_dot_production_triton(query, key, value, self.num_attention_heads, bias=attention_bias,
+        attn_weights = scale_dot_production(query, key, value, self.num_attention_heads, bias=attention_bias,
                                                    softmax_scale=self.softmax_scale)
         return self.o_proj(attn_weights)
 
