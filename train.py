@@ -441,6 +441,7 @@ def main(args: Arguments):
     trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
     timers('training model').stop()
     timers.log('training model')
+    trainer.push_to_hub(f'Done Training {args.model_id} for {args.num_train_epochs} ')
 
 
 if __name__ == "__main__":
