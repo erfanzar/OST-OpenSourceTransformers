@@ -275,7 +275,7 @@ class Timers:
             names = [names]
         for name in names:
             elapsed_time = self.timers[name].elapsed(reset=reset) * 1000.0 / normalizer
-            string += " | {}  [RANK : {} / {}]:  {:.2f}".format(name, LOCAL_RANK+1, WORLD_SIZE, elapsed_time)
+            string += " | {}  [RANK : {} / {}]:  {:.2f}".format(name, LOCAL_RANK + 1, WORLD_SIZE, elapsed_time)
         if is_initialized():
             if LOCAL_RANK == 0:
                 print(string, flush=True)
@@ -300,8 +300,7 @@ def check_tokenizer(tokenizer: LlamaTokenizer):
     return tokenizer
 
 
-def main():
-    args: Arguments = HfArgumentParser(Arguments).parse_args_into_dataclasses()[0]
+def main(args: Arguments):
     if args.use_deepspeed:
         tip = f'deepspeed --no_python --master_addr=4008 --num_gpus={torch.cuda.device_count()} train.py *your-args'
     elif args.use_fsdp:
@@ -433,4 +432,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    args_: Arguments = HfArgumentParser((Arguments,)).parse_args_into_dataclasses()[0]
+    print_rank_0(args_)
+    main(args_)
