@@ -93,7 +93,7 @@ def scale_dot_production(
     min_val = torch.finfo(q.dtype).min
     s_q, s_k = q.size(-2), k.size(-1)
     if softmax_scale is None:
-        softmax_scale = 1 / math.sqrt(q.size(-1))
+        softmax_scale = math.sqrt(q.size(-1))
 
     attn_weight = (q @ k) * softmax_scale
     if bias is not None:
@@ -148,19 +148,20 @@ class LTAttention(nn.Module):
         if self.softmax_scale is None:
             self.softmax_scale = math.sqrt(self.hidden_size // self.num_attention_heads)
 
-        self.qkv = nn.Linear(self.hidden_size, 3 * self.hidden_size, bias=False)
-
-        self.out_proj = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
+        self.q_proj = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
+        self.v_proj = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
+        self.k_proj = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
+        self.o_proj = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
 
     def forward(self, x, attention_bias=None):
-        qkv = self.qkv(x)
-
-        (query, key, value) = qkv.chunk(3, dim=2)
+        query = self.q_proj(x)
+        value = self.v_proj(x)
+        key = self.k_proj(x)
         if attention_bias is not None:
             attention_bias = attention_bias[:, :, -query.size(1):, -key.size(1):]
-        attn_weights = scale_dot_production(query, key, value, self.num_attention_heads, bias=attention_bias,
-                                            softmax_scale=self.softmax_scale)
-        return self.out_proj(attn_weights)
+        attn_weights = scale_dot_production_triton(query, key, value, self.num_attention_heads, bias=attention_bias,
+                                                   softmax_scale=self.softmax_scale)
+        return self.o_proj(attn_weights)
 
 
 class LtMLP(nn.Module):
@@ -284,6 +285,7 @@ class LtModelForCausalLM(LtPreTrainedModel):
         super().__init__(config=config)
         self.model = LtModel(config=config)
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        self.lm_head.weight = self.model.wte.weight
 
     def get_input_embeddings(self) -> nn.Module:
         return self.model.wte

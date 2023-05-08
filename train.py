@@ -330,7 +330,7 @@ def main(args: Arguments):
                       hidden_size=2048,
                       intermediate_size=4096,
                       max_sequence_length=1536,
-                      alibi_bias_max=16)
+                      alibi_bias_max=8)
     model = LtModelForCausalLM(config=config)
 
     timers('building model ...').stop()
@@ -434,5 +434,5 @@ def main(args: Arguments):
 
 if __name__ == "__main__":
     args_: Arguments = HfArgumentParser((Arguments,)).parse_args_into_dataclasses()[0]
-    print_rank_0(args_)
+    # print_rank_0(args_)
     main(args_)
