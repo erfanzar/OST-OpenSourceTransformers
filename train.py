@@ -205,6 +205,9 @@ class Arguments:
     do_compile: bool = field(default=False, metadata={
         'help': 'compile the model'
     })
+    gradient_checkpointing: bool = field(default=False, metadata={
+        'help': 'use gradient checkpointing or not its better to use cause make training better and lighter'
+    })
 
 
 class Timer:
@@ -326,9 +329,9 @@ def main(args: Arguments):
     timers('getting tokenizer').stop()
     timers.log('getting tokenizer')
     timers('building model ...').start()
-    config = LtConfig(vocab_size=len(tokenizer.get_vocab()), num_attention_heads=16, num_hidden_layers=16,
-                      hidden_size=2048,
-                      intermediate_size=4096,
+    config = LtConfig(vocab_size=len(tokenizer.get_vocab()), num_attention_heads=16, num_hidden_layers=8,
+                      hidden_size=256,
+                      intermediate_size=512,
                       max_sequence_length=1536,
                       alibi_bias_max=12)
     model = LtModelForCausalLM(config=config)
@@ -363,7 +366,7 @@ def main(args: Arguments):
             dict(
                 fsdp='auto_wrap full_shard',
                 fsdp_config={
-                    'fsdp_transformer_layer_cls_to_wrap': f"{args.cls_to_wrap}"
+                    'fsdp_transformer_layer_cls_to_wrap': {args.cls_to_wrap}
                 }
             )
         )
@@ -403,13 +406,15 @@ def main(args: Arguments):
         report_to=['tensorboard'],
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         save_safetensors=args.save_safetensors,
-        torch_compile=args.do_compile,
+        torch_compile=args.do_compile, gradient_checkpointing=args.gradient_checkpointing,
         **extra_kwargs,
 
     )
     print_rank_0('MODEL CONTAIN ', count_model_parameters(model, 1e9), ' BILLION PARAMETERS ')
     timers('creat or eval training arguments').stop()
     timers.log('creat or eval training arguments')
+    model.model.gradient_checkpointing = args.gradient_checkpointing
+
     trainer = Trainer(
         model=model,
         train_dataset=dataset['train'],
@@ -436,3 +441,4 @@ if __name__ == "__main__":
     args_: Arguments = HfArgumentParser((Arguments,)).parse_args_into_dataclasses()[0]
     # print_rank_0(args_)
     main(args_)
+    from transformers import GPTNeoXForCausalLM

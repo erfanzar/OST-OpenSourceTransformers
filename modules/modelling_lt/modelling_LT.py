@@ -204,7 +204,7 @@ class LtBlock(nn.Module):
         self.self_attn = LTAttention(config)
         self.mlp = LtMLP(config)
 
-    def forward(self, x, attention_bias, attention_mask=None):
+    def forward(self, x, attention_bias):
         x = self.self_attn(self.lnp(x),
                            attention_bias=attention_bias,
                            ) + x
@@ -228,6 +228,8 @@ class LtModel(LtPreTrainedModel):
         self.attn_bias_shape = (1, config.num_attention_heads, 1, config.max_sequence_length)
         self.is_bias_initialized = False
         self.alibi_bias_max = config.alibi_bias_max
+        self.gradient_checkpointing = True
+        self.supports_gradient_checkpointing = True
 
     def get_input_embeddings(self) -> nn.Module:
         return self.wte
@@ -286,9 +288,23 @@ class LtModel(LtPreTrainedModel):
                                                        attention_mask=attention_mask,
                                                        dtype=hidden.dtype)
         for block in self.blocks:
-            hidden = block(
-                hidden, attention_bias
-            )
+            if self.gradient_checkpointing and self.training:
+                def create_custom_forward(module):
+                    def custom_forward(*inputs):
+                        # None for layer_past
+                        return module(*inputs)
+
+                    return custom_forward
+
+                hidden = torch.utils.checkpoint.checkpoint(
+                    create_custom_forward(block),
+                    hidden,
+                    attention_bias,
+                )
+            else:
+                hidden = block(
+                    hidden, attention_bias
+                )
 
         hidden = self.ln(hidden)
         if return_dict:
@@ -338,9 +354,6 @@ class LtModelForCausalLM(LtPreTrainedModel):
         logits = self.lm_head(hidden_sate)
         loss = None
         if labels is not None:
-            # labels = torch.roll(labels, shifts=-1)
-            # labels[:, -1] = -100
-            # shifted_logist =
             labels = labels[..., 1:].contiguous()
             shifted_logist = logits[..., :-1, :].contiguous()
             loss = torch.nn.functional.cross_entropy(shifted_logist.view(-1, shifted_logist.size(-1)),
