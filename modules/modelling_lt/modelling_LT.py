@@ -215,7 +215,7 @@ class LtBlock(nn.Module):
 
 class LtPreTrainedModel(PreTrainedModel):
     config_class = LtConfig
-    base_model_prefix = 'lt'
+    base_model_prefix = 'model'
     supports_gradient_checkpointing = True
 
 
