@@ -127,7 +127,7 @@ DEEPSPEED_CONFIG = {
 @dataclass
 class Arguments:
     # Your Model id Here
-    cls_to_wrap: str = field(metadata={
+    cls_to_wrap: str = field(default='LtBlock', metadata={
         'help': 'transformer layer class to warp for fully sharded data parallel'
     })
     model_id: str = field(default='erfanzar/LT-1B', metadata={
@@ -363,7 +363,7 @@ def main():
             dict(
                 fsdp='auto_wrap full_shard',
                 fsdp_config={
-                    'fsdp_transformer_layer_cls_to_wrap': args.cls_to_wrap
+                    'fsdp_transformer_layer_cls_to_wrap': f"{args.cls_to_wrap}"
                 }
             )
         )
