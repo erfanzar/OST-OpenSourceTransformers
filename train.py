@@ -275,7 +275,7 @@ class Timers:
             names = [names]
         for name in names:
             elapsed_time = self.timers[name].elapsed(reset=reset) * 1000.0 / normalizer
-            string += " | {}  [RANK : {} / {}]:  {:.2f}".format(name, LOCAL_RANK, WORLD_SIZE, elapsed_time)
+            string += " | {}  [RANK : {} / {}]:  {:.2f}".format(name, LOCAL_RANK+1, WORLD_SIZE, elapsed_time)
         if is_initialized():
             if LOCAL_RANK == 0:
                 print(string, flush=True)
@@ -329,8 +329,8 @@ def main():
     timers('building model ...').start()
     config = LtConfig(vocab_size=len(tokenizer.get_vocab()), num_attention_heads=16, num_hidden_layers=16,
                       hidden_size=2048,
-                      intermediate_size=8192,
-                      max_sequence_length=2048)
+                      intermediate_size=6144,
+                      max_sequence_length=1536)
     model = LtModelForCausalLM(config=config)
 
     timers('building model ...').stop()
