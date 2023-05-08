@@ -8,7 +8,8 @@ import os
 from utils.timer import Timers
 from torch.utils.tensorboard import SummaryWriter
 from pathlib import Path
-from transformers import get_scheduler
+from transformers import get_scheduler, AutoTokenizer
+from datasets import load_dataset
 
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', '0'))
 WORLD_SIZE = int(os.getenv('WORLD_SIZE', '1'))
@@ -88,6 +89,16 @@ def get_argument_parser():
     return args
 
 
+def configure_dataset(dataset_, dataset_field_, tokenizer, max_length_, is_pre_training=False):
+    data = load_dataset(dataset_)
+    if is_pre_training:
+        raise NotImplementedError
+    data = data.map(lambda x_: tokenizer(x_[dataset_field_], max_length=max_length_, padding='max_length'),
+                    desc=f'MAPPING DATASET | WORLD SIZE : {WORLD_SIZE}  ', num_proc=WORLD_SIZE,
+                    with_rank=True)
+    return data
+
+
 def configure_optimizer(optimizer_type_, optimizer_kwargs_):
     if optimizer_type_ == 'adamw_deepspeed':
         from deepspeed.ops.adam import FusedAdam
@@ -138,12 +149,22 @@ def main():
         use_wandb=False,
         tensorboard_writer=writer
     )
-
+    timers('loading tokenizer and config').start()
     config = AutoConfig.from_pretrained(args.model_id, trust_remote_code=True)
     config.hidden_size = 256
     config.num_hidden_layers = 2
     config.intermediate_size = 512
     config.num_attention_heads = 8
+    tokenizer = AutoTokenizer.from_pretrained(args.model_id)
+    timers('loading tokenizer and config').stop()
+    timers.log('loading tokenizer and config')
+    timers('loading data').start()
+
+    data = configure_dataset(dataset_=args.dataset, dataset_field_=args.dataset_field, max_length_=args.max_length,
+                             tokenizer=tokenizer)
+    timers('loading data').stop()
+    timers.log('loading data')
+
     num_training_steps = 1000
     timers('create model').start()
     with accelerate.init_empty_weights():
