@@ -145,6 +145,9 @@ class Arguments:
     max_length: int = field(default=1536, metadata={
         'help': 'train max sequence length'
     })
+    num_train_epochs: int = field(default=3, metadata={
+        'help': 'num train epochs'
+    })
     from_safetensors: bool = field(default=True, metadata={
         'help': 'load model from safetensors checkpoints instance of .bin .pt or .pth'
     })
@@ -407,7 +410,9 @@ def main(args: Arguments):
         report_to=args.report_to if args.report_to is not None else 'none',
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         save_safetensors=args.save_safetensors,
-        torch_compile=args.do_compile, gradient_checkpointing=False,
+        num_train_epochs=args.num_train_epochs,
+        torch_compile=args.do_compile,
+        gradient_checkpointing=False,
         **extra_kwargs,
 
     )
