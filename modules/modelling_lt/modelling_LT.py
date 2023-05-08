@@ -216,6 +216,7 @@ class LtBlock(nn.Module):
 class LtPreTrainedModel(PreTrainedModel):
     config_class = LtConfig
     base_model_prefix = 'lt'
+    supports_gradient_checkpointing = True
 
 
 class LtModel(LtPreTrainedModel):
@@ -229,7 +230,6 @@ class LtModel(LtPreTrainedModel):
         self.is_bias_initialized = False
         self.alibi_bias_max = config.alibi_bias_max
         self.gradient_checkpointing = True
-        self.supports_gradient_checkpointing = True
 
     def get_input_embeddings(self) -> nn.Module:
         return self.wte
