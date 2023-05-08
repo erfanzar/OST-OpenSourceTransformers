@@ -181,7 +181,7 @@ class Arguments:
     logging_step: int = field(default=15, metadata={
         'help': 'logging steps default to 15'
     })
-    report_to: list[str] = field(default='tensorboard', metadata={
+    report_to: list[str] = field(default='none', metadata={
         'help': 'report training metrics to '
     })
     save_steps: int = field(default=1500, metadata={
@@ -330,8 +330,8 @@ def main(args: Arguments):
     timers.log('getting tokenizer')
     timers('building model ...').start()
     config = LtConfig(vocab_size=len(tokenizer.get_vocab()), num_attention_heads=16, num_hidden_layers=16,
-                      hidden_size=2048,
-                      intermediate_size=6144,
+                      hidden_size=256,
+                      intermediate_size=512,
                       max_sequence_length=1536,
                       alibi_bias_max=12)
     model = LtModelForCausalLM(config=config)
@@ -384,6 +384,7 @@ def main(args: Arguments):
             eval_dataset = None
     else:
         eval_dataset = None
+    print_rank_0(args.report_to)
     training_args = TrainingArguments(
         output_dir=args.model_id,
         hub_model_id=args.model_id,
@@ -403,7 +404,7 @@ def main(args: Arguments):
         # fp16=True,
         optim=args.optimizer,
         weight_decay=1e-2,
-        report_to=['tensorboard'],
+        report_to=args.report_to,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         save_safetensors=args.save_safetensors,
         torch_compile=args.do_compile, gradient_checkpointing=False,
@@ -441,4 +442,3 @@ if __name__ == "__main__":
     args_: Arguments = HfArgumentParser((Arguments,)).parse_args_into_dataclasses()[0]
     # print_rank_0(args_)
     main(args_)
-
