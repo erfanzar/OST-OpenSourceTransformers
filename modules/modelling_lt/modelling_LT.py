@@ -6,9 +6,14 @@ from einops import rearrange
 from typing import Optional, Union, List, Tuple, Type
 from transformers import PreTrainedModel, PretrainedConfig
 from transformers.modeling_outputs import BaseModelOutputWithNoAttention, CausalLMOutput
-import triton
+
 from triton import language as tl
 from triton.ops import matmul
+from torch.nn.functional import scaled_dot_product_attention
+
+torch.backends.cuda.enable_flash_sdp(True)
+torch.backends.cuda.enable_mem_efficient_sdp(False)
+torch.backends.cuda.enable_math_sdp(True)
 
 
 class LtConfig(PretrainedConfig):
@@ -93,7 +98,7 @@ def scale_dot_production(
     min_val = torch.finfo(q.dtype).min
     s_q, s_k = q.size(-2), k.size(-1)
     if softmax_scale is None:
-        softmax_scale = math.sqrt(q.size(-1))
+        softmax_scale = 1 / math.sqrt(q.size(-1))
 
     attn_weight = (q @ k) * softmax_scale
     if bias is not None:
@@ -146,7 +151,7 @@ class LTAttention(nn.Module):
         self.num_attention_heads = config.num_attention_heads
         self.softmax_scale = config.softmax_scale
         if self.softmax_scale is None:
-            self.softmax_scale = math.sqrt(self.hidden_size // self.num_attention_heads)
+            self.softmax_scale = 1 / math.sqrt(self.hidden_size // self.num_attention_heads)
 
         self.q_proj = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
         self.v_proj = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
@@ -154,14 +159,29 @@ class LTAttention(nn.Module):
         self.o_proj = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
 
     def forward(self, x, attention_bias=None):
+        dtype = x.dtype
         query = self.q_proj(x)
         value = self.v_proj(x)
         key = self.k_proj(x)
         if attention_bias is not None:
             attention_bias = attention_bias[:, :, -query.size(1):, -key.size(1):]
-        attn_weights = scale_dot_production(query, key, value, self.num_attention_heads, bias=attention_bias,
-                                                   softmax_scale=self.softmax_scale)
-        return self.o_proj(attn_weights)
+        # attn_weights = scale_dot_production(query, key, value, self.num_attention_heads, bias=attention_bias,
+        #                                            softmax_scale=self.softmax_scale)
+        # attn_weights = scale_dot_production(q=query, k=key, v=value, bias=attention_bias,
+        #                                     attention_head=self.num_attention_heads, softmax_scale=self.softmax_scale)
+        query = rearrange(query, 'b s (h d) -> b h s d', h=self.num_attention_heads).to(torch.float16)
+        key = rearrange(key, 'b s (h d) -> b h s d', h=self.num_attention_heads).to(torch.float16)
+        value = rearrange(value, 'b s (h d) -> b h s d', h=self.num_attention_heads).to(torch.float16)
+        attention_ = attention_bias.tril()
+        attention_ = ~attention_.bool()
+        attention_bias = attention_bias.masked_fill(attention_, torch.finfo(torch.float16).min)
+
+        attn_weights = scaled_dot_product_attention(query, key, value, attn_mask=attention_bias.to(torch.float16),
+                                                    dropout_p=0.0,
+                                                    is_causal=False
+                                                    )
+        attn_weights = rearrange(attn_weights, 'b h s d -> b s (h d)')
+        return self.o_proj(attn_weights.to(dtype))
 
 
 class LtMLP(nn.Module):
@@ -285,7 +305,7 @@ class LtModelForCausalLM(LtPreTrainedModel):
         super().__init__(config=config)
         self.model = LtModel(config=config)
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
-        self.lm_head.weight = self.model.wte.weight
+        # self.lm_head.weight = self.model.wte.weight
 
     def get_input_embeddings(self) -> nn.Module:
         return self.model.wte

@@ -18,6 +18,7 @@ from modules.modelling_rwkv.modelling_RWKV import RWKVConfig, RWKV_GPT_CasualLM,
 from modules.modelling_pgt import PGT, PGTConfig, PGTForCausalLM
 from modules.modelling_llmp import LLmP, LLmPConfig
 from modules.modelling_lt import LtModel, LtModelForCausalLM, LtConfig
-
+from modules.triton import FlashAttnKVPackedFunc, flash_attn_kvpacked_func, flash_attn_qkvpacked_func, \
+    FlashAttnQKVPackedFunc, FlashAttnFunc, _flash_attn_forward
 # except ImportError:
 #     pass
