@@ -326,11 +326,11 @@ def main(args: Arguments):
     timers('getting tokenizer').stop()
     timers.log('getting tokenizer')
     timers('building model ...').start()
-    config = LtConfig(vocab_size=len(tokenizer.get_vocab()), num_attention_heads=16, num_hidden_layers=8,
-                      hidden_size=512,
-                      intermediate_size=1024,
+    config = LtConfig(vocab_size=len(tokenizer.get_vocab()), num_attention_heads=16, num_hidden_layers=16,
+                      hidden_size=2048,
+                      intermediate_size=4096,
                       max_sequence_length=1536,
-                      alibi_bias_max=8)
+                      alibi_bias_max=12)
     model = LtModelForCausalLM(config=config)
 
     timers('building model ...').stop()
