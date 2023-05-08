@@ -148,20 +148,14 @@ class LTAttention(nn.Module):
         if self.softmax_scale is None:
             self.softmax_scale = 1 / math.sqrt(self.hidden_size // self.num_attention_heads)
 
-        self.qkv = nn.Linear(self.hidden_size, 3 * self.hidden_size)
+        self.qkv = nn.Linear(self.hidden_size, 3 * self.hidden_size, bias=False)
 
-        self.q_ln = LtNorm(config)
-        self.k_ln = LtNorm(config)
-
-        self.out_proj = nn.Linear(self.hidden_size, self.hidden_size)
+        self.out_proj = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
 
     def forward(self, x, attention_bias=None):
         qkv = self.qkv(x)
 
         (query, key, value) = qkv.chunk(3, dim=2)
-        dtype = query.dtype
-        query = self.q_ln(query).to(dtype)
-        key = self.k_ln(key).to(dtype)
         if attention_bias is not None:
             attention_bias = attention_bias[:, :, -query.size(1):, -key.size(1):]
         attn_weights = scale_dot_production(query, key, value, self.num_attention_heads, bias=attention_bias,
@@ -173,8 +167,8 @@ class LtMLP(nn.Module):
     def __init__(self, config: LtConfig):
         super().__init__()
         # self.up = nn.Linear(config.hidden_size, config.intermediate_size)
-        self.gate = nn.Linear(config.hidden_size, config.intermediate_size)
-        self.down = nn.Linear(config.intermediate_size, config.hidden_size)
+        self.gate = nn.Linear(config.hidden_size, config.intermediate_size, bias=False)
+        self.down = nn.Linear(config.intermediate_size, config.hidden_size, bias=False)
         self.act = nn.GELU('none')
 
     def forward(self, x):
@@ -185,12 +179,13 @@ class LtMLP(nn.Module):
 class LtBlock(nn.Module):
     def __init__(self, config: LtConfig):
         super().__init__()
+        self.lnp = LtNorm(config)
         self.ln = LtNorm(config)
         self.self_attn = LTAttention(config)
         self.mlp = LtMLP(config)
 
     def forward(self, x, attention_bias, attention_mask=None):
-        x = self.self_attn(x,
+        x = self.self_attn(self.lnp(x),
                            attention_bias=attention_bias,
                            ) + x
         residual = x
