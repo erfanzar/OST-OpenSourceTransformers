@@ -275,7 +275,7 @@ class Timers:
             names = [names]
         for name in names:
             elapsed_time = self.timers[name].elapsed(reset=reset) * 1000.0 / normalizer
-            string += " | {}  :  {:.2f}".format(name, elapsed_time)
+            string += " | {}  [RANK : {} / {}]:  {:.2f}".format(name, LOCAL_RANK, WORLD_SIZE, elapsed_time)
         if is_initialized():
             if LOCAL_RANK == 0:
                 print(string, flush=True)
