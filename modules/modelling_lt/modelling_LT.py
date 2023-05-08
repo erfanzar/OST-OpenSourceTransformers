@@ -111,7 +111,6 @@ def scale_dot_production(
     return out
 
 
-@triton.jit
 def scale_dot_production_triton(
         q, k, v, attention_head: int, bias=None, softmax_scale: float = None
 ):
@@ -165,8 +164,8 @@ class LTAttention(nn.Module):
         key = self.k_ln(key).to(dtype)
         if attention_bias is not None:
             attention_bias = attention_bias[:, :, -query.size(1):, -key.size(1):]
-        attn_weights = scale_dot_production_triton(query, key, value, self.num_attention_heads, bias=attention_bias,
-                                                   softmax_scale=self.softmax_scale)
+        attn_weights = scale_dot_production(query, key, value, self.num_attention_heads, bias=attention_bias,
+                                            softmax_scale=self.softmax_scale)
         return self.out_proj(attn_weights)
 
 
@@ -193,7 +192,6 @@ class LtBlock(nn.Module):
     def forward(self, x, attention_bias, attention_mask=None):
         x = self.self_attn(x,
                            attention_bias=attention_bias,
-                           attention_mask=attention_mask
                            ) + x
         residual = x
         x = self.ln(x)
@@ -250,8 +248,8 @@ class LtModel(LtPreTrainedModel):
             else:
                 attention_bias = attention_bias[:, :, :, -s_k:]
             min_val = torch.finfo(attention_bias.dtype).min
-            attention_bias = attention_bias.masked_fill(~attention_mask.view(-1, 1, 1, s_k), min_val)
-        return attention_bias
+            attention_bias = attention_bias.masked_fill(~attention_mask.view(-1, 1, 1, s_k).bool(), min_val)
+        return attention_bias, None
 
     def forward(self,
                 input_ids: torch.LongTensor,
@@ -267,7 +265,7 @@ class LtModel(LtPreTrainedModel):
         if output_attentions:
             return NotImplementedError('output_attention is not supported yet')
 
-        assert s > self.config.max_sequence_length, 'max_sequence_length should be higher than input length'
+        assert s < self.config.max_sequence_length, 'max_sequence_length should be higher than input length'
         hidden = self.wte(input_ids)
         attention_bias, _ = self._build_attention_bias(device=hidden.device,
                                                        attention_mask=attention_mask,
@@ -319,13 +317,17 @@ class LtModelForCausalLM(LtPreTrainedModel):
                 return_dict: Optional[bool] = None):
         out = self.model(input_ids, attention_mask, use_attn_bias, output_attentions, past_key_values, return_dict)
         hidden_sate = out.last_hidden_state if return_dict else out[0]
-        logit = torch.nn.functional.linear(hidden_sate, self.model.wte.weight)
+        logits = torch.nn.functional.linear(hidden_sate, self.model.wte.weight)
         loss = None
         if labels is not None:
-            labels = torch.roll(labels, shifts=-1)
-            labels[:, -1] = -100
-            loss = torch.nn.functional.cross_entropy(logit.view(-1, logit.size(-1)), labels.to(logit.device).view(-1))
+            # labels = torch.roll(labels, shifts=-1)
+            # labels[:, -1] = -100
+            # shifted_logist =
+            labels = labels[..., 1:].contiguous()
+            shifted_logist = logits[..., :-1, :].contiguous()
+            loss = torch.nn.functional.cross_entropy(shifted_logist.view(-1, shifted_logist.size(-1)),
+                                                     labels.to(shifted_logist.device).view(-1))
         if return_dict:
-            return CausalLMOutput(logits=logit, loss=loss)
+            return CausalLMOutput(logits=logits, loss=loss)
         else:
-            return logit, loss
+            return (loss, logits) if loss is not None else logits

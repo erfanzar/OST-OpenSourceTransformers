@@ -1,5 +1,5 @@
 from modules import LtConfig, LtModelForCausalLM
-from transformers import Trainer, TrainingArguments, HfArgumentParser, LlamaTokenizer
+from transformers import Trainer, TrainingArguments, HfArgumentParser, LlamaTokenizer, DataCollatorForLanguageModeling
 from datasets import load_dataset
 from dataclasses import field, dataclass
 import os
@@ -127,7 +127,7 @@ DEEPSPEED_CONFIG = {
 @dataclass
 class Arguments:
     # Your Model id Here
-    cls_to_wrap: str = field(metadata={
+    cls_to_wrap: str = field(default='NONE', metadata={
         'help': 'transformer layer class to warp for fully sharded data parallel'
     })
     model_id: str = field(default='erfanzar/LT-1B', metadata={
@@ -172,7 +172,7 @@ class Arguments:
     do_eval: bool = field(default=False, metadata={
         'help': 'do the evaluation or not'
     })
-    do_predict: bool = field(default=True, metadata={
+    do_predict: bool = field(default=False, metadata={
         'help': 'do the prediction or not'
     })
     save_safetensors: bool = field(default=True, metadata={
@@ -198,6 +198,12 @@ class Arguments:
     })
     optimizer: str = field(default='adamw_torch', metadata={
         'help': f'Optimizer to train model available optimizers are {OPTIMIZERS}'
+    })
+    gradient_accumulation_steps: int = field(default=1, metadata={
+        'help': 'gradient accumulation steps'
+    })
+    do_compile: bool = field(default=False, metadata={
+        'help': 'compile the model'
     })
 
 
@@ -265,9 +271,11 @@ class Timers:
     def log(self, names, normalizer=1.0, reset=True):
         assert normalizer > 0.0
         string = "time (ms)"
+        if isinstance(names, str):
+            names = [names]
         for name in names:
             elapsed_time = self.timers[name].elapsed(reset=reset) * 1000.0 / normalizer
-            string += " | {}: {:.2f}".format(name, elapsed_time)
+            string += " | {}  :  {:.2f}".format(name, elapsed_time)
         if is_initialized():
             if LOCAL_RANK == 0:
                 print(string, flush=True)
@@ -306,7 +314,7 @@ def main():
         f'{"DEEPSPEED TRAGEDY" if args.use_deepspeed else ("Fully Sharded Data Parallel" if args.use_fsdp else "No Option")}'
         f'\nRecommended Run command => \n\t {tip} '
     )
-    log_t_path = Path('out/performance_metrics')
+    log_t_path = Path('out\\performance_metrics')
     log_t_path.mkdir(exist_ok=True)
     writer = SummaryWriter(log_dir=f'{log_t_path}')
     timers = Timers(
@@ -317,17 +325,24 @@ def main():
     tokenizer = LlamaTokenizer.from_pretrained(args.tokenizer_id)
     tokenizer = check_tokenizer(tokenizer)
     timers('getting tokenizer').stop()
-
+    timers.log('getting tokenizer')
     timers('building model ...').start()
-    config = LtConfig(vocab_size=len(tokenizer.get_vocab()), num_attention_heads=8, num_hidden_layers=2,
-                      hidden_size=256,
-                      intermediate_size=256)
+    config = LtConfig(vocab_size=len(tokenizer.get_vocab()), num_attention_heads=32, num_hidden_layers=18,
+                      hidden_size=2048,
+                      intermediate_size=8192,
+                      max_sequence_length=2048)
     model = LtModelForCausalLM(config=config)
+
     timers('building model ...').stop()
 
+    timers.log('building model ...')
+
     timers('getting data').start()
+
     dataset = load_dataset(args.dataset)
+
     timers('getting data').stop()
+    timers.log('getting data')
 
     timers('mapping data').start()
     dataset = dataset.map(
@@ -335,7 +350,7 @@ def main():
                                      truncation=True,
                                      add_special_tokens=False))
     timers('mapping data').stop()
-
+    timers.log('mapping data')
     timers('creat or eval training arguments').start()
 
     assert args.optimizer in OPTIMIZERS, f'invalid optimizer {args.optimizer}'
@@ -386,24 +401,35 @@ def main():
         optim=args.optimizer,
         weight_decay=1e-2,
         report_to=['tensorboard'],
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
         save_safetensors=args.save_safetensors,
+        torch_compile=args.do_compile,
         **extra_kwargs,
 
     )
-
-    print_rank_0(model)
-    timers('creat or eval training arguments').end()
+    print_rank_0('MODEL CONTAIN ', count_model_parameters(model, 1e9), ' BILLION PARAMETERS ')
+    timers('creat or eval training arguments').stop()
+    timers.log('creat or eval training arguments')
     trainer = Trainer(
         model=model,
         train_dataset=dataset['train'],
         eval_dataset=eval_dataset,
         tokenizer=tokenizer,
-        args=training_args
+        args=training_args,
+        data_collator=DataCollatorForLanguageModeling(
+            tokenizer=tokenizer,
+            mlm=False,
+            return_tensors='pt'
+        )
     )
     print_rank_0(f'MODEL CONTAIN {count_model_parameters(model, div=1e9)} BILLION PARAMETERS')
     timers('training model').start()
+    timers.write(
+        ['training model', 'creat or eval training arguments', 'mapping data', 'getting data', 'building model ...',
+         'getting tokenizer'], 0)
     trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
     timers('training model').stop()
+    timers.log('training model')
 
 
 if __name__ == "__main__":

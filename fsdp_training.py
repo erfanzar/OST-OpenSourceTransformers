@@ -153,7 +153,7 @@ class CDataSet(torch.utils.data.Dataset):
 
 
 def sprint(func):
-    if os.environ['LOCAL_RANK'] == 0:
+    if int(os.getenv('LOCAL_RANK', '0')) == 0:
         return func
     else:
         return print
