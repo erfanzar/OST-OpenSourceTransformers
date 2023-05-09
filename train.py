@@ -385,10 +385,10 @@ def main(args: Arguments):
             eval_dataset = None
     else:
         eval_dataset = None
-    try:
-        model.transformer.gradient_checkpointing = True
-    except:
-        model.model.gradient_checkpointing = True
+    # try:
+    #     model.transformer.gradient_checkpointing = True
+    # except:
+    #     model.model.gradient_checkpointing = True
     training_args = TrainingArguments(
         output_dir=args.model_id,
         hub_model_id=args.model_id,
@@ -413,7 +413,7 @@ def main(args: Arguments):
         save_safetensors=args.save_safetensors,
         num_train_epochs=args.num_train_epochs,
         torch_compile=args.do_compile,
-        gradient_checkpointing=False,
+        gradient_checkpointing=args.gradient_checkpointing,
         **extra_kwargs,
 
     )
