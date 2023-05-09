@@ -148,8 +148,8 @@ class Attention(nn.Module):
         with torch.backends.cuda.sdp_kernel(**config._asdict()):
             out = F.scaled_dot_product_attention(
                 q, k, v,
-                attn_mask=attention_mask,
-                dropout_p=self.dropout if self.training else 0.,
+                attn_mask=attention_mask.bool(),
+                # dropout_p=self.dropout if self.training else 0.,
                 is_causal=self.causal
             )
 
@@ -158,9 +158,12 @@ class Attention(nn.Module):
     def forward(self, q, k, v, attention_mask=None, return_score=False):
         n, device = q.shape[-2], q.device
         scale = q.shape[-1] ** -0.5
+        if attention_mask is not None:
+            attention_mask = attention_mask.bool()
+        attention_mask = attention_mask.bool()
         if self.use_flash_attn:
             return self.flash_attn(q, k, v, attention_mask=attention_mask)
-        spa = einsum("b h i d, b j d -> b h i j", q, k) * scale
+        spa = einsum(q, k, "b h i d, b j d -> b h i j") * scale
         if attention_mask is not None:
             attention_mask = rearrange(attention_mask, 'b j -> b 1 1 j')
             spa = spa.masked_fill(~attention_mask, -torch.finfo(spa.dtype).max)
@@ -168,7 +171,7 @@ class Attention(nn.Module):
             causal_mask = self.get_mask(n, device)
             spa = spa.masked_fill(causal_mask, -torch.finfo(spa.dtype).max)
         attn = spa.softmax(dim=-1)
-        out = einsum("b h i j, b j d -> b h i d", attn, v)
+        out = einsum(attn, v, "b h i j, b j d -> b h i d")
         return out if return_score is False else out, attn
 
 
@@ -196,12 +199,21 @@ class PalmBlock(nn.Module):
 
         self.register_buffer("pos_emb", None, persistent=False)
 
+    def get_rotary_embedding(self, n, device):
+        if self.pos_emb is not None and self.pos_emb.shape[-2] >= n:
+            return self.pos_emb[:n], self.pos_emb_scale[:n]
+
+        pos_emb, scale = self.rotary_emb(n, device=device)
+        self.register_buffer("pos_emb", pos_emb, persistent=False)
+        self.register_buffer("pos_emb_scale", scale, persistent=False)
+        return pos_emb, scale
+
     def forward(self, hidden_state, attention_mask=None, return_attention_score=False):
         n, device, h = hidden_state.shape[1], hidden_state.device, self.heads
 
         hidden_state = self.norm(hidden_state)
 
-        q, k, v, ff = self.fused_attn_ff_proj(hidden_state).split(self.fused_dims, dim=-1)
+        q, k, v, ff = self.fused_attn_ff_proj(hidden_state).split(self.split_dim, dim=-1)
 
         q = rearrange(q, "b n (h d) -> b h n d", h=h)
 
@@ -214,12 +226,13 @@ class PalmBlock(nn.Module):
             out, score = self.attend.forward(q, k, v, attention_mask=attention_mask,
                                              return_score=return_attention_score)
         else:
-            out = self.attend.forward(q, k, v, attention_mask=attention_mask, return_score=return_attention_score)
+            out, score = self.attend.forward(q, k, v, attention_mask=attention_mask,
+                                             return_score=return_attention_score)
         out = rearrange(out, "b h n d -> b n (h d)")
 
         attn_out = self.attn_out(out)
 
-        ff_out = self.ff_out(ff)
+        ff_out = self.o_proj(self.act_o_proj(ff))
 
         return attn_out + ff_out, score
 
@@ -293,7 +306,8 @@ class PalmForCausalLM(PalmPretrainedModule):
         self.transformer = value
 
     def forward(self, input_ids, attention_mask=None, labels=None, return_dict=False, **kwargs):
-        tr = self.transformer.forward(input_ids, attention_mask=attention_mask, return_dict=return_dict)
+        tr = self.transformer.forward(input_ids, attention_mask=attention_mask, return_dict=False)
+
         out = self.lm_head(tr)
         loss = None
         if labels is not None:
