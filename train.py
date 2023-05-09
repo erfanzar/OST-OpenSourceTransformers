@@ -420,7 +420,6 @@ def main(args: Arguments):
     print_rank_0('MODEL CONTAIN ', count_model_parameters(model, 1e9), ' BILLION PARAMETERS ')
     timers('creat or eval training arguments').stop()
     timers.log('creat or eval training arguments')
-    model.model.gradient_checkpointing = args.gradient_checkpointing
 
     trainer = Trainer(
         model=model,
