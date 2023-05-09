@@ -1,0 +1,23 @@
+{
+  "architectures": [
+    "PalmForCausalLM"
+  ],
+  "auto_map": {
+    "AutoConfig": "modelling_palm.PalmConfig",
+    "AutoModelForCausalLM": "modelling_palm.PalmForCausalLM"
+  },
+  "bos_token_id": 2,
+  "dim_attention_head": 128,
+  "eos_token_id": 1,
+  "hidden_size": 2048,
+  "intermediate_size": 8192,
+  "num_attention_heads": 8,
+  "num_hidden_layers": 16,
+  "pad_token_id": 0,
+  "std_wte": 0.02,
+  "torch_dtype": "float32",
+  "transformers_version": "4.28.1",
+  "vocab_size": 50304,
+  "tokenizer_name": "EleutherAI/gpt-neox-20b",
+  "flash_attn": false
+}

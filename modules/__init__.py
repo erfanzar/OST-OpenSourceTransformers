@@ -20,5 +20,6 @@ from modules.modelling_llmp import LLmP, LLmPConfig
 from modules.modelling_lt import LtModel, LtModelForCausalLM, LtConfig
 from modules.triton import FlashAttnKVPackedFunc, flash_attn_kvpacked_func, flash_attn_qkvpacked_func, \
     FlashAttnQKVPackedFunc, FlashAttnFunc, _flash_attn_forward
+from modules.modelling_palm import PalmConfig, PalmModel, PalmForCausalLM
 # except ImportError:
 #     pass
