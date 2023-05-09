@@ -332,7 +332,8 @@ def main(args: Arguments):
     timers('getting tokenizer').stop()
     timers.log('getting tokenizer')
     timers('building model ...').start()
-    model = AutoModelForCausalLM.from_pretrained(args.model_id, trust_remote_code=True)
+    model = AutoModelForCausalLM.from_pretrained(args.model_id, trust_remote_code=True,
+                                                 from_safetensors=args.from_safetensors)
 
     timers('building model ...').stop()
 
