@@ -212,6 +212,10 @@ class Arguments:
         'help': 'use gradient checkpointing or not its better to use cause make training better and lighter'
     })
 
+    max_steps: int = field(default=0, metadata={
+        'help': 'max training steps'
+    })
+
 
 class Timer:
 
@@ -404,6 +408,7 @@ def main(args: Arguments):
         save_steps=args.save_steps,
         save_strategy=args.save_strategy,
         save_total_limit=args.save_total_limit,
+        max_steps=None if args.max_steps == 0 else args.max_steps,
         seed=42,
         # fp16=True,
         optim=args.optimizer,
