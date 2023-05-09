@@ -1,5 +1,5 @@
-from modules import LtConfig, LtModelForCausalLM
-from transformers import Trainer, TrainingArguments, HfArgumentParser, LlamaTokenizer, DataCollatorForLanguageModeling
+from transformers import Trainer, TrainingArguments, HfArgumentParser, AutoTokenizer, DataCollatorForLanguageModeling, \
+    AutoModelForCausalLM
 from datasets import load_dataset
 from dataclasses import field, dataclass
 import os
@@ -289,7 +289,7 @@ class Timers:
             print(string, flush=True)
 
 
-def check_tokenizer(tokenizer: LlamaTokenizer):
+def check_tokenizer(tokenizer):
     print_rank_0('CHANGING TOKENIZER OPTIONS')
     tokenizer.pad_token = DEFAULT_PAD_TOKEN
     tokenizer.bos_token = DEFAULT_BOS_TOKEN
@@ -327,17 +327,12 @@ def main(args: Arguments):
         tensorboard_writer=writer
     )
     timers('getting tokenizer').start()
-    tokenizer = LlamaTokenizer.from_pretrained(args.tokenizer_id)
+    tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_id)
     tokenizer = check_tokenizer(tokenizer)
     timers('getting tokenizer').stop()
     timers.log('getting tokenizer')
     timers('building model ...').start()
-    config = LtConfig(vocab_size=len(tokenizer.get_vocab()), num_attention_heads=16, num_hidden_layers=16,
-                      hidden_size=2048,
-                      intermediate_size=6144,
-                      max_sequence_length=1536,
-                      alibi_bias_max=12)
-    model = LtModelForCausalLM(config=config)
+    model = AutoModelForCausalLM.from_pretrained(args.model_id, trust_remote_code=True)
 
     timers('building model ...').stop()
 
@@ -448,4 +443,3 @@ if __name__ == "__main__":
     args_: Arguments = HfArgumentParser((Arguments,)).parse_args_into_dataclasses()[0]
     # print_rank_0(args_)
     main(args_)
-
