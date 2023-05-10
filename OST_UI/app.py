@@ -3,23 +3,28 @@ import torch
 import textwrap
 import os
 from dataclasses import field, dataclass
-from transformers import HfArgumentParser,GPTNeoXForCausalLM
+from transformers import HfArgumentParser, GPTNeoXForCausalLM
 import gradio as gr
+import speech_recognition as sr
 from typing import List, Optional
+import copy
+import whisper
 
 logger = logging.get_logger(__name__)
 logging.set_verbosity_info()
+
 
 @dataclass
 class LoadConfig:
     mode: str = field(default='gui-chat', metadata={'help': 'mode to use ai in '})
     model_id: str = field(default='erfanzar/PGT-1B-2EP', metadata={'help': 'model to load'})
-    load_model: bool = field(default=False, metadata={'help': "load model set to false for debug mode"})
-    torch_type: torch.dtype = field(default=torch.float32, metadata={'help': "data type"})
+    load_model: bool = field(default=True, metadata={'help': "load model set to false for debug mode"})
+    torch_type: torch.dtype = field(default=torch.float16, metadata={'help': "data type"})
     load_in_8bit: bool = field(default=False,
                                metadata={
                                    'help': "load model in 8 bit to make the models smaller "
                                            "and faster but its not recommended 😀 "})
+    whisper_model: str = field(default='base', metadata={'help': 'model to load for whisper '})
 
 
 def load_model(config: LoadConfig):
@@ -29,13 +34,14 @@ def load_model(config: LoadConfig):
         load_in_8bit=config.load_in_8bit,
         torch_dtype=config.torch_type,
     ) if config.load_model else None
+    model_whisper = whisper.load_model(config.whisper_model)
     logger.info(
         f'Done Loading Model with {(sum(m.numel() for m in _model.parameters()) / 1e9) if _model is not None else "NONE"} Billion Parameters')
     logger.info(f'Loading Tokenizer FROM : {config.model_id}')
     _tokenizer = AutoTokenizer.from_pretrained(config.model_id)
 
     logger.info('Done Loading Tokenizer')
-    return _model, _tokenizer
+    return _model, _tokenizer, model_whisper
 
 
 def prompt_to_instruction(text: str):
@@ -50,7 +56,7 @@ def generate(model: AutoModelForCausalLM, tokenizer, text: str, max_new_tokens: 
     for i in range(max_new_tokens):
         enc = tokenizer(text, return_tensors='pt', add_special_tokens=False)
         text_r = text
-        enc = model.generate(enc.input_ids, generation_config=generation_config)
+        enc = model.generate(enc.input_ids.to(model.device), generation_config=generation_config)
         text = tokenizer.decode(enc[0], skip_special_tokens=False)
         text = text[:-4] + tokenizer.eos_token if text[-4:] == '\n\n\n\n' else text
         if text.endswith(tokenizer.eos_token) or text.endswith('\n\n\n\n'):
@@ -142,7 +148,13 @@ def chat_bot_run(text: str, cache, max_new_tokens,
                  temperature,
                  top_p,
                  top_k,
-                 repetition_penalty):
+                 repetition_penalty,
+                 voice):
+    if voice is not None:
+        text_rec = whisper_model.transcribe(voice)['text']
+        if text == '':
+            text = text_rec
+
     opt = sort_cache_pgt(cache)
     original_text = text
     text = opt + prompt_to_instruction(text)
@@ -155,16 +167,22 @@ def chat_bot_run(text: str, cache, max_new_tokens,
         pad_token_id=tokenizer.pad_token_id,
         bos_token_id=tokenizer.bos_token_id
     )
+    #     cache_f = copy.deepcopy(cache)
     cache_f = cache
     cache_f.append([original_text, ''])
-    for byte in generate(model, tokenizer, text=text, b_pair=False,
-                         generation_config=generation_config, max_new_tokens=max_new_tokens,
-                         use_prompt_to_instruction=False):
-        final_res = byte
-        chosen_byte = byte[len(text):].replace('<|endoftext|>', '')
-        cache_f[-1][1] = chosen_byte
-        yield '', cache_f
-    answer = final_res[len(text):len(final_res) - len('<|endoftext|>')]
+    if model is not None:
+
+        for byte in generate(model, tokenizer, text=text, b_pair=False,
+                             generation_config=generation_config, max_new_tokens=max_length,
+                             use_prompt_to_instruction=False):
+            final_res = byte
+            chosen_byte = byte[len(text):].replace('<|endoftext|>', '')
+            print(chosen_byte)
+            cache_f[-1][1] = chosen_byte
+            yield '', cache_f
+        answer = final_res[len(text):len(final_res) - len('<|endoftext|>')]
+    else:
+        answer = 'It seems like im down or im not loaded yet 😇'
     cache.append([original_text, answer])
     return '', cache
 
@@ -215,6 +233,7 @@ def gradio_ui_chat(main_class_conversation: Conversation):
                 gre_mode = gr.Checkbox(label='Greedy Mode')
                 smart_mode = gr.Checkbox(label='Smart Mode')
                 informational_mode = gr.Checkbox(label='Informational Mode')
+                voice = gr.Audio(source='microphone', type="filepath", streaming=False, label='Smart Voice', )
             with gr.Column(scale=4):
                 cache = gr.Chatbot(elem_id=main_class_conversation.config.model_id,
                                    label=main_class_conversation.config.model_id).style(container=True,
@@ -226,10 +245,10 @@ def gradio_ui_chat(main_class_conversation: Conversation):
                 text = gr.Textbox(show_label=False).style(container=False)
 
         submit.click(fn=chat_bot_run,
-                     inputs=[text, cache, max_steam_tokens, max_length, temperature, top_p, top_k, penalty],
+                     inputs=[text, cache, max_steam_tokens, max_length, temperature, top_p, top_k, penalty, voice],
                      outputs=[text, cache])
         text.submit(fn=chat_bot_run,
-                    inputs=[text, cache, max_steam_tokens, max_length, temperature, top_p, top_k, penalty],
+                    inputs=[text, cache, max_steam_tokens, max_length, temperature, top_p, top_k, penalty, voice],
                     outputs=[text, cache])
         gr.Markdown(
             'LucidBrains is a platform that makes AI accessible and easy to use for everyone. '
@@ -257,7 +276,9 @@ def main(config):
 
 if __name__ == "__main__":
     config_ = HfArgumentParser(LoadConfig).parse_args_into_dataclasses()[0]
+    # config_ = LoadConfig()
     print(f'Running WITH MODE : {config_.mode}')
-    model, tokenizer = load_model(config=config_)
+    model, tokenizer, whisper_model = load_model(config=config_)
+    model = model.cuda()
+    whisper_model = whisper_model.cuda()
     main(config_)
-  
