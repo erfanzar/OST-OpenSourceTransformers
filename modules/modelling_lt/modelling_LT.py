@@ -260,6 +260,9 @@ class LtModel(LtPreTrainedModel):
     def get_fsdp_wrap_block(self) -> Type[nn.Module]:
         return LtBlock
 
+    def get_device(self):
+        return next(self.parameters()).device
+
     @torch.no_grad()
     def _build_attention_bias(self, device, dtype, attention_mask: Optional[torch.ByteTensor] = None):
         if not self.is_bias_initialized:

@@ -333,7 +333,30 @@ class LGeMBlock(Module):
         return outputs
 
 
-class LGeMModel(PreTrainedModel):
+class LGeMPretrainedModule(PreTrainedModel):
+    config_class = LGeMConfig
+    supports_gradient_checkpointing = True
+    base_model_prefix = 'model'
+
+    def _init_weights(self, module):
+        std = self.config.initializer_range
+        if isinstance(module, nn.Linear):
+            module.weight.data.normal_(mean=0.0, std=std)
+            if module.bias is not None:
+                module.bias.data.zero_()
+        elif isinstance(module, nn.Embedding):
+            module.weight.data.normal_(mean=0.0, std=std)
+            if module.padding_idx is not None:
+                module.weight.data[module.padding_idx].zero_()
+
+    def _set_gradient_checkpointing(self, module, value=False):
+        if isinstance(module, (LGeMModel,)):
+            module.gradient_checkpointing = value
+        elif isinstance(module, (LGeMForCausalLM,)):
+            module.model.gradient_checkpointing = value
+
+
+class LGeMModel(LGeMPretrainedModule):
 
     def __init__(self, config: LGeMConfig):
         super(LGeMModel, self).__init__(config)
@@ -442,7 +465,7 @@ class LGeMModel(PreTrainedModel):
         return hidden_states
 
 
-class LGeMForCausalLM(PreTrainedModel):
+class LGeMForCausalLM(LGeMPretrainedModule):
     def __init__(self, config: LGeMConfig):
         super(LGeMForCausalLM, self).__init__(config)
         self.model = LGeMModel(config)
@@ -454,6 +477,9 @@ class LGeMForCausalLM(PreTrainedModel):
 
     def set_input_embeddings(self, value):
         self.model.embed_tokens = value
+
+    def get_device(self):
+        return next(self.parameters()).device
 
     @function
     def forward(

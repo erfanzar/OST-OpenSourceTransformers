@@ -242,6 +242,23 @@ class PalmPretrainedModule(PreTrainedModel):
     config_class = PalmConfig
     supports_gradient_checkpointing = True
 
+    def _init_weights(self, module):
+        std = self.config.std_wte
+        if isinstance(module, nn.Linear):
+            module.weight.data.normal_(mean=0.0, std=std)
+            if module.bias is not None:
+                module.bias.data.zero_()
+        elif isinstance(module, nn.Embedding):
+            module.weight.data.normal_(mean=0.0, std=std)
+            if module.padding_idx is not None:
+                module.weight.data[module.padding_idx].zero_()
+
+    def _set_gradient_checkpointing(self, module, value=False):
+        if isinstance(module, (PalmModel,)):
+            module.gradient_checkpointing = value
+        elif isinstance(module, (PalmForCausalLM,)):
+            module.transformer.gradient_checkpointing = value
+
 
 class PalmModel(PalmPretrainedModule):
     def __init__(self, config: PalmConfig):
@@ -304,6 +321,9 @@ class PalmForCausalLM(PalmPretrainedModule):
 
     def set_model(self, value):
         self.transformer = value
+
+    def get_device(self):
+        return next(self.parameters()).device
 
     def forward(self, input_ids, attention_mask=None, labels=None, return_dict=False, **kwargs):
         tr = self.transformer.forward(input_ids, attention_mask=attention_mask, return_dict=False)
