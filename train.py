@@ -216,6 +216,10 @@ class Arguments:
         'help': 'max training steps'
     })
 
+    dont_tokenize: bool = field(default=False, metadata={
+        'help': 'dont use tokenize for pre chunked dataset'
+    })
+
 
 class Timer:
 
@@ -353,10 +357,22 @@ def main(args: Arguments):
     timers.log('getting data')
 
     timers('mapping data').start()
-    dataset = dataset.map(
-        lambda data_point: tokenizer(data_point[args.dataset_field], max_length=args.max_length, padding='max_length',
-                                     truncation=True,
-                                     add_special_tokens=False))
+    if not args.dont_tokenize:
+        dataset = dataset.map(
+            lambda data_point: tokenizer(data_point[args.dataset_field], max_length=args.max_length,
+                                         padding='max_length',
+                                         truncation=True,
+                                         add_special_tokens=False))
+    else:
+        print_rank_0('SKIP MAPPING DATA [dont_tokenize=True] ')
+        assert dataset['train']['input_ids']
+        assert dataset['train']['attention_mask']
+
+        def to_pt(x_):
+            return {'input_ids': torch.tensor(x_['input_ids']).view(1, -1),
+                    'attention_mask': torch.tensor(x_['attention_mask']).view(1, -1)}
+
+        dataset = dataset.map(to_pt)
     timers('mapping data').stop()
     timers.log('mapping data')
     timers('creat or eval training arguments').start()
