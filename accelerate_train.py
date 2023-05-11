@@ -1,9 +1,14 @@
+import math
+
 import torch.nn
 from transformers import AutoConfig, AutoModelForCausalLM
 import accelerate
 from utils.utils import count_model_parameters
+
+from torch.utils.data import DataLoader
 from argparse import ArgumentParser
 import torch
+from tqdm.auto import tqdm
 import os
 from utils.timer import Timers
 from torch.utils.tensorboard import SummaryWriter
@@ -31,8 +36,6 @@ def print_rank_0(*args, **kwargs):
 
 def get_argument_parser():
     argument_parser = ArgumentParser()
-    argument_parser.add_argument('--cls_to_wrap', default='LtBlock', type=str,
-                                 help='transformer layer class to warp for fully sharded data parallel')
 
     argument_parser.add_argument('--model_id', default='erfanzar/LT-500M', type=str,
                                  help='model id to save output and push to hub')
@@ -82,21 +85,29 @@ def get_argument_parser():
     argument_parser.add_argument('--do_compile',
                                  help='compile the model')
 
+    argument_parser.add_argument('--from_config', default='none',
+                                 help='Build model from a config')
+
     argument_parser.add_argument('--gradient_checkpointing', default=False, action='store_true',
                                  help='use gradient checkpointing or not its better to use cause make '
                                       'training better and lighter')
+
+    argument_parser.add_argument('--trust_remote_code', action='store_true',
+                                 help='trust_remote_code to load model code from huggingface Repo')
     args = argument_parser.parse_args()
     return args
 
 
-def configure_dataset(dataset_, dataset_field_, tokenizer, max_length_, is_pre_training=False):
+def configure_dataset(accelerator, batch_size: int, dataset_, dataset_field_, tokenizer, max_length_: int,
+                      is_pre_training=False):
     data = load_dataset(dataset_)
     if is_pre_training:
         raise NotImplementedError
-    data = data.map(lambda x_: tokenizer(x_[dataset_field_], max_length=max_length_, padding='max_length'),
-                    desc=f'MAPPING DATASET | WORLD SIZE : {WORLD_SIZE}  ', num_proc=WORLD_SIZE,
-                    with_rank=True)
-    return data
+    with accelerator.main_process_first():
+        data = data.map(lambda x_: tokenizer(x_[dataset_field_], max_length=max_length_, padding='max_length'),
+                        desc=f'MAPPING DATASET | WORLD SIZE : {WORLD_SIZE}  ', num_proc=WORLD_SIZE,
+                        with_rank=True)
+    return DataLoader(data, shuffle=True, batch_size=batch_size, drop_last=True), data.num_rows
 
 
 def configure_optimizer(optimizer_type_, optimizer_kwargs_):
@@ -159,16 +170,34 @@ def main():
     timers('loading tokenizer and config').stop()
     timers.log('loading tokenizer and config')
     timers('loading data').start()
-
-    data = configure_dataset(dataset_=args.dataset, dataset_field_=args.dataset_field, max_length_=args.max_length,
-                             tokenizer=tokenizer)
+    save_strategy = args.save_strategy
+    dataloader_train, num_rows = configure_dataset(accelerator=accelerator, dataset_=args.dataset,
+                                                   dataset_field_=args.dataset_field,
+                                                   max_length_=args.max_length, batch_size=args.per_device_batch_size,
+                                                   tokenizer=tokenizer)
     timers('loading data').stop()
     timers.log('loading data')
 
-    num_training_steps = 1000
+    # Calculate Training Steps and configs
+    num_training_steps = num_rows * args.num_train_epochs
+    num_training_steps_w_batch = math.ceil(num_training_steps / args.per_device_batch_size)
+    num_training_steps_w_batch_gradient_ac = math.ceil(num_training_steps_w_batch / args.gradient_accumulation_steps)
+
+    print_rank_0(f'Num Training Examples : {num_training_steps}')
+    print_rank_0(f'Num Training Examples / Batched : {num_training_steps_w_batch}')
+    print_rank_0(f'Num Training Examples / Batched / GradientAccumulation  : {num_training_steps_w_batch_gradient_ac}')
+
     timers('create model').start()
-    with accelerate.init_empty_weights():
-        model: torch.nn.Module = AutoModelForCausalLM.from_config(config=config, trust_remote_code=True)
+    if args.from_config == 'none':
+        model = AutoModelForCausalLM.from_pretrained(
+            args.model_id,
+            trust_remote_code=args.trust_remote_code
+        )
+    else:
+        model = AutoModelForCausalLM.from_config(args.from_config, trust_remote_code=args.trust_remote_code)
+    print_rank_0(
+        f'Model Contain {count_model_parameters(model, 1e9)} BILLION Parameters'
+    )
     timers('create model').end()
     timers.log('create model')
 
@@ -183,12 +212,51 @@ def main():
         optimizer=optimizer,
         num_warmup_steps=0,
         name=args.lr_scheduler_type,
-        num_training_steps=num_training_steps
+        num_training_steps=num_training_steps_w_batch_gradient_ac
     )
     timers('config optimizer and scheduler').stop()
     timers.log('config optimizer and scheduler')
+    timers('training').start()
+    model = accelerator.prepare_model(model=model)
+    optimizer = accelerator.prepare_optimizer(optimizer=optimizer)
+    train_data = accelerator.prepare_data_loader(data_loader=dataloader_train)
+    scheduler = accelerator.prepare_scheduler(scheduler=scheduler)
+    for epoch in tqdm(range(args.num_train_epochs)):
 
-    # TODO
+        for step, batch in tqdm(enumerate(dataloader_train)):
+            with accelerator.accumulate(model):
+                batch.to(accelerator.device)
+                pred = model(**batch, return_dict=True)
+                loss = pred.loss
+                accelerator.backward(loss=loss)
+                optimizer.step()
+                scheduler.step()
+                optimizer.zero_grad()
+
+                if step % args.logging_step == 0:
+                    accelerator.print(
+                        f'Loss : {loss} | Learning Rate : {scheduler.get_lr()} | Epoch {epoch} / {args.num_train_epochs}'
+                    )
+                if save_strategy == 'steps' and (step + 1) % args.save_steps == 0:
+                    unwrapped_model = accelerator.unwrap_model(model)
+                    accelerator.save(
+                        {
+                            'model': unwrapped_model.state_dict(),
+                            'optimizer': optimizer.optimizer.state_dict(),
+                            'args': {args}
+                        }, args.model_id + '/pytorch_model.bin'
+                    )
+        if save_strategy == 'epoch':
+            unwrapped_model = accelerator.unwrap_model(model)
+            accelerator.save(
+                {
+                    'model': unwrapped_model.state_dict(),
+                    'optimizer': optimizer.optimizer.state_dict(),
+                    'args': {args}
+                }, args.model_id + '/pytorch_model.bin'
+            )
+    timers('training').stop()
+    timers.log('training')
 
 
 if __name__ == "__main__":
