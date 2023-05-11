@@ -341,7 +341,8 @@ class LtModelForCausalLM(LtPreTrainedModel):
         super().__init__(config=config)
         self.model = LtModel(config=config)
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
-        # self.lm_head.weight = self.model.wte.weight
+        self.lm_head.weight = self.model.wte.weight
+        torch.nn.init.normal_(self.model.wte.weight, 0.02)
 
     def get_input_embeddings(self) -> nn.Module:
         return self.model.wte
