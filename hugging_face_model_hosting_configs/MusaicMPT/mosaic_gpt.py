@@ -29,7 +29,7 @@ class MosaicPretrainedModule(PreTrainedModel):
     supports_gradient_checkpointing = True
 
     def _init_weights(self, module):
-        std = self.config.std_wte
+        std = 0.02
         if isinstance(module, nn.Linear):
             module.weight.data.normal_(mean=0.0, std=std)
             if module.bias is not None:
@@ -258,19 +258,19 @@ class MosaicGPT(MosaicPretrainedModule):
             attention_mask: Optional[torch.ByteTensor] = None,
             prefix_mask: Optional[torch.ByteTensor] = None,
             sequence_id: Optional[torch.LongTensor] = None,
-            return_dict: Optional[bool] = None,
+            return_dict: Optional[bool] = False,
             output_attentions: Optional[bool] = None,
             output_hidden_states: Optional[bool] = None,
-            use_cache: Optional[bool] = None):
+            use_cache: Optional[bool] = None,
+            labels=None
+    ):
         return_dict = return_dict if return_dict is not None else self.config.return_dict
         use_cache = use_cache if use_cache is not None else self.config.use_cache
 
         # These args are passed in by keyword in huggingface's generate function
         # https://github.com/huggingface/transformers/blob/68287689f2f0d8b7063c400230b3766987abf18d/src/transformers/generation/utils.py#L2201-L2206
         # but have not yet been fully implemented in MosaicGPT
-        if not return_dict:
-            raise NotImplementedError(
-                'return_dict False is not implemented yet for MosaicGPT')
+
         if output_attentions:
             raise NotImplementedError(
                 'output_attentions is not implemented yet for MosaicGPT')
@@ -402,10 +402,19 @@ class MosaicGPT(MosaicPretrainedModule):
                     f'Multiplying logits by {self.logit_scale=}. This will produce uniform (uninformative) outputs.'
                 )
             logits *= self.logit_scale
-
-        return CausalLMOutputWithPast(logits=logits,
-                                      past_key_values=past_key_values,
-                                      hidden_states=all_hidden_states)
+        loss = None
+        if labels is not None:
+            labels = labels[..., 1:].contiguous()
+            shifted_logist = logits[..., :-1, :].contiguous()
+            loss = torch.nn.functional.cross_entropy(shifted_logist.view(-1, shifted_logist.size(-1)),
+                                                     labels.to(shifted_logist.device).view(-1))
+        if return_dict:
+            return CausalLMOutputWithPast(logits=logits,
+                                          loss=loss,
+                                          past_key_values=past_key_values,
+                                          hidden_states=all_hidden_states)
+        else:
+            return (loss, logits) if loss is not None else logits
 
     # Param Initialization, needed for device='meta' fast initialization
     def param_init_fn(self, module):
