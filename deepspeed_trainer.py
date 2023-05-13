@@ -9,17 +9,58 @@ from transformers import HfArgumentParser
 import argparse
 
 
-def add_argument():
-    parser = argparse.ArgumentParser(description='OST DeepSpeed')
-    parser.add_argument('--with_cuda', default=False, action='store_true')
-    parser.add_argument('-b', '--batch_size', default=32, type=int)
-    parser.add_argument('-e', '--epochs', default=30, type=int)
-    parser.add_argument('--local_rank', type=int, default=-1)
+def get_argument_parser():
+    argument_parser = argparse.ArgumentParser()
+    argument_parser.add_argument('--model_id', default='erfanzar/PaLM', type=str,
+                                 help='model id to save output and push to hub')
 
-    parser = deepspeed.add_config_arguments(parser)
+    argument_parser.add_argument('--tokenizer_id', default='erfanzar/LT-500M', type=str,
+                                 help='tokenizer repo id to read from the specific tokenizer that you want '
+                                      'to use on model')
 
-    args = parser.parse_args()
-    print(args)
+    argument_parser.add_argument('--dataset', default='erfanzar/Base-Data', type=str,
+                                 help='hugging face dataset to download or path to data.json file')
+    argument_parser.add_argument('--dont_tokenizer', action='store_true',
+                                 help='for pretraining')
+    argument_parser.add_argument('--dataset_field', default='prompt', type=str,
+                                 help='the specific field ub dataset to look for and run tokenizer on that')
+    argument_parser.add_argument('--max_length', default=4096, type=int,
+                                 help='train max sequence length')
+
+    argument_parser.add_argument('--num_train_epochs', default=3, type=int,
+                                 help='num train epochs')
+
+    argument_parser.add_argument('--per_device_batch_size', default=8, type=int,
+                                 help='pre device batch size')
+    argument_parser.add_argument('--learning_rate', default=1e-4, type=float,
+                                 help='learning rate for the optimizer')
+    argument_parser.add_argument('--lr_scheduler_type', default='cosine', type=str,
+                                 help='learning rate scheduler type type for optimizer')
+
+    argument_parser.add_argument('--logging_step', default=15, type=int,
+                                 help='logging steps default to 15')
+
+    argument_parser.add_argument('--save_steps', default=1500, type=int,
+                                 help='steps to save model in training')
+
+    argument_parser.add_argument('--save_strategy', default='epoch', type=str,
+                                 help='save strategy [epoch or steps]')
+    argument_parser.add_argument('--save_total_limit', default=1, type=int,
+                                 help='total limit of saving model')
+
+    argument_parser.add_argument('--do_compile',
+                                 help='compile the model')
+
+    argument_parser.add_argument('--from_config', default='none',
+                                 help='Build model from a config')
+
+    argument_parser.add_argument('--gradient_checkpointing', default=False, action='store_true',
+                                 help='use gradient checkpointing or not its better to use cause make '
+                                      'training better and lighter')
+
+    argument_parser.add_argument('--trust_remote_code', action='store_true',
+                                 help='trust_remote_code to load model code from huggingface Repo')
+    args = argument_parser.parse_args()
     return args
 
 

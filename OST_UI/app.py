@@ -17,7 +17,7 @@ logging.set_verbosity_info()
 @dataclass
 class LoadConfig:
     mode: str = field(default='gui-chat', metadata={'help': 'mode to use ai in '})
-    model_id: str = field(default='erfanzar/PGT-1B-2EP', metadata={'help': 'model to load'})
+    model_id: str = field(default='erfanzar/PGT-1B', metadata={'help': 'model to load'})
     load_model: bool = field(default=True, metadata={'help': "load model set to false for debug mode"})
     torch_type: torch.dtype = field(default=torch.float16, metadata={'help': "data type"})
     load_in_8bit: bool = field(default=False,
@@ -48,15 +48,17 @@ def prompt_to_instruction(text: str):
     return f"<|prompter|> {text} <|endoftext|><|assistant|>"
 
 
-def generate(model: AutoModelForCausalLM, tokenizer, text: str, max_new_tokens: int = 1024,
-             use_prompt_to_instruction: bool = False, generation_config=None,
+def generate(model: AutoModelForCausalLM, tokenizer, text: str, max_stream_tokens: int = 1024,
+             use_prompt_to_instruction: bool = False, generation_config=None, max_length=1536,
              b_pair=False):
     text = prompt_to_instruction(text) if use_prompt_to_instruction else text
 
-    for i in range(max_new_tokens):
+    for i in range(max_stream_tokens):
         enc = tokenizer(text, return_tensors='pt', add_special_tokens=False)
         text_r = text
-        enc = model.generate(enc.input_ids.to(model.device), generation_config=generation_config)
+        enc = model.generate(enc.input_ids.to(model.device)[..., -max_length:],
+                             attention_mask=enc.attention_mask.to(model.device)[..., -max_length:],
+                             generation_config=generation_config)
         text = tokenizer.decode(enc[0], skip_special_tokens=False)
         text = text[:-4] + tokenizer.eos_token if text[-4:] == '\n\n\n\n' else text
         if text.endswith(tokenizer.eos_token) or text.endswith('\n\n\n\n'):
@@ -143,7 +145,8 @@ def sort_cache_lgem(cache_):
     return opt
 
 
-def chat_bot_run(text: str, cache, max_new_tokens,
+def chat_bot_run(text: str, cache, max_steam_tokens,
+                 max_new_tokens,
                  max_length,
                  temperature,
                  top_p,
@@ -173,7 +176,8 @@ def chat_bot_run(text: str, cache, max_new_tokens,
     if model is not None:
 
         for byte in generate(model, tokenizer, text=text, b_pair=False,
-                             generation_config=generation_config, max_new_tokens=max_length,
+                             generation_config=generation_config, max_stream_tokens=max_steam_tokens,
+                             max_length=max_length,
                              use_prompt_to_instruction=False):
             final_res = byte
             chosen_byte = byte[len(text):].replace('<|endoftext|>', '')
@@ -222,7 +226,8 @@ def gradio_ui_chat(main_class_conversation: Conversation):
             theme=theme) as block:
         with gr.Row():
             with gr.Column(scale=1):
-                max_length = gr.Slider(value=1024, maximum=1024, minimum=1, label='Max Length', step=1)
+                max_new_tokens = gr.Slider(value=1024, maximum=1024, minimum=1, label='Max New Tokens', step=1)
+                max_length = gr.Slider(value=1536, maximum=2048, minimum=1, label='Max Length', step=1)
                 max_steam_tokens = gr.Slider(value=1, maximum=3, minimum=1, label='Max Stream Tokens', step=1)
                 temperature = gr.Slider(value=0.9, maximum=1, minimum=0.2, label='Temperature', step=0.01)
                 top_p = gr.Slider(value=0.95, maximum=0.9999, minimum=0.1, label='Top P', step=0.01)
@@ -245,10 +250,12 @@ def gradio_ui_chat(main_class_conversation: Conversation):
                 text = gr.Textbox(show_label=False).style(container=False)
 
         submit.click(fn=chat_bot_run,
-                     inputs=[text, cache, max_steam_tokens, max_length, temperature, top_p, top_k, penalty, voice],
+                     inputs=[text, cache, max_steam_tokens, max_new_tokens, max_length, temperature, top_p, top_k,
+                             penalty, voice],
                      outputs=[text, cache])
         text.submit(fn=chat_bot_run,
-                    inputs=[text, cache, max_steam_tokens, max_length, temperature, top_p, top_k, penalty, voice],
+                    inputs=[text, cache, max_steam_tokens, max_new_tokens, max_length, temperature, top_p, top_k,
+                            penalty, voice],
                     outputs=[text, cache])
         gr.Markdown(
             'LucidBrains is a platform that makes AI accessible and easy to use for everyone. '

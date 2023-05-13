@@ -194,7 +194,7 @@ class MosaicGPT(MosaicPretrainedModule):
                 )
             min_val = torch.finfo(attn_bias.dtype).min
             attn_bias = attn_bias.masked_fill(
-                ~attention_mask.view(-1, 1, 1, s_k), min_val)
+                ~attention_mask.view(-1, 1, 1, s_k).bool(), min_val)
 
         return attn_bias, None
 
@@ -404,6 +404,7 @@ class MosaicGPT(MosaicPretrainedModule):
             logits *= self.logit_scale
         loss = None
         if labels is not None:
+            labels = labels.to(logits.device)
             labels = labels[..., 1:].contiguous()
             shifted_logist = logits[..., :-1, :].contiguous()
             loss = torch.nn.functional.cross_entropy(shifted_logist.view(-1, shifted_logist.size(-1)),
