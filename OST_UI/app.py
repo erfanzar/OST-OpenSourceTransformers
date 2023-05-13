@@ -8,7 +8,7 @@ import gradio as gr
 import whisper
 
 logger = logging.get_logger(__name__)
-logging.set_verbosity_info()
+# logging.set_verbosity_info()
 
 
 @dataclass
@@ -45,7 +45,7 @@ def prompt_to_instruction(text: str):
     return f"<|prompter|> {text} <|endoftext|><|assistant|>"
 
 
-def generate(model: AutoModelForCausalLM, tokenizer, text: str, max_stream_tokens: int = 1024,
+def generate(model: AutoModelForCausalLM, tokenizer, text: str, max_stream_tokens: int = 1,
              use_prompt_to_instruction: bool = False, generation_config=None, max_length=1536,
              b_pair=False):
     text = prompt_to_instruction(text) if use_prompt_to_instruction else text
@@ -77,10 +77,6 @@ def conversation(model, tokenizer, cache=None, max_new_tokens=512, byte_pair=Fal
         for text in generate(model, tokenizer, text=user, max_new_tokens=max_new_tokens, b_pair=byte_pair,
                              use_prompt_to_instruction=False):
             os.system('clear')
-            print(verify_text(text).
-                  replace('<|prompter|>', 'User : ').
-                  replace('<|endoftext|><|assistant|>', '\nAI :').
-                  replace('<|endoftext|>', '\n'), end='')
             last_a = text
         cache += last_a[len(cache):]
 
@@ -142,7 +138,9 @@ def sort_cache_lgem(cache_):
     return opt
 
 
-def chat_bot_run(text: str, cache, max_steam_tokens,
+def chat_bot_run(text: str,
+                 cache,
+                 max_steam_tokens,
                  max_new_tokens,
                  max_length,
                  temperature,
@@ -161,7 +159,7 @@ def chat_bot_run(text: str, cache, max_steam_tokens,
     final_res = ''
     generation_config = GenerationConfig(
         max_length=max_length,
-        max_new_tokens=max_new_tokens,
+        max_new_tokens=max_steam_tokens,
         temperature=temperature, top_p=top_p, top_k=top_k, repetition_penalty=repetition_penalty,
         eos_token_id=tokenizer.eos_token_id,
         pad_token_id=tokenizer.pad_token_id,
@@ -173,12 +171,12 @@ def chat_bot_run(text: str, cache, max_steam_tokens,
     if model is not None:
 
         for byte in generate(model, tokenizer, text=text, b_pair=False,
-                             generation_config=generation_config, max_stream_tokens=max_steam_tokens,
+                             generation_config=generation_config, max_stream_tokens=max_new_tokens,
                              max_length=max_length,
                              use_prompt_to_instruction=False):
             final_res = byte
             chosen_byte = byte[len(text):].replace('<|endoftext|>', '')
-            print(chosen_byte)
+
             cache_f[-1][1] = chosen_byte
             yield '', cache_f
         answer = final_res[len(text):len(final_res) - len('<|endoftext|>')]
@@ -239,7 +237,7 @@ def gradio_ui_chat(main_class_conversation: Conversation):
             with gr.Column(scale=4):
                 cache = gr.Chatbot(elem_id=main_class_conversation.config.model_id,
                                    label=main_class_conversation.config.model_id).style(container=True,
-                                                                                        height=680)
+                                                                                        height=740)
         with gr.Row():
             with gr.Column(scale=1):
                 submit = gr.Button()
@@ -247,8 +245,15 @@ def gradio_ui_chat(main_class_conversation: Conversation):
                 text = gr.Textbox(show_label=False).style(container=False)
 
         submit.click(fn=chat_bot_run,
-                     inputs=[text, cache, max_steam_tokens, max_new_tokens, max_length, temperature, top_p, top_k,
-                             penalty, voice],
+                     inputs=[text, cache,
+                             max_steam_tokens,
+                             max_new_tokens,
+                             max_length,
+                             temperature,
+                             top_p,
+                             top_k,
+                             penalty,
+                             voice],
                      outputs=[text, cache])
         text.submit(fn=chat_bot_run,
                     inputs=[text, cache, max_steam_tokens, max_new_tokens, max_length, temperature, top_p, top_k,
@@ -263,7 +268,7 @@ def gradio_ui_chat(main_class_conversation: Conversation):
             'with using Artificial Intelligence and Pushing Technology Beyond Limits'
             '\n[OST-OpenSourceTransformers](https://github.com/erfanzar/OST-OpenSourceTransformers) From LucidBrains 🧠\n'
         )
-    block.queue().launch(debug=False, share=True, inline=True, show_tips=True, width='100%')
+    block.queue().launch(debug=True, share=True, inline=True, show_tips=True, width='100%')
 
 
 def main(config):
