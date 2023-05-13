@@ -1,13 +1,10 @@
-from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig, PreTrainedTokenizer, logging, BloomModel
+from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig, PreTrainedTokenizer, logging
 import torch
 import textwrap
 import os
 from dataclasses import field, dataclass
-from transformers import HfArgumentParser, GPTNeoXForCausalLM
+from transformers import HfArgumentParser
 import gradio as gr
-import speech_recognition as sr
-from typing import List, Optional
-import copy
 import whisper
 
 logger = logging.get_logger(__name__)
