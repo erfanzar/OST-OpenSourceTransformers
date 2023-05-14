@@ -1,4 +1,5 @@
-from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig, PreTrainedTokenizer, logging
+from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig, PreTrainedTokenizer, logging, \
+    pipeline
 import torch
 import textwrap
 import os
@@ -7,7 +8,11 @@ from transformers import HfArgumentParser
 import gradio as gr
 import whisper
 
+from transformers.training_args import OptimizerNames
+
 logger = logging.get_logger(__name__)
+
+
 # logging.set_verbosity_info()
 
 
@@ -22,6 +27,9 @@ class LoadConfig:
                                    'help': "load model in 8 bit to make the models smaller "
                                            "and faster but its not recommended 😀 "})
     whisper_model: str = field(default='base', metadata={'help': 'model to load for whisper '})
+    use_custom: bool = field(default=False, metadata={
+        'help': 'use pipeline or custom generate func'
+    })
 
 
 def load_model(config: LoadConfig):
@@ -45,9 +53,9 @@ def prompt_to_instruction(text: str):
     return f"<|prompter|> {text} <|endoftext|><|assistant|>"
 
 
-def generate(model: AutoModelForCausalLM, tokenizer, text: str, max_stream_tokens: int = 1,
-             use_prompt_to_instruction: bool = False, generation_config=None, max_length=1536,
-             b_pair=False):
+def generate__a(model: AutoModelForCausalLM, tokenizer, text: str, max_stream_tokens: int = 1,
+                use_prompt_to_instruction: bool = False, generation_config=None, max_length=1536,
+                b_pair=False):
     text = prompt_to_instruction(text) if use_prompt_to_instruction else text
 
     for i in range(max_stream_tokens):
@@ -74,8 +82,8 @@ def conversation(model, tokenizer, cache=None, max_new_tokens=512, byte_pair=Fal
     while True:
         user = cache + prompt_to_instruction(input('>>  '))
         last_a = 'NONE'
-        for text in generate(model, tokenizer, text=user, max_new_tokens=max_new_tokens, b_pair=byte_pair,
-                             use_prompt_to_instruction=False):
+        for text in generate__a(model, tokenizer, text=user, max_stream_tokens=max_new_tokens, b_pair=byte_pair,
+                                use_prompt_to_instruction=False):
             os.system('clear')
             last_a = text
         cache += last_a[len(cache):]
@@ -106,9 +114,9 @@ class Conversation:
             top_k=top_k,
             repetition_penalty=repetition_penalty
         )
-        for byte in generate(self.model, self.tokenizer, text=text, b_pair=False,
-                             generation_config=generation_config,
-                             use_prompt_to_instruction=False):
+        for byte in generate__a(self.model, self.tokenizer, text=text, b_pair=False,
+                                generation_config=generation_config,
+                                use_prompt_to_instruction=False):
             final_res = byte
             yield byte[len(text):].replace('<|endoftext|>', '')
         answer = final_res[len(text):len(final_res) - len('<|endoftext|>')]
@@ -165,21 +173,32 @@ def chat_bot_run(text: str,
         pad_token_id=tokenizer.pad_token_id,
         bos_token_id=tokenizer.bos_token_id
     )
-    #     cache_f = copy.deepcopy(cache)
+
     cache_f = cache
     cache_f.append([original_text, ''])
     if model is not None:
+        if not isinstance(generate, TextGenerationPipeline):
+            for byte in generate(model, tokenizer, text=text, b_pair=False,
+                                 generation_config=generation_config, max_stream_tokens=max_new_tokens,
+                                 max_length=max_length,
+                                 use_prompt_to_instruction=False):
+                final_res = byte
+                chosen_byte = byte[len(text):].replace('<|endoftext|>', '')
 
-        for byte in generate(model, tokenizer, text=text, b_pair=False,
-                             generation_config=generation_config, max_stream_tokens=max_new_tokens,
-                             max_length=max_length,
-                             use_prompt_to_instruction=False):
-            final_res = byte
-            chosen_byte = byte[len(text):].replace('<|endoftext|>', '')
+                cache_f[-1][1] = chosen_byte
+                yield '', cache_f
+            answer = final_res[len(text):len(final_res) - len('<|endoftext|>')]
+        else:
+            generate.config = generation_config
+            for _ in range(max_new_tokens):
+                res = generate(text)
+                final_res = res
+                print(res)
+                res = res[len(text):]
+                cache_f[-1][1] = res
+                yield '', cache_f
+            answer = final_res[len(text):len(final_res) - len('<|endoftext|>')]
 
-            cache_f[-1][1] = chosen_byte
-            yield '', cache_f
-        answer = final_res[len(text):len(final_res) - len('<|endoftext|>')]
     else:
         answer = 'It seems like im down or im not loaded yet 😇'
     cache.append([original_text, answer])
@@ -284,10 +303,17 @@ def main(config):
 
 
 if __name__ == "__main__":
-    config_ = HfArgumentParser(LoadConfig).parse_args_into_dataclasses()[0]
+    config_: LoadConfig = HfArgumentParser(LoadConfig).parse_args_into_dataclasses()[0]
     # config_ = LoadConfig()
+
     print(f'Running WITH MODE : {config_.mode}')
     model, tokenizer, whisper_model = load_model(config=config_)
     model = model.cuda()
     whisper_model = whisper_model.cuda()
+    generate = generate__a if config_.use_custom else pipeline(
+        'text-generation',
+        model=model,
+        tokenizer=tokenizer,
+    )
+
     main(config_)
