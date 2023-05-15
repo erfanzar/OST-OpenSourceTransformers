@@ -1,4 +1,6 @@
-from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig, PreTrainedTokenizer, logging
+import transformers
+from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig, PreTrainedTokenizer, logging, \
+    pipeline
 import torch
 import textwrap
 import os
@@ -8,6 +10,8 @@ import gradio as gr
 import whisper
 
 logger = logging.get_logger(__name__)
+
+
 # logging.set_verbosity_info()
 
 
@@ -22,6 +26,9 @@ class LoadConfig:
                                    'help': "load model in 8 bit to make the models smaller "
                                            "and faster but its not recommended 😀 "})
     whisper_model: str = field(default='base', metadata={'help': 'model to load for whisper '})
+    use_custom: bool = field(default=False, metadata={
+        'help': 'use pipeline or custom generate func'
+    })
 
 
 def load_model(config: LoadConfig):
@@ -53,8 +60,8 @@ def generate(model: AutoModelForCausalLM, tokenizer, text: str, max_stream_token
     for i in range(max_stream_tokens):
         enc = tokenizer(text, return_tensors='pt', add_special_tokens=False)
         text_r = text
-        enc = model.generate(enc.input_ids.to(model.device)[..., -max_length:],
-                             attention_mask=enc.attention_mask.to(model.device)[..., -max_length:],
+        enc = model.generate(enc.input_ids.to(model.device),
+                             attention_mask=enc.attention_mask.to(model.device),
                              generation_config=generation_config)
         text = tokenizer.decode(enc[0], skip_special_tokens=False)
         text = text[:-4] + tokenizer.eos_token if text[-4:] == '\n\n\n\n' else text
@@ -74,7 +81,7 @@ def conversation(model, tokenizer, cache=None, max_new_tokens=512, byte_pair=Fal
     while True:
         user = cache + prompt_to_instruction(input('>>  '))
         last_a = 'NONE'
-        for text in generate(model, tokenizer, text=user, max_new_tokens=max_new_tokens, b_pair=byte_pair,
+        for text in generate(model, tokenizer, text=user, max_stream_tokens=max_new_tokens, b_pair=byte_pair,
                              use_prompt_to_instruction=False):
             os.system('clear')
             last_a = text
@@ -133,7 +140,7 @@ def sort_cache_lgem(cache_):
     else:
         opt = ''
         for f in cache_:
-            opt += f"User:{f[0]}\nAI:{f[1]}"
+            opt += f"USER:{f[0]}\nAI:{f[1]}"
 
     return opt
 
@@ -163,13 +170,12 @@ def chat_bot_run(text: str,
         temperature=temperature, top_p=top_p, top_k=top_k, repetition_penalty=repetition_penalty,
         eos_token_id=tokenizer.eos_token_id,
         pad_token_id=tokenizer.pad_token_id,
-        bos_token_id=tokenizer.bos_token_id
+        bos_token_id=tokenizer.bos_token_id,
     )
-    #     cache_f = copy.deepcopy(cache)
+
     cache_f = cache
     cache_f.append([original_text, ''])
     if model is not None:
-
         for byte in generate(model, tokenizer, text=text, b_pair=False,
                              generation_config=generation_config, max_stream_tokens=max_new_tokens,
                              max_length=max_length,
@@ -229,11 +235,10 @@ def gradio_ui_chat(main_class_conversation: Conversation):
                 top_k = gr.Slider(value=50, maximum=100, minimum=1, label='Top K', step=1)
                 penalty = gr.Slider(value=1.2, maximum=5, minimum=1, label='Repetition Penalty', step=0.1, visible=True)
                 # TODO
-                penalty_ = gr.Slider(value=1.2, maximum=10, minimum=1, label='Repetition', step=0.1, visible=True)
-                gre_mode = gr.Checkbox(label='Greedy Mode')
-                smart_mode = gr.Checkbox(label='Smart Mode')
-                informational_mode = gr.Checkbox(label='Informational Mode')
+
                 voice = gr.Audio(source='microphone', type="filepath", streaming=False, label='Smart Voice', )
+                stop = gr.Button(value='Stop 🛑')
+                clear = gr.Button(value='Clear Conversation 🧼')
             with gr.Column(scale=4):
                 cache = gr.Chatbot(elem_id=main_class_conversation.config.model_id,
                                    label=main_class_conversation.config.model_id).style(container=True,
@@ -242,23 +247,35 @@ def gradio_ui_chat(main_class_conversation: Conversation):
             with gr.Column(scale=1):
                 submit = gr.Button()
             with gr.Column(scale=4):
+
                 text = gr.Textbox(show_label=False).style(container=False)
 
-        submit.click(fn=chat_bot_run,
-                     inputs=[text, cache,
-                             max_steam_tokens,
-                             max_new_tokens,
-                             max_length,
-                             temperature,
-                             top_p,
-                             top_k,
-                             penalty,
-                             voice],
-                     outputs=[text, cache])
-        text.submit(fn=chat_bot_run,
-                    inputs=[text, cache, max_steam_tokens, max_new_tokens, max_length, temperature, top_p, top_k,
-                            penalty, voice],
-                    outputs=[text, cache])
+        sub_event = submit.click(fn=chat_bot_run,
+                                 inputs=[text, cache,
+                                         max_steam_tokens,
+                                         max_new_tokens,
+                                         max_length,
+                                         temperature,
+                                         top_p,
+                                         top_k,
+                                         penalty,
+                                         voice],
+                                 outputs=[text, cache])
+
+        def stop_():
+            ...
+
+        def clear_():
+            return []
+
+        clear.click(fn=clear_, outputs=[cache])
+        txt_event = text.submit(fn=chat_bot_run,
+                                inputs=[text, cache, max_steam_tokens, max_new_tokens, max_length, temperature, top_p,
+                                        top_k,
+                                        penalty, voice],
+                                outputs=[text, cache])
+
+        stop.click(fn=None, inputs=None, outputs=None, cancels=[txt_event, sub_event])
         gr.Markdown(
             'LucidBrains is a platform that makes AI accessible and easy to use for everyone. '
             'Our mission is to empower individuals and businesses '
@@ -284,10 +301,13 @@ def main(config):
 
 
 if __name__ == "__main__":
-    config_ = HfArgumentParser(LoadConfig).parse_args_into_dataclasses()[0]
+    config_: LoadConfig = HfArgumentParser(LoadConfig).parse_args_into_dataclasses()[0]
     # config_ = LoadConfig()
+
     print(f'Running WITH MODE : {config_.mode}')
     model, tokenizer, whisper_model = load_model(config=config_)
-    model = model.cuda()
-    whisper_model = whisper_model.cuda()
+
+    model = model.cuda() if model is not None else model
+    whisper_model = whisper_model.cuda() if whisper_model is not None else whisper_model
+
     main(config_)
