@@ -1096,3 +1096,23 @@ def transform_weight_quantize(state_dict):
             state_dict[k] = quantize_tensor(v)
             print(f'{i} Quantize {k}')
     return state_dict
+
+
+def simple_chunk(input_ids_, attention_mask_, chunk=512, drop_last=True):
+    input_ids = []
+    attention_mask = []
+
+    for current_chunk in range(0, len(attention_mask_), chunk):
+        try:
+            input_ids.append(input_ids_[current_chunk:current_chunk + chunk])
+            attention_mask.append(attention_mask_[current_chunk:current_chunk + chunk])
+        except KeyError:
+            if not drop_last:
+                input_ids.append(input_ids_[current_chunk:])
+                attention_mask.append(attention_mask_[current_chunk:])
+    if len(input_ids[-1]) != chunk and not drop_last:
+        rem = chunk - len(input_ids[-1])
+        added_remo = [0 for _ in range(rem)]
+        input_ids[-1] += added_remo
+        attention_mask[-1] += added_remo
+    return input_ids, attention_mask

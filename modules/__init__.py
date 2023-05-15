@@ -23,3 +23,5 @@ from modules.triton import FlashAttnKVPackedFunc, flash_attn_kvpacked_func, flas
 from modules.modelling_palm import PalmConfig, PalmModel, PalmForCausalLM
 # except ImportError:
 #     pass
+
+from modules.jax_modules import FlaxLGeMModule, FlaxLGeMConfig, FlaxLGeMModel, FlaxLGeMForCausalLM
