@@ -1116,3 +1116,57 @@ def simple_chunk(input_ids_, attention_mask_, chunk=512, drop_last=True):
         input_ids[-1] += added_remo
         attention_mask[-1] += added_remo
     return input_ids, attention_mask
+
+
+def set_ff_model(_model, embedding_requires_grad=True):
+    mlp, ll, q_p, v_p, k_p, o_p = [], [], [], [], [], []
+    last_l = len(_model.model.layers) - 1
+    for i, (name, param) in enumerate(_model.named_parameters()):
+        if f"{last_l}" not in name:
+            param.requires_grad = False
+        else:
+            param.requires_grad = True
+        if 'mlp' in name:
+            param.requires_grad = False
+        if i == 0 and embedding_requires_grad:
+            param.requires_grad = True
+
+    for i, (name, param) in enumerate(_model.named_parameters()):
+        print("{:>5} : {:<60} : {:>15} => {:>25}".format(i, name, param.requires_grad, param.numel() / 1e6))
+        if 'q_proj' in name:
+            q_p.append(param.numel() / 1e6)
+        if 'k_proj' in name:
+            k_p.append(param.numel() / 1e6)
+        if 'v_proj' in name:
+            v_p.append(param.numel() / 1e6)
+        if 'o_proj' in name:
+            o_p.append(param.numel() / 1e6)
+        if 'mlp' in name:
+            mlp.append(param.numel() / 1e6)
+        if f"{last_l}" in name:
+            ll.append(param.numel() / 1e6)
+
+    print(f'K Proj Contain {sum(k_p)} Million Parameters')
+    print(f'Q Proj Contain {sum(q_p)} Million Parameters')
+    print(f'O Proj Contain {sum(o_p)} Million Parameters')
+    print(f'V Proj Contain {sum(v_p)} Million Parameters')
+    print(f'MLP Contain    {sum(mlp)} Million Parameters')
+
+    print(f'\n------\nEach Block Contain {sum(ll)} Million Parameters (Based On {last_l} Block)')
+
+    train_able_parameters = 0
+    for i, (name, param) in enumerate(_model.named_parameters()):
+        train_able_parameters += param.numel() / 1e6 if param.requires_grad else 0
+    print(f'Total TrainAble Parameters In Model Is {train_able_parameters} Million Parameters')
+
+    for i, (name, param) in enumerate(_model.named_parameters()):
+        if param.requires_grad:
+            print("{:>5} : {:<60} : {:>15} => {:>25}".format(i, name, param.requires_grad, param.numel() / 1e6))
+    return _model
+
+def collect_fn(batch):
+    holder_dict = {}
+    for key in batch[0].keys():
+        tensor = torch.stack([torch.tensor(stack[key]) for stack in batch])
+        holder_dict[key] = tensor
+    return holder_dict
