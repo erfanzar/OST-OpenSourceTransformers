@@ -7,6 +7,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, Trainer, TrainingA
     DataCollatorForLanguageModeling
 import os
 from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.cuda.amp import GradScaler
 
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', '0'))
 WORLD_SIZE = int(os.getenv('WORLD_SIZE', '1'))
@@ -84,22 +85,24 @@ def make2d(tensor):
 
 
 def train(
-        model, optimizer, data_loader, scheduler_lr=None, epochs: int = 5
+        model, optimizer, data_loader, scalar: GradScaler, scheduler_lr=None, epochs: int = 5
 ):
     pbar = tqdm(range(epochs * len(data_loader)))
     for epoch in range(epochs):
         for batch in data_loader:
             optimizer.zero_grad(set_to_none=True)
             input_ids, attention_mask, labels = batch['input_ids'], batch['attention_mask'], batch['input_ids']
-            output = model(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                labels=labels,
-                return_dict=True
-            )
+            with torch.amp.autocast(device_type='cuda', dtype=torch.float16):
+                output = model(
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                    labels=labels,
+                    return_dict=True
+                )
             loss = output.loss
-            loss.backward()
-            optimizer.step()
+            scalar.scale(loss).backward()
+            scalar.step(optimizer)
+            scalar.update()
             pbar.update(1)
             pbar.set_postfix(loss=loss.item())
             if scheduler_lr is not None:
@@ -143,7 +146,8 @@ def main(on_layers,
                          embedding_requires_grad=embedding_requires_grad)
     train_dataloader = configure_data_loader(dataset_hub, 'train', batch_size=batch_size)
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
-    train(model, optimizer, train_dataloader, epochs=epochs)
+    scalar = GradScaler()
+    train(model, optimizer, train_dataloader, epochs=epochs, scalar=scalar)
     model.save_pretrained(path_to_save)
 
 
