@@ -1164,6 +1164,7 @@ def set_ff_model(_model, embedding_requires_grad=True):
             print("{:>5} : {:<60} : {:>15} => {:>25}".format(i, name, param.requires_grad, param.numel() / 1e6))
     return _model
 
+
 def collect_fn(batch):
     holder_dict = {}
     for key in batch[0].keys():
