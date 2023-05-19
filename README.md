@@ -14,6 +14,7 @@ Generative Models). OST Collection is based on a novel approach to work as a ful
 you have many options to choose which code to choose for train the models but we recommend using train.py that you can use fsdp and deepspeed 
 
 
+
 DeepSpeed Example
 
 ```shell
