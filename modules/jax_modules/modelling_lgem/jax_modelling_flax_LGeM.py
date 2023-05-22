@@ -315,5 +315,5 @@ class FlaxLGeMForCausalLMModule(nn.Module):
             return pred,
 
 
-class FlaxLGeMForCausalLM(FlaxLGeMModel):
+class FlaxLGeMForCausalLM(FlaxLGeMPretrainedModel):
     module_class = FlaxLGeMForCausalLMModule
