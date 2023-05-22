@@ -1,6 +1,8 @@
 import math
 import jax
+from flax.traverse_util import unflatten_dict, flatten_dict
 from jax import jit, vmap, pmap
+from flax.core import FrozenDict, freeze, unfreeze
 from flax import linen as nn
 from jax import numpy as jnp
 from transformers import PretrainedConfig, FlaxPreTrainedModel
@@ -209,6 +211,32 @@ class FlaxLGeMPretrainedModel(FlaxPreTrainedModel):
     ):
         module = self.module_class(config=config, dtype=dtype, **kwargs)
         super().__init__(config, module, input_shape=input_shape, seed=seed, dtype=dtype, _do_init=_do_init)
+
+    def init_weights(self, rng: jax.random.PRNGKey, input_shape, params=None):
+
+        input_ids = jnp.zeros(input_shape, dtype="i4")
+        attention_mask = jnp.ones_like(input_ids)
+
+        params_rng, dropout_rng = jax.random.split(rng)
+        rngs = {"params": params_rng, "dropout": dropout_rng}
+
+        module_init_outputs = self.module.init(
+            rngs,
+            input_ids,
+            attention_mask,
+            return_dict=False,
+        )
+
+        random_params = module_init_outputs["params"]
+        if params is not None:
+            random_params = flatten_dict(unfreeze(random_params))
+            params = flatten_dict(unfreeze(params))
+            for missing_key in self._missing_keys:
+                params[missing_key] = random_params[missing_key]
+            self._missing_keys = set()
+            return freeze(unflatten_dict(params))
+        else:
+            return random_params
 
 
 class FlaxLGeMModule(nn.Module):

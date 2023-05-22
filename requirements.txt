@@ -1,8 +1,7 @@
 torch
 erutils
-transformers~=4.28.0.dev0
+transformers
 deepspeed
-beautifulsoup4~=4.11.1
 psutil~=5.9.0
 tqdm~=4.64.1
 datasets~=2.9.0
@@ -13,9 +12,10 @@ pandas
 accelerate
 typing
 wikipedia
-
 jax
 optax
 flax
 safetensors
 bitsandbytes
+einops
+matplotlib
