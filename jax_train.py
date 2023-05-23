@@ -271,6 +271,14 @@ def main():
             b2=train_args.adam_beta2,
             eps=train_args.adam_epsilon,
         )
+        if model_args.dtype == 'float32':
+            model.params = model.to_fp32(model.params)
+        elif model_args.dtype == 'float16':
+            model.params = model.to_fp16(model.params)
+        elif model_args.dtype == 'bfloat16':
+            model.params = model.to_bf16(model.params)
+        else:
+            raise ValueError(f'Wrong DataType {model_args.dtype} is not in supported list')
         return CTrainState.create(
             tx=tx,
             apply_fn=model.__call__,
