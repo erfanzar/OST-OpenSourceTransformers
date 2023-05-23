@@ -1,9 +1,0 @@
-!mamba create -n py310 -y
-!source /opt/conda/bin/activate py310 && mamba install python=3.10 jupyter mamba -y
-
-!sudo rm /opt/conda/bin/python3
-!sudo ln -sf /opt/conda/envs/py310/bin/python3 /opt/conda/bin/python3
-!sudo rm /opt/conda/bin/python3.7
-!sudo ln -sf /opt/conda/envs/py310/bin/python3 /opt/conda/bin/python3.7
-!sudo rm /opt/conda/bin/python
-!sudo ln -sf /opt/conda/envs/py310/bin/python3 /opt/conda/bin/python
