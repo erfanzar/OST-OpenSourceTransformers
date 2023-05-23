@@ -210,6 +210,7 @@ class FlaxLGeMPretrainedModel(FlaxPreTrainedModel):
             **kwargs,
     ):
         module = self.module_class(config=config, dtype=dtype, **kwargs)
+
         super().__init__(config, module, input_shape=input_shape, seed=seed, dtype=dtype, _do_init=_do_init)
 
     def init_weights(self, rng: jax.random.PRNGKey, input_shape, params=None):
@@ -237,6 +238,32 @@ class FlaxLGeMPretrainedModel(FlaxPreTrainedModel):
             return freeze(unflatten_dict(params))
         else:
             return random_params
+
+    def __call__(
+            self,
+            input_ids: jnp.ndarray,
+            attention_mask: Optional[jnp.ndarray] = None,
+            params: dict = None,
+            return_dict: Optional[bool] = None,
+            deterministic: bool = True,
+    ):
+
+        return_dict = return_dict if return_dict is not None else self.config.return_dict
+
+        if attention_mask is None:
+            attention_mask = jnp.ones_like(input_ids)
+
+        inputs = params or self.params
+
+        outputs = self.module.apply(
+            inputs,
+            input_ids=jnp.array(input_ids, dtype="i4"),
+            attention_mask=jnp.array(attention_mask, dtype="i4"),
+            return_dict=return_dict,
+
+        )
+
+        return outputs
 
 
 class FlaxLGeMModule(nn.Module):

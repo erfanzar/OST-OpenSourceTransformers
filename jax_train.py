@@ -273,16 +273,14 @@ def main():
         )
         return CTrainState.create(
             tx=tx,
-            apply_fn=model.module.__call__,
+            apply_fn=model.__call__,
             params=model.params,
             model_it_self=model,
         )
 
-    @jax.pmap
     def update_grads(state: train_state.TrainState, grads):
         return state.apply_gradients(grads=grads)
 
-    @partial(jax.pmap, axis_name='apply')
     def apply_model(state: train_state.TrainState, batch):
         """
 
@@ -296,8 +294,10 @@ def main():
             loss_ = optax.softmax_cross_entropy_with_integer_labels(logits=logits, labels=batch['input_ids'])
             return loss_
 
-        graf_fn = jax.grad(loss_fn, has_aux=False)
+        graf_fn = jax.value_and_grad(loss_fn, has_aux=False)
         loss, grad = graf_fn(state.params)
+        loss = jax.lax.pmean(loss, axis_name='batch')
+        grad = jax.lax.pmean(grad, axis_name='batch')
         return loss, grad
 
     def train_step(state: train_state.TrainState, batch):
