@@ -5,6 +5,7 @@ import optax
 from functools import partial
 from datasets import load_dataset
 from tqdm.auto import tqdm
+
 from dataclasses import dataclass, field
 from torch.utils.data import DataLoader
 from typing import Optional
@@ -243,58 +244,52 @@ def main():
         tokenizer.get_vocab()) == config.vocab_size, 'Tokenizer and Vocab size are not match that will' \
                                                      ' cause of error in the training and inference process'
 
-    class CTrainState(train_state.TrainState):
-        model_it_self: FlaxPreTrainedModel
+    if config is None:
+        assert model_args.model_name_or_path
+        model = FlaxAutoModelForCausalLM.from_pretrained(
+            model_args.model_name_or_path,
+            use_auth_token=model_args.use_auth_token,
+            dtype=jnp.dtype(model_args.dtype),
+            trust_remote_code=model_args.trust_remote_code,
+        )
+    else:
+        model: flax.linen.Module | FlaxPreTrainedModel = FlaxAutoModelForCausalLM.from_config(
+            config=config,
+            trust_remote_code=True,
+        )
 
-    # @partial(jax.pmap)
-    def create_train_state():
-        if config is None:
-            assert model_args.model_name_or_path
-            model = FlaxAutoModelForCausalLM.from_pretrained(
-                model_args.model_name_or_path,
-                use_auth_token=model_args.use_auth_token,
-                dtype=jnp.dtype(model_args.dtype),
-                trust_remote_code=model_args.trust_remote_code,
-            )
-        else:
-            model: flax.linen.Module | FlaxPreTrainedModel = FlaxAutoModelForCausalLM.from_config(
-                config=config,
-                trust_remote_code=True,
-            )
+    _i = jax.tree_util.tree_flatten(flax.core.unfreeze(model.params))[0]
+    prefix_printer('Model Contain ', f'{sum(i.size for i in _i) / 1e6} Million Parameters')
+    prefix_printer('Model Devices Are', f'{get_model_devices(model.params)}')
 
-        _i = jax.tree_util.tree_flatten(flax.core.unfreeze(model.params))[0]
-        prefix_printer('Model Contain ', f'{sum(i.size for i in _i) / 1e6} Million Parameters')
-        prefix_printer('Model Devices Are', f'{get_model_devices(model.params)}')
+    if model_args.dtype == 'float32':
+        model.params = model.to_fp32(model.params)
+    elif model_args.dtype == 'float16':
+        model.params = model.to_fp16(model.params)
+    elif model_args.dtype == 'bfloat16':
+        model.params = model.to_bf16(model.params)
+    else:
+        raise ValueError(f'Wrong DataType {model_args.dtype} is not in supported list')
+
+    def create_train_state(model):
         tx = optax.adamw(
             learning_rate=train_args.learning_rate,
             b1=train_args.adam_beta1,
             b2=train_args.adam_beta2,
             eps=train_args.adam_epsilon,
         )
-        if model_args.dtype == 'float32':
-            model.params = model.to_fp32(model.params)
-        elif model_args.dtype == 'float16':
-            model.params = model.to_fp16(model.params)
-        elif model_args.dtype == 'bfloat16':
-            model.params = model.to_bf16(model.params)
-        else:
-            raise ValueError(f'Wrong DataType {model_args.dtype} is not in supported list')
-        return CTrainState.create(
+        return train_state.TrainState.create(
             tx=tx,
             apply_fn=model.__call__,
             params=model.params,
-            model_it_self=model,
         )
-
-    def update_grads(state: train_state.TrainState, grads):
-        return state.apply_gradients(grads=grads)
 
     def apply_model(state: train_state.TrainState, batch):
         """
 
         :param state: TrainState
         :param batch: Input Batch
-        :return: Loss,Grad
+        :return:state, Loss
         """
 
         def loss_fn(params):
@@ -306,13 +301,10 @@ def main():
         loss, grad = graf_fn(state.params)
         loss = jax.lax.pmean(loss, axis_name='batch')
         grad = jax.lax.pmean(grad, axis_name='batch')
-        return loss, grad
-
-    def train_step(state: train_state.TrainState, batch):
-
-        loss, grad = apply_model(state=state, batch=batch)
-        state = update_grads(state, grad)
+        state = state.apply_gradients(grads=grad)
         return state, loss
+
+    dpp_apply_model = jax.pmap(apply_model, donate_argnums=(0,))
 
     def train(state, dataloader_train):
         total = len(dataloader_train) * train_args.num_train_epochs
@@ -321,7 +313,7 @@ def main():
         for ep in range(train_args.num_train_epochs):
             for batch in dataloader_train:
                 i += 1
-                state, loss = train_step(state, batch)
+                state, loss = dpp_apply_model(state=state, batch=batch)
                 pbar.update(1)
                 pbar.set_postfix(loss=loss, passed=i / total, epoch=f'[{ep}/{train_args.num_train_epochs}]')
                 if i % train_args.logging_steps == 0:
@@ -350,7 +342,8 @@ def main():
             num_proc=data_args.preprocessing_num_workers,
             remove_columns=dataset['train'].column_names
         )
-    state = create_train_state()
+    state = create_train_state(model)
+    state = flax.jax_utils.replicate(state)
 
     def collate_fn(batch):
         rs = {}
