@@ -8,7 +8,8 @@ Generative Models). OST Collection is based on a novel approach to work as a ful
 # TODO
 
 - Move all the models from only native pytorch to the triton / pytorch
-
+- Make all of the models available in flax/jax
+- create weight convertor from pytorch to -> jax / flax / tensorflow
 ## Train or Finetune 
 
 you have many options to choose which code to choose for train the models but we recommend using train.py that you can use fsdp and deepspeed 
