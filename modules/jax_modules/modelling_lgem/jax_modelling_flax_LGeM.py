@@ -1,7 +1,8 @@
 import math
 import jax
 from flax.traverse_util import unflatten_dict, flatten_dict
-from jax import jit, vmap, pmap
+from jax.sharding import Mesh, PartitionSpec
+from jax.experimental.pjit import with_sharding_constraint as wsc
 from flax.core import FrozenDict, freeze, unfreeze
 from flax import linen as nn
 from jax import numpy as jnp
@@ -10,6 +11,33 @@ from transformers.modeling_flax_outputs import FlaxBaseModelOutput, FlaxCausalLM
 from functools import partial
 from typing import Optional
 from einops import rearrange
+from jax.interpreters import pxla
+
+
+def get_names_from_parition_spec(partition_specs):
+    names = set()
+    if isinstance(partition_specs, dict):
+        partition_specs = partition_specs.values()
+    for item in partition_specs:
+        if item is None:
+            continue
+        elif isinstance(item, str):
+            names.add(item)
+        else:
+            names.update(get_names_from_parition_spec(item))
+
+    return list(names)
+
+
+def names_in_mesh(*names):
+    return set(names) <= set(pxla.thread_resources.env.physical_mesh.axis_names)
+
+
+def with_sharding_constraint(x, partition_specs):
+    axis_names = get_names_from_parition_spec(partition_specs)
+    if names_in_mesh(*axis_names):
+        x = wsc(x, partition_specs)
+    return x
 
 
 class FlaxLGeMConfig(PretrainedConfig):
@@ -122,12 +150,13 @@ class RoEM(nn.Module):
 class LGeMSelfAttention(nn.Module):
     config: FlaxLGeMConfig
     dtype: jnp.dtype = jnp.float32
+    param_dtype: jnp.dtype = jnp.float32
 
     def setup(self) -> None:
         dense = partial(nn.Dense,
                         features=self.config.hidden_size,
                         kernel_init=nn.initializers.normal(self.config.initializer_range),
-                        use_bias=False, dtype=self.dtype, param_dtype=self.dtype
+                        use_bias=False, dtype=self.dtype, param_dtype=self.param_dtype
                         )
         self.k_proj = dense()
         self.v_proj = dense()
@@ -137,18 +166,28 @@ class LGeMSelfAttention(nn.Module):
 
     def __call__(self, input_ids: jnp.array, attention_mask=None):
         b, t, c = input_ids.shape
-        vs = (b, t, self.config.num_attention_heads, c // self.config.num_attention_heads)
-        k = self.k_proj(input_ids).reshape(vs).swapaxes(1, 2)
-        q = self.q_proj(input_ids).reshape(vs).swapaxes(1, 2)
-        v = self.v_proj(input_ids).reshape(vs).swapaxes(1, 2)
+
+        k = self.k_proj(input_ids)
+        q = self.q_proj(input_ids)
+        v = self.v_proj(input_ids)
+
+        q = with_sharding_constraint(q, PartitionSpec(('dp', 'fsdp'), None, 'mp'))
+        k = with_sharding_constraint(k, PartitionSpec(('dp', 'fsdp'), None, 'mp'))
+        v = with_sharding_constraint(v, PartitionSpec(('dp', 'fsdp'), None, 'mp'))
+
+        q = rearrange(q, 'b s (h,d) -> b h s d', h=self.config.num_attention_heads)
+        k = rearrange(k, 'b s (h,d) -> b h s d', h=self.config.num_attention_heads)
+        v = rearrange(v, 'b s (h,d) -> b h s d', h=self.config.num_attention_heads)
 
         cos, sin = self.rotary_embedding(x=k, max_l=t)
 
         k, q = apply_rotary_embedding(k=k, q=q, c=cos, s=sin)
-        attn = q @ k.swapaxes(2, 3) / math.sqrt(k.shape[-1])
+        k = rearrange(k, 'b h s d -> b h d s')
+        attn = q @ k / math.sqrt(k.shape[-1])
         if attention_mask is not None:
             # assert attention_mask.shape == [b, 1, t, kv_seq_length]
             attn += attention_mask
+        attn = with_sharding_constraint(attn, PartitionSpec(('dp', 'fsdp'), 'mp', None, None))
         attn = nn.softmax(attn, axis=-1)
         attn = (attn @ v).swapaxes(1, 2).reshape(b, t, c)
         return self.o_proj(attn)
@@ -157,11 +196,12 @@ class LGeMSelfAttention(nn.Module):
 class LGeMMLP(nn.Module):
     config: FlaxLGeMConfig
     dtype: jnp.dtype = jnp.float32
+    param_dtype: jnp.dtype = jnp.float32
 
     def setup(self) -> None:
         dense = partial(nn.Dense,
                         kernel_init=nn.initializers.normal(self.config.initializer_range),
-                        use_bias=False, dtype=self.dtype, param_dtype=self.dtype
+                        use_bias=False, dtype=self.dtype, param_dtype=self.param_dtype
                         )
         self.gate_proj = dense(features=self.config.intermediate_size)
         self.up_proj = dense(features=self.config.intermediate_size)
@@ -175,24 +215,18 @@ class LGeMMLP(nn.Module):
 class LGeMBlock(nn.Module):
     config: FlaxLGeMConfig
     dtype: jnp.dtype = jnp.float32
+    param_dtype: jnp.dtype = jnp.float32
 
     def setup(self) -> None:
-        self.self_attn = LGeMSelfAttention(config=self.config, dtype=self.dtype)
-        self.mlp = LGeMMLP(config=self.config, dtype=self.dtype)
+        self.self_attn = LGeMSelfAttention(config=self.config, dtype=self.dtype, param_dtype=self.param_dtype)
+        self.mlp = LGeMMLP(config=self.config, dtype=self.dtype, param_dtype=self.param_dtype)
         self.input_layernorm = PMSNorm(dim=self.config.hidden_size, eps=self.config.rms_norm_eps, dtype=self.dtype)
         self.post_attention_layernorm = PMSNorm(dim=self.config.hidden_size, eps=self.config.rms_norm_eps,
                                                 dtype=self.dtype)
 
     def __call__(self, hidden_state, attention_mask=None):
-        residual = hidden_state
-        hidden_state = self.input_layernorm(hidden_state)
-        hidden_state = self.self_attn(hidden_state, attention_mask)
-        hidden_state = hidden_state + residual
-        residual = hidden_state
-        hidden_state = self.post_attention_layernorm(hidden_state)
-        hidden_state = self.mlp(hidden_state)
-        hidden_state = hidden_state + residual
-        return hidden_state
+        hidden_state = self.self_attn(self.input_layernorm(hidden_state), attention_mask) + hidden_state
+        return self.mlp(self.post_attention_layernorm(hidden_state)) + hidden_state
 
 
 class FlaxLGeMPretrainedModel(FlaxPreTrainedModel):
@@ -206,11 +240,10 @@ class FlaxLGeMPretrainedModel(FlaxPreTrainedModel):
             input_shape=(1, 1),
             seed: int = 0,
             dtype: jnp.dtype = jnp.float32,
-            _do_init: bool = False,
+            _do_init: bool = True,
             **kwargs,
     ):
         module = self.module_class(config=config, dtype=dtype, **kwargs)
-
         super().__init__(config, module, input_shape=input_shape, seed=seed, dtype=dtype, _do_init=_do_init)
 
     def init_weights(self, rng: jax.random.PRNGKey, input_shape, params=None):
@@ -253,7 +286,7 @@ class FlaxLGeMPretrainedModel(FlaxPreTrainedModel):
         if attention_mask is None:
             attention_mask = jnp.ones_like(input_ids)
 
-        inputs = params or self.params
+        inputs = params or {'params': self.params}
 
         outputs = self.module.apply(
             inputs,
@@ -269,13 +302,15 @@ class FlaxLGeMPretrainedModel(FlaxPreTrainedModel):
 class FlaxLGeMModule(nn.Module):
     config: FlaxLGeMConfig
     dtype: jnp.dtype = jnp.float32
+    param_dtype: jnp.dtype = jnp.float32
 
     def setup(self) -> None:
         self.padding_idx = self.config.pad_token_id
         self.vocab_size = self.config.vocab_size
 
         self.embed_tokens = nn.Embed(self.config.vocab_size, self.config.hidden_size)
-        self.layers = [LGeMBlock(self.config, dtype=self.dtype) for _ in range(self.config.num_hidden_layers)]
+        self.layers = [LGeMBlock(self.config, dtype=self.dtype, param_dtype=self.param_dtype) for _ in
+                       range(self.config.num_hidden_layers)]
         self.norm = PMSNorm(dim=self.config.hidden_size, eps=self.config.rms_norm_eps, dtype=self.dtype)
 
     def __call__(self,
@@ -312,11 +347,12 @@ class FlaxLGeMModel(FlaxLGeMPretrainedModel):
 class FlaxLGeMForCausalLMModule(nn.Module):
     config: FlaxLGeMConfig
     dtype: jnp.dtype = jnp.float32
+    param_dtype: jnp.dtype = jnp.float32
 
     def setup(self) -> None:
-        self.model = FlaxLGeMModule(config=self.config, dtype=self.dtype)
+        self.model = FlaxLGeMModule(config=self.config, dtype=self.dtype, param_dtype=self.param_dtype)
         self.lm_head = nn.Dense(features=self.config.vocab_size, use_bias=False, dtype=self.dtype,
-                                param_dtype=self.dtype,
+                                param_dtype=self.param_dtype,
                                 kernel_init=nn.initializers.normal(self.config.initializer_range))
 
     def __call__(self,
@@ -335,8 +371,7 @@ class FlaxLGeMForCausalLMModule(nn.Module):
         if return_dict:
             return FlaxCausalLMOutput(
                 logits=pred,
-                hidden_states=hidden_state,
-                # attentions=None,
+                hidden_states=hidden_state
             )
         else:
             return pred,
@@ -345,3 +380,7 @@ class FlaxLGeMForCausalLMModule(nn.Module):
 class FlaxLGeMForCausalLM(FlaxLGeMPretrainedModel):
     module_class = FlaxLGeMForCausalLMModule
 
+    def prepare_inputs_for_generation(self, input_ids, attention_mask: Optional[jnp.DeviceArray] = None):
+        return {
+            "input_ids": input_ids,
+        }
