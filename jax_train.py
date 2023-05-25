@@ -7,6 +7,8 @@ from tqdm.auto import tqdm
 
 from dataclasses import dataclass, field
 from jax.random import PRNGKey, split
+import re
+import numpy as np
 from jax.sharding import PartitionSpec as PS
 from jax.experimental.pjit import pjit
 from torch.utils.data import DataLoader
@@ -280,6 +282,7 @@ def main():
         prefix_printer('Extra Action ', 'No BOS token found setting default padding token')
         tokenizer.bos_token = DEFAULT_BOS_TOKEN
         tokenizer.bos_token_id = tokenizer.eos_token_id
+
     extra = dict(vocab_size=len(tokenizer.get_vocab())) if model_args.smart_chooses else {}
     config = AutoConfig.from_pretrained(model_args.config_name,
                                         hidden_size=512,
@@ -304,72 +307,56 @@ def main():
         model: flax.linen.Module | FlaxPreTrainedModel = FlaxAutoModelForCausalLM.from_config(
             config=config,
             trust_remote_code=True,
-            _do_init=True
+            _do_init=False
         )
+    scheduler = optax.cosine_decay_schedule(
+        init_value=train_args.learning_rate,
+        decay_steps=total_iterations,
+    )
 
-    def create_train_state():
-        post_init_dtype = True
-        try:
-            model.params
-        except (AttributeError, ValueError):
-            post_init_dtype = False
-            prefix_printer('Action ', 'Init Parameters')
-            model.__init__(config=model.config,
-                           input_shape=(1, 1),
-                           seed=0,
-                           dtype=jnp.float32 if post_init_dtype is True else get_dtype(model_args.dtype),
-                           _do_init=True)
-        _i = jax.tree_util.tree_flatten(flax.core.unfreeze(model.params))[0]
+    weight_decay: float = 2e-1
+    mask = None
+
+    tx = optax.chain(
+        optax.scale_by_adam(),
+        optax.add_decayed_weights(weight_decay, mask),
+        optax.scale_by_schedule(scheduler),
+        optax.scale(-1.0),
+    )
+
+    def init_fn():
+        key = PRNGKey(0)
+        key, rng = split(key)
+        params = model.module.init(
+            rng,
+            input_ids=jnp.zeros((8, 2048), dtype=jnp.int32),
+            return_dict=False
+        )
+        _i = jax.tree_util.tree_flatten(flax.core.unfreeze(params))[0]
         prefix_printer('Model Contain ', f'{sum(i.size for i in _i) / 1e6} Million Parameters')
         try:
-            prefix_printer('Model Devices Are', f'{get_model_devices(model.params)}')
+            prefix_printer('Model Devices Are', f'{get_model_devices(params)}')
         except jax.errors.ConcretizationTypeError:
             prefix_printer('Model Devices Are', f'pjit is in use cant get device map')
-        if post_init_dtype:
-            if model_args.dtype == 'float32':
-                model.params = model.to_fp32(model.params)
-            elif model_args.dtype == 'float16':
-                model.params = model.to_fp16(model.params)
-            elif model_args.dtype == 'bfloat16':
-                model.params = model.to_bf16(model.params)
-            else:
-                raise ValueError(f'Wrong DataType {model_args.dtype} is not in supported list')
 
-        scheduler = optax.cosine_decay_schedule(
-            init_value=train_args.learning_rate,
-            decay_steps=total_iterations,
-        )
-
-        b1: float = 0.9
-        b2: float = 0.999
-        eps: float = 1e-8
-        eps_root: float = 0.0
-        mu_dtype = None
-        weight_decay: float = 2e-1
-        mask = None
-
-        tx = optax.chain(
-            optax.clip_by_global_norm(1.0),
-            optax.scale_by_adam(
-                b1=b1, b2=b2, eps=eps, eps_root=eps_root, mu_dtype=mu_dtype),
-            optax.add_decayed_weights(weight_decay, mask),
-            optax.scale_by_schedule(scheduler),
-            optax.scale(-1.0),
-        )
-
+        if model_args.dtype == 'float32':
+            params = model.to_fp32(params)
+        elif model_args.dtype == 'float16':
+            params = model.to_fp16(params)
+        elif model_args.dtype == 'bfloat16':
+            params = model.to_bf16(params)
+        else:
+            raise ValueError(f'Wrong DataType {model_args.dtype} is not in supported list')
         return train_state.TrainState.create(
             tx=tx,
             apply_fn=model.__call__,
-            params=model.params,
+            params=params,
         )
 
     def apply_model(state: train_state.TrainState, batch):
-        """
-
-        :param state: TrainState
-        :param batch: Input Batch
-        :return:state, Loss
-        """
+        """:param state: TrainState
+            :param batch: Input Batch
+            :return:state, Loss"""
 
         def loss_fn(params):
             logits = state.apply_fn(params, **batch, return_dict=True).logits
@@ -407,10 +394,42 @@ def main():
                     )
 
     # state = create_train_state(model)
-    init_fn = pjit(
-        create_train_state,
+    state_shape = jax.eval_shape(init_fn)
+    assert hasattr(config, 'get_partition_rules'), 'config has no attribute partition rules'
+
+    def match_partition_rules(rules, params):
+        def get_partition_spec(name, leaf):
+            if len(leaf.shape) == 0 or np.prod(leaf.shape) == 1:
+                return PS()
+            for rule, ps in rules:
+                if re.search(rule, name) is not None:
+                    return ps
+            raise ValueError(f'Partition rule not found for param: {name}')
+
+        def tree_path_to_string(path):
+            keys = []
+            for i, key in enumerate(path):
+                if isinstance(key, jax.tree_util.SequenceKey):
+                    keys.append(str(key.idx))
+                elif isinstance(key, (jax.tree_util.DictKey, jax.tree_util.FlattenedIndexKey)):
+                    keys.append(str(key.key))
+                elif isinstance(key, jax.tree_util.GetAttrKey):
+                    keys.append(str(key.name))
+                else:
+                    keys.append(str(key))
+            return '/'.join(keys)
+
+        return jax.tree_util.tree_map_with_path(
+            lambda path, p: get_partition_spec(tree_path_to_string(path), p),
+            params
+        )
+
+    partition_space_state = match_partition_rules(config.get_partition_rules(), state_shape)
+    sharded_init_fn = pjit(
+        init_fn,
         donate_argnums=(),
-        in_shardings=PS()
+        in_shardings=PS(),
+        out_shardings=partition_space_state
     )
 
     state = init_fn()
