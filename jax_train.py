@@ -1,12 +1,14 @@
 import flax.core
 import jax
 import optax
-
 from functools import partial
 from datasets import load_dataset
 from tqdm.auto import tqdm
 
 from dataclasses import dataclass, field
+from jax.random import PRNGKey, split
+from jax.sharding import PartitionSpec as PS
+from jax.experimental.pjit import pjit
 from torch.utils.data import DataLoader
 from typing import Optional
 from transformers import HfArgumentParser, AutoConfig, FlaxAutoModelForCausalLM, AutoTokenizer, FlaxPreTrainedModel, \
@@ -24,6 +26,19 @@ logging.set_verbosity_error()
 DEFAULT_PAD_TOKEN = '<|endoftext|>'
 DEFAULT_EOS_TOKEN = '<|endoftext|>'
 DEFAULT_BOS_TOKEN = '<|endoftext|>'
+
+
+def get_dtype(dtype_str):
+    return {
+        'bf16': jnp.bfloat16,
+        'bfloat16': jnp.bfloat16,
+        'fp16': jnp.float16,
+        'float16': jnp.float16,
+        'fp32': jnp.float32,
+        'float32': jnp.float32,
+        'fp64': jnp.float64,
+        'float64': jnp.float64,
+    }[dtype_str]
 
 
 def prefix_printer(prefix, value):
@@ -224,6 +239,37 @@ def main():
                                       'please pass a tokenizer path or repo id'
     prefix_printer('Default Device Jax', jax.default_device)
 
+    dataset = load_dataset(data_args.dataset_name)
+
+    if data_args.dataset_field is not None:
+        def tokenize(batch):
+            return tokenizer(
+                batch[data_args.dataset_field],
+                padding='max_length',
+                max_length=data_args.block_size
+            )
+
+        dataset = dataset.map(
+            tokenize,
+            batched=True,
+            batch_size=32,
+            num_proc=data_args.preprocessing_num_workers,
+            remove_columns=dataset['train'].column_names
+        )
+
+    def collate_fn(batch):
+        rs = {}
+        for key in batch[0].keys():
+            rs[key] = jnp.stack([jnp.array(f[key]) for f in batch])
+        return rs
+
+    dataloader = DataLoader(dataset['train'],
+                            collate_fn=collate_fn,
+                            batch_size=train_args.per_device_batch_size * jax.device_count(),
+                            num_workers=data_args.preprocessing_num_workers)
+
+    total_iterations = int(len(dataloader) * data_args.max_train_samples)
+
     tokenizer = AutoTokenizer.from_pretrained(model_args.tokenizer_name, trust_remote_code=True)
     if tokenizer.pad_token is None and model_args.smart_chooses:
         prefix_printer('Extra Action ', 'No PAD token found setting default padding token')
@@ -236,7 +282,9 @@ def main():
         tokenizer.bos_token_id = tokenizer.eos_token_id
     extra = dict(vocab_size=len(tokenizer.get_vocab())) if model_args.smart_chooses else {}
     config = AutoConfig.from_pretrained(model_args.config_name,
-
+                                        hidden_size=512,
+                                        intermediate_size=1024,
+                                        num_attention_heads=8,
                                         trust_remote_code=True,
                                         **extra
                                         ) if model_args.config_name is not None else None
@@ -256,28 +304,59 @@ def main():
         model: flax.linen.Module | FlaxPreTrainedModel = FlaxAutoModelForCausalLM.from_config(
             config=config,
             trust_remote_code=True,
+            _do_init=True
         )
 
-    _i = jax.tree_util.tree_flatten(flax.core.unfreeze(model.params))[0]
-    prefix_printer('Model Contain ', f'{sum(i.size for i in _i) / 1e6} Million Parameters')
-    prefix_printer('Model Devices Are', f'{get_model_devices(model.params)}')
+    def create_train_state():
+        post_init_dtype = True
+        try:
+            model.params
+        except (AttributeError, ValueError):
+            post_init_dtype = False
+            prefix_printer('Action ', 'Init Parameters')
+            model.__init__(config=model.config,
+                           input_shape=(1, 1),
+                           seed=0,
+                           dtype=jnp.float32 if post_init_dtype is True else get_dtype(model_args.dtype),
+                           _do_init=True)
+        _i = jax.tree_util.tree_flatten(flax.core.unfreeze(model.params))[0]
+        prefix_printer('Model Contain ', f'{sum(i.size for i in _i) / 1e6} Million Parameters')
+        try:
+            prefix_printer('Model Devices Are', f'{get_model_devices(model.params)}')
+        except jax.errors.ConcretizationTypeError:
+            prefix_printer('Model Devices Are', f'pjit is in use cant get device map')
+        if post_init_dtype:
+            if model_args.dtype == 'float32':
+                model.params = model.to_fp32(model.params)
+            elif model_args.dtype == 'float16':
+                model.params = model.to_fp16(model.params)
+            elif model_args.dtype == 'bfloat16':
+                model.params = model.to_bf16(model.params)
+            else:
+                raise ValueError(f'Wrong DataType {model_args.dtype} is not in supported list')
 
-    if model_args.dtype == 'float32':
-        model.params = model.to_fp32(model.params)
-    elif model_args.dtype == 'float16':
-        model.params = model.to_fp16(model.params)
-    elif model_args.dtype == 'bfloat16':
-        model.params = model.to_bf16(model.params)
-    else:
-        raise ValueError(f'Wrong DataType {model_args.dtype} is not in supported list')
-
-    def create_train_state(model):
-        tx = optax.adamw(
-            learning_rate=train_args.learning_rate,
-            b1=train_args.adam_beta1,
-            b2=train_args.adam_beta2,
-            eps=train_args.adam_epsilon,
+        scheduler = optax.cosine_decay_schedule(
+            init_value=train_args.learning_rate,
+            decay_steps=total_iterations,
         )
+
+        b1: float = 0.9
+        b2: float = 0.999
+        eps: float = 1e-8
+        eps_root: float = 0.0
+        mu_dtype = None
+        weight_decay: float = 2e-1
+        mask = None
+
+        tx = optax.chain(
+            optax.clip_by_global_norm(1.0),
+            optax.scale_by_adam(
+                b1=b1, b2=b2, eps=eps, eps_root=eps_root, mu_dtype=mu_dtype),
+            optax.add_decayed_weights(weight_decay, mask),
+            optax.scale_by_schedule(scheduler),
+            optax.scale(-1.0),
+        )
+
         return train_state.TrainState.create(
             tx=tx,
             apply_fn=model.__call__,
@@ -325,38 +404,18 @@ def main():
                         params=state.params
                     )
 
-    dataset = load_dataset(data_args.dataset_name)
+    # state = create_train_state(model)
+    init_fn = pjit(
+        create_train_state,
+        donate_argnums=(),
+        in_shardings=PS()
+    )
 
-    if data_args.dataset_field is not None:
-        def tokenize(batch):
-            return tokenizer(
-                batch[data_args.dataset_field],
-                padding='max_length',
-                max_length=data_args.block_size
-            )
+    state = init_fn()
 
-        dataset = dataset.map(
-            tokenize,
-            batched=True,
-            batch_size=32,
-            num_proc=data_args.preprocessing_num_workers,
-            remove_columns=dataset['train'].column_names
-        )
-    state = create_train_state(model)
-    state = flax.jax_utils.replicate(state)
-
-    def collate_fn(batch):
-        rs = {}
-        for key in batch[0].keys():
-            rs[key] = jnp.stack([jnp.array(f[key]) for f in batch])
-        return rs
+    # state = flax.jax_utils.replicate(state)
 
     prefix_printer('Total Batch Size', train_args.per_device_batch_size * jax.device_count())
-    dataloader = DataLoader(dataset['train'],
-                            collate_fn=collate_fn,
-                            batch_size=train_args.per_device_batch_size * jax.device_count(),
-                            num_workers=data_args.preprocessing_num_workers)
-
     train(state, dataloader_train=dataloader)
 
 

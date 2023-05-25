@@ -344,3 +344,4 @@ class FlaxLGeMForCausalLMModule(nn.Module):
 
 class FlaxLGeMForCausalLM(FlaxLGeMPretrainedModel):
     module_class = FlaxLGeMForCausalLMModule
+
