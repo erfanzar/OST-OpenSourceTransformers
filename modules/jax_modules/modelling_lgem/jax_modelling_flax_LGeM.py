@@ -175,9 +175,9 @@ class LGeMSelfAttention(nn.Module):
         k = with_sharding_constraint(k, PartitionSpec(('dp', 'fsdp'), None, 'mp'))
         v = with_sharding_constraint(v, PartitionSpec(('dp', 'fsdp'), None, 'mp'))
 
-        q = rearrange(q, 'b s (h,d) -> b h s d', h=self.config.num_attention_heads)
-        k = rearrange(k, 'b s (h,d) -> b h s d', h=self.config.num_attention_heads)
-        v = rearrange(v, 'b s (h,d) -> b h s d', h=self.config.num_attention_heads)
+        q = rearrange(q, 'b s (h d) -> b h s d', h=self.config.num_attention_heads)
+        k = rearrange(k, 'b s (h d) -> b h s d', h=self.config.num_attention_heads)
+        v = rearrange(v, 'b s (h d) -> b h s d', h=self.config.num_attention_heads)
 
         cos, sin = self.rotary_embedding(x=k, max_l=t)
 
