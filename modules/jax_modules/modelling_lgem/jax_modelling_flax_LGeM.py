@@ -80,6 +80,31 @@ class FlaxLGeMConfig(PretrainedConfig):
             **kwargs,
         )
 
+    @staticmethod
+    def get_partition_rules():
+        return (
+
+            ("model/embed_tokens/embedding", PartitionSpec("mp", "fsdp")),
+
+            ("self_attn/(k_proj|v_proj|p_proj)/kernel", PartitionSpec("fsdp", "mp")),
+            ("self_attn/o_proj/kernel", PartitionSpec("mp", "fsdp")),
+
+            ("feed_forward/down_proj/kernel", PartitionSpec("fsdp", "mp")),
+            ("feed_forward/up_proj/kernel", PartitionSpec("fsdp", "mp")),
+            ("feed_forward/gate_proj/kernel", PartitionSpec("mp", "fsdp")),
+
+            ("lm_head/kernel", PartitionSpec("fsdp", "mp")),
+            ('.*', PartitionSpec(None)),
+        )
+
+    @staticmethod
+    def get_weight_decay_exclusions():
+        return tuple()
+
+    @staticmethod
+    def rng_keys():
+        return ('params', 'dropout', 'fcm')
+
 
 ACT2CLS = {
     "gelu": nn.gelu,
