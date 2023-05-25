@@ -373,7 +373,8 @@ def main():
 
         def loss_fn(params):
             logits = state.apply_fn(params, **batch, return_dict=True).logits
-            loss_ = optax.softmax_cross_entropy_with_integer_labels(logits=logits, labels=batch['input_ids'])
+            loss_ = optax.softmax_cross_entropy_with_integer_labels(logits=logits[..., 1:, :],
+                                                                    labels=batch['input_ids'][..., :-1])
             return loss_
 
         graf_fn = jax.value_and_grad(loss_fn, has_aux=False)
@@ -381,6 +382,7 @@ def main():
         loss = jax.lax.pmean(loss, axis_name='batch')
         grad = jax.lax.pmean(grad, axis_name='batch')
         state = state.apply_gradients(grads=grad)
+
         return state, loss
 
     dpp_apply_model = jax.pmap(apply_model, donate_argnums=(0,))
