@@ -308,7 +308,10 @@ class FlaxLGeMPretrainedModel(FlaxPreTrainedModel):
     ):
 
         return_dict = return_dict if return_dict is not None else self.config.return_dict
-
+        b, s = input_ids.shape
+        if attention_mask is None:
+            attention_mask = jnp.ones_like(input_ids)
+        attention_mask = attention_mask.reshape(b, 1, 1, s)
         inputs = params or {'params': self.params}
 
         outputs = self.module.apply(
