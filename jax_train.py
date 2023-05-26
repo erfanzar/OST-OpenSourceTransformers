@@ -429,14 +429,13 @@ def main():
     mesh = Mesh(mesh_utils.create_device_mesh((len(jax.devices()) // 2, 2), ('mp', 'fsdp')))
     with mesh:
         state = sharded_init_fn()
-        apply_model_sh = sharded_apply_model()
         total = len(dataloader) * train_args.num_train_epochs
         pbar = tqdm(total=total)
         i = 0
         for ep in range(train_args.num_train_epochs):
             for batch in dataloader:
                 i += 1
-                state, loss = apply_model_sh(state=state, batch=batch)
+                state, loss = sharded_apply_model(state=state, batch=batch)
                 pbar.update(1)
                 pbar.set_postfix(loss=loss, passed=i / total, epoch=f'[{ep}/{train_args.num_train_epochs}]')
                 if i % train_args.logging_steps == 0:
