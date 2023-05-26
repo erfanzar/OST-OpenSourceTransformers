@@ -9,6 +9,8 @@ import accelerate
 import psutil
 import torch
 import tqdm
+from jax.interpreters import pxla
+from jax.experimental.pjit import with_sharding_constraint as wsc
 from datasets import load_dataset
 from erutils import fprint
 from torch import nn
@@ -1193,3 +1195,29 @@ class RNG(object):
             split_rngs = jax.random.split(self.rng, num=len(keys) + 1)
             self.rng = split_rngs[0]
             return {key: val for key, val in zip(keys, split_rngs[1:])}
+
+
+def get_names_from_parition_spec(partition_specs):
+    names = set()
+    if isinstance(partition_specs, dict):
+        partition_specs = partition_specs.values()
+    for item in partition_specs:
+        if item is None:
+            continue
+        elif isinstance(item, str):
+            names.add(item)
+        else:
+            names.update(get_names_from_parition_spec(item))
+
+    return list(names)
+
+
+def names_in_mesh(*names):
+    return set(names) <= set(pxla.thread_resources.env.physical_mesh.axis_names)
+
+
+def with_sharding_constraint(x, partition_specs):
+    axis_names = get_names_from_parition_spec(partition_specs)
+    if names_in_mesh(*axis_names):
+        x = wsc(x, partition_specs)
+    return x

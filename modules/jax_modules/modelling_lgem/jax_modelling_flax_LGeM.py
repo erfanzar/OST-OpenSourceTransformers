@@ -1,43 +1,18 @@
 import math
 import jax
 from flax.traverse_util import unflatten_dict, flatten_dict
-from jax.sharding import Mesh, PartitionSpec
+from jax.sharding import PartitionSpec
 from jax.experimental.pjit import with_sharding_constraint as wsc
-from flax.core import FrozenDict, freeze, unfreeze
+from flax.core import freeze, unfreeze
 from flax import linen as nn
 from jax import numpy as jnp
 from transformers import PretrainedConfig, FlaxPreTrainedModel
 from transformers.modeling_flax_outputs import FlaxBaseModelOutput, FlaxCausalLMOutput
 from functools import partial
 from typing import Optional
+
 from einops import rearrange
 from jax.interpreters import pxla
-
-
-def get_names_from_parition_spec(partition_specs):
-    names = set()
-    if isinstance(partition_specs, dict):
-        partition_specs = partition_specs.values()
-    for item in partition_specs:
-        if item is None:
-            continue
-        elif isinstance(item, str):
-            names.add(item)
-        else:
-            names.update(get_names_from_parition_spec(item))
-
-    return list(names)
-
-
-def names_in_mesh(*names):
-    return set(names) <= set(pxla.thread_resources.env.physical_mesh.axis_names)
-
-
-def with_sharding_constraint(x, partition_specs):
-    axis_names = get_names_from_parition_spec(partition_specs)
-    if names_in_mesh(*axis_names):
-        x = wsc(x, partition_specs)
-    return x
 
 
 class FlaxLGeMConfig(PretrainedConfig):
@@ -84,14 +59,14 @@ class FlaxLGeMConfig(PretrainedConfig):
     def get_partition_rules():
         return (
 
-            ("model/embed_tokens/embedding", PartitionSpec("mp", "fsdp")),
+            ("model/embed_tokens/embedding", PartitionSpec("fsdp", "mp")),
 
-            ("self_attn/(k_proj|v_proj|p_proj)/kernel", PartitionSpec("fsdp", "mp")),
+            ("self_attn/(k_proj|v_proj|q_proj)/kernel", PartitionSpec("mp", "fsdp")),
             ("self_attn/o_proj/kernel", PartitionSpec("mp", "fsdp")),
 
-            ("feed_forward/down_proj/kernel", PartitionSpec("fsdp", "mp")),
-            ("feed_forward/up_proj/kernel", PartitionSpec("fsdp", "mp")),
-            ("feed_forward/gate_proj/kernel", PartitionSpec("mp", "fsdp")),
+            ("mlp/down_proj/kernel", PartitionSpec("fsdp", "mp")),
+            ("mlp/up_proj/kernel", PartitionSpec("mp", "fsdp")),
+            ("mlp/gate_proj/kernel", PartitionSpec("mp", "fsdp")),
 
             ("lm_head/kernel", PartitionSpec("fsdp", "mp")),
             ('.*', PartitionSpec(None)),
@@ -141,6 +116,32 @@ def apply_rotary_embedding(q, k, c, s):
     q = (q * c) + (rotate_half(q) * s)
     k = (k * c) + (rotate_half(k) * s)
     return q, k
+
+
+def get_names_from_parition_spec(partition_specs):
+    names = set()
+    if isinstance(partition_specs, dict):
+        partition_specs = partition_specs.values()
+    for item in partition_specs:
+        if item is None:
+            continue
+        elif isinstance(item, str):
+            names.add(item)
+        else:
+            names.update(get_names_from_parition_spec(item))
+
+    return list(names)
+
+
+def names_in_mesh(*names):
+    return set(names) <= set(pxla.thread_resources.env.physical_mesh.axis_names)
+
+
+def with_sharding_constraint(x, partition_specs):
+    axis_names = get_names_from_parition_spec(partition_specs)
+    if names_in_mesh(*axis_names):
+        x = wsc(x, partition_specs)
+    return x
 
 
 class PMSNorm(nn.Module):
@@ -196,9 +197,9 @@ class LGeMSelfAttention(nn.Module):
         q = self.q_proj(input_ids)
         v = self.v_proj(input_ids)
 
-        q = with_sharding_constraint(q, PartitionSpec(('dp', 'fsdp'), None, 'mp'))
-        k = with_sharding_constraint(k, PartitionSpec(('dp', 'fsdp'), None, 'mp'))
-        v = with_sharding_constraint(v, PartitionSpec(('dp', 'fsdp'), None, 'mp'))
+        q = with_sharding_constraint(q, PartitionSpec('mp', 'fsdp'))
+        k = with_sharding_constraint(k, PartitionSpec('mp', 'fsdp'))
+        v = with_sharding_constraint(v, PartitionSpec('mp', 'fsdp'))
 
         q = rearrange(q, 'b s (h d) -> b h s d', h=self.config.num_attention_heads)
         k = rearrange(k, 'b s (h d) -> b h s d', h=self.config.num_attention_heads)
@@ -212,7 +213,7 @@ class LGeMSelfAttention(nn.Module):
         if attention_mask is not None:
             # assert attention_mask.shape == [b, 1, t, kv_seq_length]
             attn += attention_mask
-        attn = with_sharding_constraint(attn, PartitionSpec(('dp', 'fsdp'), 'mp', None, None))
+        attn = with_sharding_constraint(attn, PartitionSpec('fsdp', 'mp'))
         attn = nn.softmax(attn, axis=-1)
         attn = (attn @ v).swapaxes(1, 2).reshape(b, t, c)
         return self.o_proj(attn)
@@ -308,9 +309,6 @@ class FlaxLGeMPretrainedModel(FlaxPreTrainedModel):
 
         return_dict = return_dict if return_dict is not None else self.config.return_dict
 
-        if attention_mask is None:
-            attention_mask = jnp.ones_like(input_ids)
-
         inputs = params or {'params': self.params}
 
         outputs = self.module.apply(
@@ -348,7 +346,7 @@ class FlaxLGeMModule(nn.Module):
 
         b, s, _ = hidden_state.shape
         if attention_mask is None:
-            attention_mask = jnp.ones((b, 1, s, s))
+            attention_mask = jnp.ones((b, 1, 1, s))
         attention_mask = jnp.where(nn.make_causal_mask(input_ids) == 0, -6548, 0) + jnp.where(attention_mask > 0, 0,
                                                                                               -6548)
 

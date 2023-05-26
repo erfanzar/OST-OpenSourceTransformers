@@ -17,7 +17,11 @@ from transformers import HfArgumentParser, AutoConfig, FlaxAutoModelForCausalLM,
     logging
 
 from jax import numpy as jnp
+from jax.experimental import mesh_utils
+from jax.sharding import Mesh
+
 from flax.training import train_state
+from utils.utils import with_sharding_constraint
 
 # from utils.timer import Timers
 
@@ -220,6 +224,8 @@ class DataTrainingArguments:
 
 
 def main():
+    assert jax.device_count() % 2 == 0, 'In order to use this script you need to use this script on a device with' \
+                                        ' at least 2 devices and device numbers must be divisible by 2'
     prefix_printer('Attention ',
                    'Theres a chance that if you running on the Kaggle TPU vm 3-8 TPUs'
                    ' are being used but not showing up in logging')
@@ -317,11 +323,19 @@ def main():
     weight_decay: float = 2e-1
     mask = None
 
+    scheduler = optax.cosine_decay_schedule(
+        init_value=train_args.learning_rate,
+        decay_steps=total_iterations,
+    )
+
     tx = optax.chain(
-        optax.scale_by_adam(),
-        optax.add_decayed_weights(weight_decay, mask),
-        optax.scale_by_schedule(scheduler),
-        optax.scale(-1.0),
+        optax.clip_by_global_norm(1.0),
+        optax.adamw(
+            learning_rate=scheduler,
+            weight_decay=0.01,
+            mask=None,
+            mu_dtype=get_dtype(model_args.dtype),
+        ),
     )
 
     def init_fn():
@@ -329,7 +343,7 @@ def main():
         key, rng = split(key)
         params = model.module.init(
             rng,
-            input_ids=jnp.zeros((8, 2048), dtype=jnp.int32),
+            input_ids=jnp.zeros((4, 2048), dtype=jnp.int32),
             return_dict=False
         )
         _i = jax.tree_util.tree_flatten(flax.core.unfreeze(params))[0]
@@ -350,50 +364,25 @@ def main():
         return train_state.TrainState.create(
             tx=tx,
             apply_fn=model.__call__,
-            params=params,
+            params=params['params'],
         )
 
     def apply_model(state: train_state.TrainState, batch):
-        """:param state: TrainState
-            :param batch: Input Batch
-            :return:state, Loss"""
+        batch = with_sharding_constraint(batch, partition_specs=PS('fsdp', 'mp'))
 
         def loss_fn(params):
             logits = state.apply_fn(params, **batch, return_dict=True).logits
             loss_ = optax.softmax_cross_entropy_with_integer_labels(logits=logits[..., 1:, :],
-                                                                    labels=batch['input_ids'][..., :-1])
+                                                                    labels=batch['input_ids'][..., :-1],
+                                                                    )
             return loss_
 
         graf_fn = jax.value_and_grad(loss_fn, has_aux=False)
         loss, grad = graf_fn(state.params)
-        loss = jax.lax.pmean(loss, axis_name='batch')
-        grad = jax.lax.pmean(grad, axis_name='batch')
         state = state.apply_gradients(grads=grad)
 
         return state, loss
 
-    dpp_apply_model = jax.pmap(apply_model, donate_argnums=(0,))
-
-    def train(state, dataloader_train):
-        total = len(dataloader_train) * train_args.num_train_epochs
-        pbar = tqdm(total=total)
-        i = 0
-        for ep in range(train_args.num_train_epochs):
-            for batch in dataloader_train:
-                i += 1
-                state, loss = dpp_apply_model(state=state, batch=batch)
-                pbar.update(1)
-                pbar.set_postfix(loss=loss, passed=i / total, epoch=f'[{ep}/{train_args.num_train_epochs}]')
-                if i % train_args.logging_steps == 0:
-                    prefix_printer(f'Loss Step {i}', loss)
-
-                if i % train_args.save_steps == 0:
-                    state.model_it_self.save_pretrained(
-                        train_args.output_dir,
-                        params=state.params
-                    )
-
-    # state = create_train_state(model)
     state_shape = jax.eval_shape(init_fn)
     assert hasattr(config, 'get_partition_rules'), 'config has no attribute partition rules'
 
@@ -431,13 +420,33 @@ def main():
         in_shardings=PS(),
         out_shardings=partition_space_state
     )
+    sharded_apply_model = pjit(
+        apply_model,
+        in_shardings=(partition_space_state, PS()),
+        out_shardings=(partition_space_state, PS())
+    )
 
-    state = init_fn()
+    mesh = Mesh(mesh_utils.create_device_mesh((len(jax.devices()) // 2, 2), ('mp', 'fsdp')))
+    with mesh:
+        state = sharded_init_fn()
+        apply_model_sh = sharded_apply_model()
+        total = len(dataloader) * train_args.num_train_epochs
+        pbar = tqdm(total=total)
+        i = 0
+        for ep in range(train_args.num_train_epochs):
+            for batch in dataloader:
+                i += 1
+                state, loss = apply_model_sh(state=state, batch=batch)
+                pbar.update(1)
+                pbar.set_postfix(loss=loss, passed=i / total, epoch=f'[{ep}/{train_args.num_train_epochs}]')
+                if i % train_args.logging_steps == 0:
+                    prefix_printer(f'Loss Step {i}', loss)
 
-    # state = flax.jax_utils.replicate(state)
-
-    prefix_printer('Total Batch Size', train_args.per_device_batch_size * jax.device_count())
-    train(state, dataloader_train=dataloader)
+                if i % train_args.save_steps == 0:
+                    state.model_it_self.save_pretrained(
+                        train_args.output_dir,
+                        params=state.params
+                    )
 
 
 if __name__ == "__main__":
