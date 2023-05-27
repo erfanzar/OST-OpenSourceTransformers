@@ -7,6 +7,7 @@ Generative Models). OST Collection is based on a novel approach to work as a ful
 
 # TODO
 
+- Example and tutorial for training models (Update on M27 LGeMJax Added support FSDP PMAP)[https://github.com/erfanzar/OST-OpenSourceTransformers/blob/main/examples/jax_pmap_fsdp_normal_train.ipynb]
 - Move all the models from only native pytorch to the triton / pytorch
 - Make all of the models available in flax/jax
 - create weight convertor from pytorch to -> jax / flax / tensorflow
