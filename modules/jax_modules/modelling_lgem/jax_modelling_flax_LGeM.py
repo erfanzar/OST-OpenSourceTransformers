@@ -36,6 +36,7 @@ class FlaxLGeMConfig(PretrainedConfig):
             bos_token_id=1,
             eos_token_id=2,
             tie_word_embeddings=False,
+            fsdp=False,
             **kwargs,
     ):
         self.vocab_size = vocab_size
@@ -48,6 +49,7 @@ class FlaxLGeMConfig(PretrainedConfig):
         self.initializer_range = initializer_range
         self.rms_norm_eps = rms_norm_eps
         self.use_cache = use_cache
+        self.fsdp = fsdp
         super().__init__(
             pad_token_id=pad_token_id,
             bos_token_id=bos_token_id,
@@ -147,7 +149,7 @@ def names_in_mesh(*names):
     return set(names) <= set(pxla.thread_resources.env.physical_mesh.axis_names)
 
 
-def with_sharding_constraint(x, partition_specs):
+def with_sharding_constraint_(x, partition_specs):
     axis_names = get_names_from_parition_spec(partition_specs)
     if names_in_mesh(*axis_names):
         x = wsc(x, partition_specs)
@@ -207,9 +209,11 @@ class LGeMSelfAttention(nn.Module):
         k = self.k_proj(input_ids)
         q = self.q_proj(input_ids)
         v = self.v_proj(input_ids)
-        q = with_sharding_constraint(q, PartitionSpec(("dp", "fsdp"), None, "mp"))
-        k = with_sharding_constraint(k, PartitionSpec(("dp", "fsdp"), None, "mp"))
-        v = with_sharding_constraint(v, PartitionSpec(("dp", "fsdp"), None, "mp"))
+
+        if self.config.fsdp:
+            q = with_sharding_constraint_(q, PartitionSpec(("dp", "fsdp"), None, "mp"))
+            k = with_sharding_constraint_(k, PartitionSpec(("dp", "fsdp"), None, "mp"))
+            v = with_sharding_constraint_(v, PartitionSpec(("dp", "fsdp"), None, "mp"))
         q = rearrange(q, 'b s (h d) -> b h s d', h=self.config.num_attention_heads)
         k = rearrange(k, 'b s (h d) -> b h s d', h=self.config.num_attention_heads)
         v = rearrange(v, 'b s (h d) -> b h s d', h=self.config.num_attention_heads)
@@ -221,7 +225,9 @@ class LGeMSelfAttention(nn.Module):
         attn = q @ k / math.sqrt(k.shape[-1])
         if attention_mask is not None:
             attn += attention_mask
-        attn = with_sharding_constraint(attn, PartitionSpec(("dp", "fsdp"), "mp", None, None))
+
+        if self.config.fsdp:
+            attn = with_sharding_constraint_(attn, PartitionSpec(("dp", "fsdp"), "mp", None, None))
 
         attn = nn.softmax(attn, axis=-1)
         attn = (attn @ v).swapaxes(1, 2).reshape(b, t, c)
@@ -286,7 +292,7 @@ class FlaxLGeMPretrainedModel(FlaxPreTrainedModel):
     def init_weights(self, rng: jax.random.PRNGKey, input_shape, params=None):
 
         input_ids = jnp.zeros(input_shape, dtype="i4")
-        attention_mask = jnp.ones_like(input_ids)
+        attention_mask = jnp.ones_like(input_ids, dtype="i4")
 
         params_rng, dropout_rng = jax.random.split(rng)
         rngs = {"params": params_rng, "dropout": dropout_rng}
@@ -319,16 +325,12 @@ class FlaxLGeMPretrainedModel(FlaxPreTrainedModel):
     ):
 
         return_dict = return_dict if return_dict is not None else self.config.return_dict
-        b, s = input_ids.shape
-        if attention_mask is None:
-            attention_mask = jnp.ones_like(input_ids)
-        attention_mask = attention_mask.reshape(b, 1, 1, s)
         inputs = params or {'params': self.params}
 
         outputs = self.module.apply(
             inputs,
             input_ids=jnp.array(input_ids, dtype="i4"),
-            attention_mask=jnp.array(attention_mask, dtype="i4"),
+            attention_mask=jnp.array(attention_mask, dtype="i4") if attention_mask is not None else attention_mask,
             return_dict=return_dict,
 
         )
@@ -353,17 +355,18 @@ class FlaxLGeMModule(nn.Module):
     def __call__(self,
                  input_ids: jnp.array = None,
                  attention_mask: jnp.array = None,
-
                  return_dict=True):
 
         last_hidden_state = self.embed_tokens(input_ids)
 
         b, s, _ = last_hidden_state.shape
         if attention_mask is None:
-            attention_mask = jnp.ones((b, 1, 1, s))
-        attention_mask = attention_mask.reshape(b, 1, 1, s)
-        attention_mask = jnp.where(nn.make_causal_mask(input_ids) == 0, -6548, 0) + jnp.where(attention_mask > 0, 0,
-                                                                                              -6548)
+            attention_mask = jnp.ones((b, s))
+        attention_mask = attention_mask[:, jnp.newaxis, jnp.newaxis, :]
+        attention_mask = jnp.where(nn.make_causal_mask(input_ids) == 0, jnp.finfo(last_hidden_state.dtype).min,
+                                   0) + jnp.where(attention_mask > 0, 0,
+                                                  jnp.finfo(
+                                                      last_hidden_state.dtype).min)
         hidden_states = []
         for i, layer in enumerate(self.layers):
             last_hidden_state = layer(last_hidden_state, attention_mask=attention_mask)
