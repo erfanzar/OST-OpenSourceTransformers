@@ -5,6 +5,7 @@ from jax.sharding import PartitionSpec
 from jax.experimental.pjit import with_sharding_constraint as wsc
 from flax.core import freeze, unfreeze
 from flax import linen as nn
+
 from jax import numpy as jnp
 from transformers import PretrainedConfig, FlaxPreTrainedModel
 from transformers.modeling_flax_outputs import FlaxBaseModelOutput, FlaxCausalLMOutput
@@ -58,18 +59,27 @@ class FlaxLGeMConfig(PretrainedConfig):
     @staticmethod
     def get_partition_rules():
         return (
+            # Emb
+            ("model/embed_tokens/embedding", PartitionSpec("mp", "fsdp")),
 
-            ("model/embed_tokens/embedding", PartitionSpec("fsdp", "mp")),
-
-            ("self_attn/(k_proj|v_proj|q_proj)/kernel", PartitionSpec("mp", "fsdp")),
+            # ATTn
+            ("self_attn/(k_proj|v_proj|q_proj)/kernel", PartitionSpec("fsdp", "mp")),
             ("self_attn/o_proj/kernel", PartitionSpec("mp", "fsdp")),
 
-            ("mlp/down_proj/kernel", PartitionSpec("fsdp", "mp")),
-            ("mlp/up_proj/kernel", PartitionSpec("mp", "fsdp")),
-            ("mlp/gate_proj/kernel", PartitionSpec("mp", "fsdp")),
+            # MLP
+            ("mlp/down_proj/kernel", PartitionSpec("mp", "fsdp")),
+            ("mlp/up_proj/kernel", PartitionSpec("fsdp", "mp")),
+            ("mlp/gate_proj/kernel", PartitionSpec("fsdp", "mp")),
 
+            # Norms
+            ('norm/kernel', PartitionSpec(None)),
+            ('input_layernorm/kernel', PartitionSpec(None)),
+            ('post_attention_layernorm/kernel', PartitionSpec(None)),
+
+            # OUT
             ("lm_head/kernel", PartitionSpec("fsdp", "mp")),
             ('.*', PartitionSpec(None)),
+
         )
 
     @staticmethod
@@ -181,9 +191,10 @@ class LGeMSelfAttention(nn.Module):
     def setup(self) -> None:
         dense = partial(nn.Dense,
                         features=self.config.hidden_size,
-                        kernel_init=nn.initializers.normal(self.config.initializer_range),
+                        kernel_init=jax.nn.initializers.normal(self.config.initializer_range),
                         use_bias=False, dtype=self.dtype, param_dtype=self.param_dtype
                         )
+        s = jax.nn.initializers.normal(self.config.initializer_range)
         self.k_proj = dense()
         self.v_proj = dense()
         self.q_proj = dense()
@@ -196,11 +207,9 @@ class LGeMSelfAttention(nn.Module):
         k = self.k_proj(input_ids)
         q = self.q_proj(input_ids)
         v = self.v_proj(input_ids)
-
-        q = with_sharding_constraint(q, PartitionSpec('mp', 'fsdp'))
-        k = with_sharding_constraint(k, PartitionSpec('mp', 'fsdp'))
-        v = with_sharding_constraint(v, PartitionSpec('mp', 'fsdp'))
-
+        q = with_sharding_constraint(q, PartitionSpec(("dp", "fsdp"), None, "mp"))
+        k = with_sharding_constraint(k, PartitionSpec(("dp", "fsdp"), None, "mp"))
+        v = with_sharding_constraint(v, PartitionSpec(("dp", "fsdp"), None, "mp"))
         q = rearrange(q, 'b s (h d) -> b h s d', h=self.config.num_attention_heads)
         k = rearrange(k, 'b s (h d) -> b h s d', h=self.config.num_attention_heads)
         v = rearrange(v, 'b s (h d) -> b h s d', h=self.config.num_attention_heads)
@@ -211,9 +220,9 @@ class LGeMSelfAttention(nn.Module):
         k = rearrange(k, 'b h s d -> b h d s')
         attn = q @ k / math.sqrt(k.shape[-1])
         if attention_mask is not None:
-            # assert attention_mask.shape == [b, 1, t, kv_seq_length]
             attn += attention_mask
-        attn = with_sharding_constraint(attn, PartitionSpec('fsdp', 'mp'))
+        attn = with_sharding_constraint(attn, PartitionSpec(("dp", "fsdp"), "mp", None, None))
+
         attn = nn.softmax(attn, axis=-1)
         attn = (attn @ v).swapaxes(1, 2).reshape(b, t, c)
         return self.o_proj(attn)
@@ -226,12 +235,14 @@ class LGeMMLP(nn.Module):
 
     def setup(self) -> None:
         dense = partial(nn.Dense,
-                        kernel_init=nn.initializers.normal(self.config.initializer_range),
-                        use_bias=False, dtype=self.dtype, param_dtype=self.param_dtype
+
+                        use_bias=False, dtype=self.dtype, param_dtype=self.param_dtype,
+                        kernel_init=jax.nn.initializers.normal(self.config.initializer_range)
                         )
-        self.gate_proj = dense(features=self.config.intermediate_size)
-        self.up_proj = dense(features=self.config.intermediate_size)
-        self.down_proj = dense(features=self.config.hidden_size)
+
+        self.gate_proj = dense(self.config.intermediate_size)
+        self.up_proj = dense(self.config.intermediate_size)
+        self.down_proj = dense(self.config.hidden_size)
         self.act = ACT2CLS[self.config.hidden_act]
 
     def __call__(self, x):
@@ -266,7 +277,7 @@ class FlaxLGeMPretrainedModel(FlaxPreTrainedModel):
             input_shape=(1, 1),
             seed: int = 0,
             dtype: jnp.dtype = jnp.float32,
-            _do_init: bool = True,
+            _do_init: bool = False,
             **kwargs,
     ):
         module = self.module_class(config=config, dtype=dtype, **kwargs)
@@ -345,25 +356,26 @@ class FlaxLGeMModule(nn.Module):
 
                  return_dict=True):
 
-        hidden_state = self.embed_tokens(input_ids)
+        last_hidden_state = self.embed_tokens(input_ids)
 
-        b, s, _ = hidden_state.shape
+        b, s, _ = last_hidden_state.shape
         if attention_mask is None:
             attention_mask = jnp.ones((b, 1, 1, s))
+        attention_mask = attention_mask.reshape(b, 1, 1, s)
         attention_mask = jnp.where(nn.make_causal_mask(input_ids) == 0, -6548, 0) + jnp.where(attention_mask > 0, 0,
                                                                                               -6548)
-
-        for layer in self.layers:
-            hidden_state = layer(hidden_state, attention_mask=attention_mask)
-
-        hidden_state = self.norm(hidden_state)
+        hidden_states = []
+        for i, layer in enumerate(self.layers):
+            last_hidden_state = layer(last_hidden_state, attention_mask=attention_mask)
+            hidden_states.append(last_hidden_state)
+        last_hidden_state = self.norm(last_hidden_state)
         if return_dict:
             return FlaxBaseModelOutput(
-                hidden_states=hidden_state,
-                last_hidden_state=hidden_state
+                hidden_states=hidden_states,
+                last_hidden_state=last_hidden_state
             )
         else:
-            return hidden_state
+            return last_hidden_state
 
 
 class FlaxLGeMModel(FlaxLGeMPretrainedModel):
@@ -379,7 +391,8 @@ class FlaxLGeMForCausalLMModule(nn.Module):
         self.model = FlaxLGeMModule(config=self.config, dtype=self.dtype, param_dtype=self.param_dtype)
         self.lm_head = nn.Dense(features=self.config.vocab_size, use_bias=False, dtype=self.dtype,
                                 param_dtype=self.param_dtype,
-                                kernel_init=nn.initializers.normal(self.config.initializer_range))
+                                kernel_init=nn.initializers.normal(self.config.initializer_range),
+                                )
 
     def __call__(self,
                  input_ids: jnp.array,
@@ -392,12 +405,12 @@ class FlaxLGeMForCausalLMModule(nn.Module):
                             )
 
         hidden_state = output.last_hidden_state if return_dict else output
-
+        hidden_states = output.hidden_states if return_dict else None
         pred = self.lm_head(hidden_state)
         if return_dict:
             return FlaxCausalLMOutput(
                 logits=pred,
-                hidden_states=hidden_state
+                hidden_states=hidden_states
             )
         else:
             return pred,
