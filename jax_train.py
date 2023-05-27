@@ -426,7 +426,7 @@ def main():
         out_shardings=(partition_space_state, PS())
     )
 
-    mesh = Mesh(mesh_utils.create_device_mesh((1,len(jax.devices()), 1), ('dp', 'fsdp','mp')))
+    mesh = Mesh(mesh_utils.create_device_mesh((1, len(jax.devices()), 1), ('dp', 'fsdp', 'mp')))
     with mesh:
         state = sharded_init_fn()
         total = len(dataloader) * train_args.num_train_epochs
