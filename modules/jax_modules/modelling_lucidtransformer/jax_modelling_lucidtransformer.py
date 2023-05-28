@@ -335,3 +335,7 @@ class FlaxLTModelForCausalLMModule(nn.Module):
             )
         else:
             return logits, hidden_states
+
+
+class FlaxLTModelForCausalLM(FlaxLTPretrainedModel):
+    module = FlaxLTModelForCausalLMModule

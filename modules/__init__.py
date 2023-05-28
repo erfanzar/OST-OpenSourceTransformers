@@ -24,4 +24,5 @@ from modules.modelling_palm import PalmConfig, PalmModel, PalmForCausalLM
 # except ImportError:
 #     pass
 
-from modules.jax_modules import FlaxLGeMModule, FlaxLGeMConfig, FlaxLGeMModel, FlaxLGeMForCausalLM
+from modules.jax_modules import FlaxLGeMModule, FlaxLGeMConfig, FlaxLGeMModel, FlaxLGeMForCausalLM, \
+    FlaxLTModelForCausalLM, FlaxLTPretrainedModel, FlaxLTModel, LTConfig as FlaxLTConfig
