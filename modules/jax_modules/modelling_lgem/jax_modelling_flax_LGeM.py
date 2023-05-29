@@ -166,7 +166,7 @@ class PMSNorm(nn.Module):
     dtype: jnp.dtype = jnp.float32
 
     def setup(self) -> None:
-        self.weight = self.param('weight', nn.ones, (self.dim,), self.dtype)
+        self.weight = self.param('kernel', nn.ones, (self.dim,), self.dtype)
 
     def norm(self, x):
         return x * (1 / jnp.sqrt(jnp.power(x, 2).mean(-1, keepdims=True) + self.eps))
