@@ -1,4 +1,6 @@
 import math
+
+import flax.linen.partitioning
 import jax
 from flax.traverse_util import unflatten_dict, flatten_dict
 from jax.sharding import PartitionSpec
@@ -37,6 +39,7 @@ class FlaxLGeMConfig(PretrainedConfig):
             eos_token_id=2,
             tie_word_embeddings=False,
             fsdp=False,
+            gradient_checkpointing='checkpoint_dots',
             **kwargs,
     ):
         self.vocab_size = vocab_size
@@ -50,6 +53,7 @@ class FlaxLGeMConfig(PretrainedConfig):
         self.rms_norm_eps = rms_norm_eps
         self.use_cache = use_cache
         self.fsdp = fsdp
+        self.gradient_checkpointing = gradient_checkpointing
         super().__init__(
             pad_token_id=pad_token_id,
             bos_token_id=bos_token_id,
@@ -325,7 +329,7 @@ class FlaxLGeMPretrainedModel(FlaxPreTrainedModel):
     ):
 
         return_dict = return_dict if return_dict is not None else self.config.return_dict
-        inputs = params or {'params': self.params}
+        inputs = {'params': params or self.params}
 
         outputs = self.module.apply(
             inputs,
@@ -338,6 +342,51 @@ class FlaxLGeMPretrainedModel(FlaxPreTrainedModel):
         return outputs
 
 
+def get_gradient(name):
+    return {
+        'everything_saveable': jax.checkpoint_policies.everything_saveable,
+        'nothing_saveable': jax.checkpoint_policies.nothing_saveable,
+        'checkpoint_dots': jax.checkpoint_policies.checkpoint_dots,
+        'checkpoint_dots_with_no_batch_dims': jax.checkpoint_policies.checkpoint_dots_with_no_batch_dims,
+    }[name]
+
+
+class FlaxLGeMCollection(nn.Module):
+    config: FlaxLGeMConfig
+    dtype: jnp.dtype = jnp.float32
+    param_dtype: jnp.dtype = jnp.float32
+
+    def setup(self):
+        block = LGeMBlock
+        if self.config.gradient_checkpointing != '':
+            LGeMCheckPointBlock = flax.linen.partitioning.remat(
+                block,
+                policy=get_gradient(self.config.gradient_checkpointing)
+            )
+            block = LGeMCheckPointBlock
+        self.blocks = [
+            block(self.config, dtype=self.dtype, param_dtype=self.param_dtype)
+            for i in range(self.config.num_hidden_layers)
+        ]
+
+    def __call__(
+            self,
+            hidden_state,
+            attention_mask=None,
+            return_dict: bool = True,
+    ):
+        hidden_states = []
+        for block in self.blocks:
+            hidden_state = block(
+                hidden_state,
+                attention_mask,
+
+            )
+            hidden_states.append(hidden_state)
+
+        return hidden_state, hidden_states
+
+
 class FlaxLGeMModule(nn.Module):
     config: FlaxLGeMConfig
     dtype: jnp.dtype = jnp.float32
@@ -348,8 +397,7 @@ class FlaxLGeMModule(nn.Module):
         self.vocab_size = self.config.vocab_size
 
         self.embed_tokens = nn.Embed(self.config.vocab_size, self.config.hidden_size)
-        self.layers = [LGeMBlock(self.config, dtype=self.dtype, param_dtype=self.param_dtype) for _ in
-                       range(self.config.num_hidden_layers)]
+        self.block = FlaxLGeMCollection(config=self.config, dtype=self.dtype, param_dtype=self.param_dtype)
         self.norm = PMSNorm(dim=self.config.hidden_size, eps=self.config.rms_norm_eps, dtype=self.dtype)
 
     def __call__(self,
@@ -367,10 +415,13 @@ class FlaxLGeMModule(nn.Module):
                                    0) + jnp.where(attention_mask > 0, 0,
                                                   jnp.finfo(
                                                       last_hidden_state.dtype).min)
-        hidden_states = []
-        for i, layer in enumerate(self.layers):
-            last_hidden_state = layer(last_hidden_state, attention_mask=attention_mask)
-            hidden_states.append(last_hidden_state)
+
+        last_hidden_state, hidden_states = self.block(
+            hidden_state=last_hidden_state,
+            attention_mask=attention_mask,
+            return_dict=return_dict
+        )
+
         last_hidden_state = self.norm(last_hidden_state)
         if return_dict:
             return FlaxBaseModelOutput(
