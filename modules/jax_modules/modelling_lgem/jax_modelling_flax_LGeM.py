@@ -396,7 +396,7 @@ class FlaxLGeMModule(nn.Module):
         self.padding_idx = self.config.pad_token_id
         self.vocab_size = self.config.vocab_size
 
-        self.embed_tokens = nn.Embed(self.config.vocab_size, self.config.hidden_size)
+        self.wte = nn.Embed(self.config.vocab_size, self.config.hidden_size)
         self.block = FlaxLGeMCollection(config=self.config, dtype=self.dtype, param_dtype=self.param_dtype)
         self.norm = PMSNorm(dim=self.config.hidden_size, eps=self.config.rms_norm_eps, dtype=self.dtype)
 
@@ -405,7 +405,7 @@ class FlaxLGeMModule(nn.Module):
                  attention_mask: jnp.array = None,
                  return_dict=True):
 
-        last_hidden_state = self.embed_tokens(input_ids)
+        last_hidden_state = self.wte(input_ids)
 
         b, s, _ = last_hidden_state.shape
         if attention_mask is None:
