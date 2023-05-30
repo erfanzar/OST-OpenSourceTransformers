@@ -166,7 +166,7 @@ class PMSNorm(nn.Module):
     dtype: jnp.dtype = jnp.float32
 
     def setup(self) -> None:
-        self.weight = self.param('weight', nn.ones, (self.dim,), self.dtype)
+        self.weight = self.param('kernel', nn.ones, (self.dim,), self.dtype)
 
     def norm(self, x):
         return x * (1 / jnp.sqrt(jnp.power(x, 2).mean(-1, keepdims=True) + self.eps))
@@ -329,7 +329,7 @@ class FlaxLGeMPretrainedModel(FlaxPreTrainedModel):
     ):
 
         return_dict = return_dict if return_dict is not None else self.config.return_dict
-        inputs = params or {'params': self.params}
+        inputs = {'params': params or self.params}
 
         outputs = self.module.apply(
             inputs,
@@ -396,7 +396,7 @@ class FlaxLGeMModule(nn.Module):
         self.padding_idx = self.config.pad_token_id
         self.vocab_size = self.config.vocab_size
 
-        self.embed_tokens = nn.Embed(self.config.vocab_size, self.config.hidden_size)
+        self.wte = nn.Embed(self.config.vocab_size, self.config.hidden_size)
         self.block = FlaxLGeMCollection(config=self.config, dtype=self.dtype, param_dtype=self.param_dtype)
         self.norm = PMSNorm(dim=self.config.hidden_size, eps=self.config.rms_norm_eps, dtype=self.dtype)
 
@@ -405,7 +405,7 @@ class FlaxLGeMModule(nn.Module):
                  attention_mask: jnp.array = None,
                  return_dict=True):
 
-        last_hidden_state = self.embed_tokens(input_ids)
+        last_hidden_state = self.wte(input_ids)
 
         b, s, _ = last_hidden_state.shape
         if attention_mask is None:
@@ -476,5 +476,4 @@ class FlaxLGeMForCausalLM(FlaxLGeMPretrainedModel):
     def prepare_inputs_for_generation(self, input_ids, attention_mask: Optional[jnp.DeviceArray] = None):
         return {
             "input_ids": input_ids,
-            'attention_mask': attention_mask,
         }
