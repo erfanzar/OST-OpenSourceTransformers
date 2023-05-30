@@ -476,4 +476,5 @@ class FlaxLGeMForCausalLM(FlaxLGeMPretrainedModel):
     def prepare_inputs_for_generation(self, input_ids, attention_mask: Optional[jnp.DeviceArray] = None):
         return {
             "input_ids": input_ids,
+            'attention_mask': attention_mask,
         }
