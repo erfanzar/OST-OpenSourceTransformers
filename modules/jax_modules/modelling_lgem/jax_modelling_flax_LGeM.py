@@ -326,10 +326,11 @@ class FlaxLGeMPretrainedModel(FlaxPreTrainedModel):
             params: dict = None,
             return_dict: Optional[bool] = None,
             deterministic: bool = True,
+            add_params_field: bool = False,
     ):
 
         return_dict = return_dict if return_dict is not None else self.config.return_dict
-        inputs = {'params': params or self.params}
+        inputs = {'params': params or self.params} if add_params_field else params or {'params': self.params}
 
         outputs = self.module.apply(
             inputs,
@@ -476,5 +477,5 @@ class FlaxLGeMForCausalLM(FlaxLGeMPretrainedModel):
     def prepare_inputs_for_generation(self, input_ids, attention_mask: Optional[jnp.DeviceArray] = None):
         return {
             "input_ids": input_ids,
-            'attention_mask':attention_mask
+            'attention_mask': attention_mask
         }
