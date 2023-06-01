@@ -128,7 +128,7 @@ def apply_rotary_embedding(
     reshape_xk = k.astype(jnp.float32).reshape(*k.shape[:-1], -1, 2)
     xq_ = jax.lax.complex(reshape_xq[..., 0], reshape_xq[..., 1])
     xk_ = jax.lax.complex(reshape_xk[..., 0], reshape_xk[..., 1])
-    freqs_cis = jnp.reshape(freqs_cis, (*freqs_cis.shape[:2], 1, *freqs_cis.shape[2:]))
+    freqs_cis = jnp.reshape(freqs_cis, xq_.shape)
     xq_out = xq_ * freqs_cis
     xq_out = jnp.stack((jnp.real(xq_out), jnp.imag(xq_out)), axis=-1).reshape(*xq_out.shape[:-1], -1)
     xk_out = xk_ * freqs_cis
@@ -215,34 +215,46 @@ class LGeMSelfAttention(nn.Module):
         self.v_proj = dense()
         self.q_proj = dense()
         self.o_proj = dense()
-        self.freqs = compute_freq(self.config.hidden_size, self.config.max_position_embeddings, dtype=self.dtype)
+        self.freqs = compute_freq(self.config.hidden_size, self.config.max_position_embeddings * 2, dtype=self.dtype)
+        self.causal_mask = nn.attention.make_causal_mask(
+            jnp.ones((1, self.config.max_position_embeddings), dtype="bool"),
+            dtype="bool")
 
-    def __call__(self, input_ids: jnp.array, attention_mask=None):
-        b, t, c = input_ids.shape
+    def __call__(self, hidden_states: jnp.array, attention_mask=None):
+        b, t, c = hidden_states.shape
 
-        k = self.k_proj(input_ids)
-        q = self.q_proj(input_ids)
-        v = self.v_proj(input_ids)
+        k = self.k_proj(hidden_states)
+        q = self.q_proj(hidden_states)
+        v = self.v_proj(hidden_states)
 
         if self.config.fsdp:
             q = with_sharding_constraint_(q, PartitionSpec(("dp", "fsdp"), None, "mp"))
             k = with_sharding_constraint_(k, PartitionSpec(("dp", "fsdp"), None, "mp"))
             v = with_sharding_constraint_(v, PartitionSpec(("dp", "fsdp"), None, "mp"))
-        q = rearrange(q, 'b s (h d) -> b h s d', h=self.config.num_attention_heads)
-        k = rearrange(k, 'b s (h d) -> b h s d', h=self.config.num_attention_heads)
-        v = rearrange(v, 'b s (h d) -> b h s d', h=self.config.num_attention_heads)
-        freqs_cis = jnp.take(self.freqs_cis, jnp.broadcast_to(
-            jnp.clip(jnp.cumsum(attention_mask, axis=-1) - 1, a_min=0),
-            (b, t)
-        ), axis=0)
+        q = rearrange(q, 'b s (h d) -> b s h d', h=self.config.num_attention_heads)
+        k = rearrange(k, 'b s (h d) -> b s h d', h=self.config.num_attention_heads)
+        v = rearrange(v, 'b s (h d) -> b s h d', h=self.config.num_attention_heads)
+        query_length, key_length = q.shape[1], k.shape[1]
+        clp = jnp.broadcast_to(jnp.arange(t)[jnp.newaxis, :], (b, t))
+        freqs_cis = jnp.take(self.freqs, clp, axis=0)
         q, k = apply_rotary_embedding(q=q, k=k, freqs_cis=freqs_cis, dtype=self.dtype)
-        k = rearrange(k, 'b h s d -> b h d s')
+        causal_mask = self.causal_mask[:, :, :query_length, :key_length]
+        causal_mask = jnp.broadcast_to(causal_mask, (b,) + causal_mask.shape[1:])
+        attention_mask = jnp.expand_dims(attention_mask, axis=(-3, -2))
+        attention_mask = jnp.broadcast_to(attention_mask, causal_mask.shape)
+        attention_mask = nn.attention.combine_masks(attention_mask, causal_mask, None)
+        attention_bias = jax.lax.select(
+            attention_mask > 0,
+            jnp.full(attention_mask.shape, 0.0).astype(self.dtype),
+            jnp.full(attention_mask.shape, jnp.finfo(self.dtype).min).astype(self.dtype),
+        )
+
         attn = nn.attention.dot_product_attention_weights(
-            q, k, bias=attention_mask, dtype=jnp.promote_types(self.dtype, jnp.float32)
+            q, k, bias=attention_bias, dtype=jnp.promote_types(self.dtype, jnp.float32)
         )
         if self.config.fsdp:
             attn = with_sharding_constraint_(attn, PartitionSpec(("dp", "fsdp"), "mp", None, None))
-        attn = jnp.einsum("...hqk,...khd->...qhd", attn, v, precision=self.precision).reshape(b, t, c)
+        attn = jnp.einsum("...hqk,...khd->...qhd", attn, v).reshape(b, t, c)
         return self.o_proj(attn)
 
 
@@ -292,7 +304,7 @@ class FlaxLGeMPretrainedModel(FlaxPreTrainedModel):
     def __init__(
             self,
             config: FlaxLGeMConfig,
-            input_shape=(1, 1),
+            input_shape=(1, 256),
             seed: int = 0,
             dtype: jnp.dtype = jnp.float32,
             _do_init: bool = False,
@@ -417,13 +429,6 @@ class FlaxLGeMModule(nn.Module):
         last_hidden_state = self.wte(input_ids)
 
         b, s, _ = last_hidden_state.shape
-        if attention_mask is None:
-            attention_mask = jnp.ones((b, s))
-        attention_mask = attention_mask[:, jnp.newaxis, jnp.newaxis, :]
-        attention_mask = jnp.where(nn.make_causal_mask(input_ids) == 0, jnp.finfo(last_hidden_state.dtype).min,
-                                   0) + jnp.where(attention_mask > 0, 0,
-                                                  jnp.finfo(
-                                                      last_hidden_state.dtype).min)
 
         last_hidden_state, hidden_states = self.block(
             hidden_state=last_hidden_state,
