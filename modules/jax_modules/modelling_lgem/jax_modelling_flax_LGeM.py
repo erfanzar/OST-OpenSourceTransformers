@@ -4,6 +4,7 @@ import flax.linen.partitioning
 import jax
 from flax.traverse_util import unflatten_dict, flatten_dict
 from jax.sharding import PartitionSpec
+import numpy as np
 from jax.experimental.pjit import with_sharding_constraint as wsc
 from flax.core import freeze, unfreeze
 from flax import linen as nn
@@ -108,30 +109,31 @@ ACT2CLS = {
 }
 
 
-def compute_freq(dim: int, man_length: int, theta: int = 10000):
-    freq = 1 / (theta ** (jnp.arange(0, dim, 2) / dim))
-    t = jnp.arange(man_length)
-    m = jnp.einsum('i,j->ij', t, freq)
-    m = jnp.concatenate([m, m], axis=-1)
-    cos = jnp.cos(m)
-    sin = jnp.sin(m)
-    return cos, sin
+def compute_freq(dim: int, end: int, theta: float = 10000.0, dtype: jnp.dtype = jnp.float32) -> jnp.ndarray:
+    freqs = 1.0 / (theta ** (np.arange(0, dim, 2)[: (dim // 2)].astype(dtype) / dim))
+    t = np.arange(end)  # type: ignore
+    freqs = np.outer(t, freqs).astype(dtype)  # type: ignore
+    sin, cos = np.sin(freqs), np.cos(freqs)
+    freqs_cis = np.complex64(cos + 1j * sin)
+    return jnp.asarray(freqs_cis)
 
 
-def rotate_half(tensor):
-    depth = tensor.shape[-1]
-    x1 = tensor[..., :depth]
-    x2 = tensor[..., depth:]
-    return jnp.concatenate([-x2, x1], axis=-1)
-
-
-def apply_rotary_embedding(q, k, c, s):
-    b, h, l, d = q.shape
-    c = c[0, 0, :l, :]
-    s = s[0, 0, :l, :]
-    q = (q * c) + (rotate_half(q) * s)
-    k = (k * c) + (rotate_half(k) * s)
-    return q, k
+def apply_rotary_embedding(
+        q: jnp.ndarray,
+        k: jnp.ndarray,
+        freqs_cis: jnp.ndarray,
+        dtype: jnp.dtype = jnp.float32,
+):
+    reshape_xq = q.astype(jnp.float32).reshape(*q.shape[:-1], -1, 2)
+    reshape_xk = k.astype(jnp.float32).reshape(*k.shape[:-1], -1, 2)
+    xq_ = jax.lax.complex(reshape_xq[..., 0], reshape_xq[..., 1])
+    xk_ = jax.lax.complex(reshape_xk[..., 0], reshape_xk[..., 1])
+    freqs_cis = jnp.reshape(freqs_cis, (*freqs_cis.shape[:2], 1, *freqs_cis.shape[2:]))
+    xq_out = xq_ * freqs_cis
+    xq_out = jnp.stack((jnp.real(xq_out), jnp.imag(xq_out)), axis=-1).reshape(*xq_out.shape[:-1], -1)
+    xk_out = xk_ * freqs_cis
+    xk_out = jnp.stack((jnp.real(xk_out), jnp.imag(xk_out)), axis=-1).reshape(*xk_out.shape[:-1], -1)
+    return xq_out.astype(dtype), xk_out.astype(dtype)
 
 
 def get_names_from_parition_spec(partition_specs):
@@ -162,17 +164,26 @@ def with_sharding_constraint_(x, partition_specs):
 
 class PMSNorm(nn.Module):
     dim: int
-    eps: float
+    eps: float = 1e-6
     dtype: jnp.dtype = jnp.float32
+    param_dtype: jnp.dtype = jnp.float32
 
     def setup(self) -> None:
-        self.weight = self.param('kernel', nn.ones, (self.dim,), self.dtype)
+        self.weight = self.param(
+            'kernel',
+            nn.initializers.ones,
+            (self.dim,),
+            self.param_dtype,
+        )
 
-    def norm(self, x):
-        return x * (1 / jnp.sqrt(jnp.power(x, 2).mean(-1, keepdims=True) + self.eps))
+    def _norm(self, x: jnp.ndarray) -> jnp.ndarray:
+        return x * jax.lax.rsqrt(jnp.square(x).mean(-1, keepdims=True) + self.eps)
 
-    def __call__(self, x):
-        return self.weight * self.norm(x)
+    def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
+        x = x.astype(jnp.promote_types(self.dtype, jnp.float32))
+        output = self._norm(x).astype(self.dtype)
+        weight = jnp.asarray(self.weight, self.dtype)
+        return output * weight
 
 
 class RoEM(nn.Module):
@@ -200,12 +211,11 @@ class LGeMSelfAttention(nn.Module):
                         kernel_init=jax.nn.initializers.normal(self.config.initializer_range),
                         use_bias=False, dtype=self.dtype, param_dtype=self.param_dtype
                         )
-        s = jax.nn.initializers.normal(self.config.initializer_range)
         self.k_proj = dense()
         self.v_proj = dense()
         self.q_proj = dense()
         self.o_proj = dense()
-        self.rotary_embedding = RoEM(config=self.config)
+        self.freqs = compute_freq(self.config.hidden_size, self.config.max_position_embeddings, dtype=self.dtype)
 
     def __call__(self, input_ids: jnp.array, attention_mask=None):
         b, t, c = input_ids.shape
@@ -221,20 +231,18 @@ class LGeMSelfAttention(nn.Module):
         q = rearrange(q, 'b s (h d) -> b h s d', h=self.config.num_attention_heads)
         k = rearrange(k, 'b s (h d) -> b h s d', h=self.config.num_attention_heads)
         v = rearrange(v, 'b s (h d) -> b h s d', h=self.config.num_attention_heads)
-
-        cos, sin = self.rotary_embedding(x=k, max_l=t)
-
-        k, q = apply_rotary_embedding(k=k, q=q, c=cos, s=sin)
+        freqs_cis = jnp.take(self.freqs_cis, jnp.broadcast_to(
+            jnp.clip(jnp.cumsum(attention_mask, axis=-1) - 1, a_min=0),
+            (b, t)
+        ), axis=0)
+        q, k = apply_rotary_embedding(q=q, k=k, freqs_cis=freqs_cis, dtype=self.dtype)
         k = rearrange(k, 'b h s d -> b h d s')
-        attn = q @ k / math.sqrt(k.shape[-1])
-        if attention_mask is not None:
-            attn += attention_mask
-
+        attn = nn.attention.dot_product_attention_weights(
+            q, k, bias=attention_mask, dtype=jnp.promote_types(self.dtype, jnp.float32)
+        )
         if self.config.fsdp:
             attn = with_sharding_constraint_(attn, PartitionSpec(("dp", "fsdp"), "mp", None, None))
-
-        attn = nn.softmax(attn, axis=-1)
-        attn = (attn @ v).swapaxes(1, 2).reshape(b, t, c)
+        attn = jnp.einsum("...hqk,...khd->...qhd", attn, v, precision=self.precision).reshape(b, t, c)
         return self.o_proj(attn)
 
 
