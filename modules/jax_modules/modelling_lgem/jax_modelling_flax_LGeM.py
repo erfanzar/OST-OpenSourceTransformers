@@ -13,7 +13,7 @@ from jax import numpy as jnp
 from transformers import PretrainedConfig, FlaxPreTrainedModel
 from transformers.modeling_flax_outputs import FlaxBaseModelOutput, FlaxCausalLMOutput
 from functools import partial
-from typing import Optional
+from typing import Optional, Union
 
 from einops import rearrange
 from jax.interpreters import pxla
@@ -40,7 +40,12 @@ class FlaxLGeMConfig(PretrainedConfig):
             eos_token_id=2,
             tie_word_embeddings=False,
             fsdp=False,
-            gradient_checkpointing='checkpoint_dots',
+            gradient_checkpointing='',
+            embedding_dropout: float = 0.,
+            fcm_min_ratio: float = 0.,
+            fcm_max_ratio: float = 0.,
+            residual_dropout: float = 0.,
+            attention_dropout: float = 0.,
             **kwargs,
     ):
         self.vocab_size = vocab_size
@@ -55,6 +60,11 @@ class FlaxLGeMConfig(PretrainedConfig):
         self.use_cache = use_cache
         self.fsdp = fsdp
         self.gradient_checkpointing = gradient_checkpointing
+        self.fcm_max_ratio = fcm_max_ratio
+        self.fcm_min_ratio = fcm_min_ratio
+        self.embedding_dropout = embedding_dropout
+        self.residual_dropout = residual_dropout
+        self.attention_dropout = attention_dropout
         super().__init__(
             pad_token_id=pad_token_id,
             bos_token_id=bos_token_id,
@@ -204,12 +214,13 @@ class LGeMSelfAttention(nn.Module):
     config: FlaxLGeMConfig
     dtype: jnp.dtype = jnp.float32
     param_dtype: jnp.dtype = jnp.float32
+    precision: Optional[Union[jax.lax.Precision, str]] = None
 
     def setup(self) -> None:
         dense = partial(nn.Dense,
                         features=self.config.hidden_size,
                         kernel_init=jax.nn.initializers.normal(self.config.initializer_range),
-                        use_bias=False, dtype=self.dtype, param_dtype=self.param_dtype
+                        use_bias=False, dtype=self.dtype, param_dtype=self.param_dtype, precision=self.precision
                         )
         self.k_proj = dense()
         self.v_proj = dense()
@@ -219,30 +230,45 @@ class LGeMSelfAttention(nn.Module):
         self.causal_mask = nn.attention.make_causal_mask(
             jnp.ones((1, self.config.max_position_embeddings), dtype="bool"),
             dtype="bool")
+        self.resid_dropout = nn.Dropout(rate=self.config.residual_dropout)
 
-    def __call__(self, hidden_states: jnp.array, attention_mask=None):
+    def __call__(self,
+                 hidden_states: jnp.DeviceArray,
+                 attention_mask: jnp.DeviceArray = None,
+                 deterministic: bool = False,
+                 position_ids: jnp.DeviceArray = None,
+                 fcm_mask: jnp.DeviceArray = None
+                 ):
         b, t, c = hidden_states.shape
 
         k = self.k_proj(hidden_states)
         q = self.q_proj(hidden_states)
         v = self.v_proj(hidden_states)
 
-        if self.config.fsdp:
-            q = with_sharding_constraint_(q, PartitionSpec(("dp", "fsdp"), None, "mp"))
-            k = with_sharding_constraint_(k, PartitionSpec(("dp", "fsdp"), None, "mp"))
-            v = with_sharding_constraint_(v, PartitionSpec(("dp", "fsdp"), None, "mp"))
+        q = with_sharding_constraint_(q, PartitionSpec(("dp", "fsdp"), None, "mp"))
+        k = with_sharding_constraint_(k, PartitionSpec(("dp", "fsdp"), None, "mp"))
+        v = with_sharding_constraint_(v, PartitionSpec(("dp", "fsdp"), None, "mp"))
+
         q = rearrange(q, 'b s (h d) -> b s h d', h=self.config.num_attention_heads)
         k = rearrange(k, 'b s (h d) -> b s h d', h=self.config.num_attention_heads)
         v = rearrange(v, 'b s (h d) -> b s h d', h=self.config.num_attention_heads)
-        query_length, key_length = q.shape[1], k.shape[1]
-        clp = jnp.broadcast_to(jnp.arange(t)[jnp.newaxis, :], (b, t))
-        freqs_cis = jnp.take(self.freqs, clp, axis=0)
-        q, k = apply_rotary_embedding(q=q, k=k, freqs_cis=freqs_cis, dtype=self.dtype)
-        causal_mask = self.causal_mask[:, :, :query_length, :key_length]
-        causal_mask = jnp.broadcast_to(causal_mask, (b,) + causal_mask.shape[1:])
-        attention_mask = jnp.expand_dims(attention_mask, axis=(-3, -2))
-        attention_mask = jnp.broadcast_to(attention_mask, causal_mask.shape)
-        attention_mask = nn.attention.combine_masks(attention_mask, causal_mask, None)
+
+        freqs_cis = jnp.take(self.freqs, position_ids, axis=0)
+
+        q, k = apply_rotary_embedding(q, k, freqs_cis=freqs_cis, dtype=self.dtype)
+
+        causal_mask = self.causal_mask[:, :, :q.shape[1], : k.shape[1]]
+
+        batch_size = hidden_states.shape[0]
+        causal_mask = jnp.broadcast_to(causal_mask, (batch_size,) + causal_mask.shape[1:])
+
+        attention_mask = jnp.broadcast_to(jnp.expand_dims(attention_mask, axis=(-3, -2)), causal_mask.shape)
+        attention_mask = nn.attention.combine_masks(attention_mask, causal_mask, fcm_mask)
+
+        dropout_rng = None
+        if not deterministic and self.config.attention_dropout > 0.0:
+            dropout_rng = self.make_rng("dropout")
+
         attention_bias = jax.lax.select(
             attention_mask > 0,
             jnp.full(attention_mask.shape, 0.0).astype(self.dtype),
@@ -250,33 +276,44 @@ class LGeMSelfAttention(nn.Module):
         )
 
         attn = nn.attention.dot_product_attention_weights(
-            q, k, bias=attention_bias, dtype=jnp.promote_types(self.dtype, jnp.float32)
+            q,
+            k,
+            bias=attention_bias,
+            dropout_rng=dropout_rng,
+            dropout_rate=self.config.attention_dropout,
+            deterministic=deterministic,
+            dtype=jnp.promote_types(self.dtype, jnp.float32),
+            precision=self.precision,
         )
-        if self.config.fsdp:
-            attn = with_sharding_constraint_(attn, PartitionSpec(("dp", "fsdp"), "mp", None, None))
-        attn = jnp.einsum("...hqk,...khd->...qhd", attn, v).reshape(b, t, c)
-        return self.o_proj(attn)
+        attn = with_sharding_constraint_(attn, PartitionSpec(("dp", "fsdp"), "mp", None, None))
+        attn = jnp.einsum("...hqk,...khd->...qhd", attn, v, precision=self.precision)
+        attn = self.o_proj(attn.reshape(b, t, c))
+        attn = self.resid_dropout(attn, deterministic=deterministic)
+        return attn
 
 
 class LGeMMLP(nn.Module):
     config: FlaxLGeMConfig
     dtype: jnp.dtype = jnp.float32
     param_dtype: jnp.dtype = jnp.float32
+    precision: Optional[Union[jax.lax.Precision, str]] = None
 
     def setup(self) -> None:
         dense = partial(nn.Dense,
 
                         use_bias=False, dtype=self.dtype, param_dtype=self.param_dtype,
-                        kernel_init=jax.nn.initializers.normal(self.config.initializer_range)
+                        kernel_init=jax.nn.initializers.normal(self.config.initializer_range),
+                        precision=self.precision
                         )
 
         self.gate_proj = dense(self.config.intermediate_size)
         self.up_proj = dense(self.config.intermediate_size)
         self.down_proj = dense(self.config.hidden_size)
         self.act = ACT2CLS[self.config.hidden_act]
+        self.drop = nn.Dropout(self.config.residual_dropout)
 
-    def __call__(self, x):
-        return self.down_proj(self.act(self.gate_proj(x)) * self.up_proj(x))
+    def __call__(self, x, deterministic: bool = False):
+        return self.drop(self.down_proj(self.act(self.gate_proj(x)) * self.up_proj(x)), deterministic=deterministic)
 
 
 class LGeMBlock(nn.Module):
@@ -291,8 +328,18 @@ class LGeMBlock(nn.Module):
         self.post_attention_layernorm = PMSNorm(dim=self.config.hidden_size, eps=self.config.rms_norm_eps,
                                                 dtype=self.dtype)
 
-    def __call__(self, hidden_state, attention_mask=None):
-        hidden_state = self.self_attn(self.input_layernorm(hidden_state), attention_mask) + hidden_state
+    def __call__(self,
+                 hidden_state: jnp.DeviceArray,
+                 attention_mask: jnp.DeviceArray = None,
+                 deterministic: bool = None,
+                 position_ids: jnp.DeviceArray = None,
+                 fcm_mask: jnp.DeviceArray = None):
+        hidden_state = self.self_attn(self.input_layernorm(hidden_state),
+                                      attention_mask=attention_mask,
+                                      deterministic=deterministic,
+                                      position_ids=position_ids,
+                                      fcm_mask=fcm_mask
+                                      ) + hidden_state
         return self.mlp(self.post_attention_layernorm(hidden_state)) + hidden_state
 
 
@@ -387,20 +434,41 @@ class FlaxLGeMCollection(nn.Module):
             block = LGeMCheckPointBlock
         self.blocks = [
             block(self.config, dtype=self.dtype, param_dtype=self.param_dtype)
-            for i in range(self.config.num_hidden_layers)
+            for _ in range(self.config.num_hidden_layers)
         ]
 
     def __call__(
             self,
-            hidden_state,
-            attention_mask=None,
+            hidden_state: jnp.DeviceArray,
+            attention_mask: jnp.DeviceArray = None,
+            position_ids: jnp.DeviceArray = None,
+            deterministic: bool = None,
             return_dict: bool = True,
     ):
         hidden_states = []
+        if not deterministic and self.config.fcm_max_ratio > 0:
+
+            batch_size, seq_length = hidden_states.shape[0], hidden_states.shape[1]
+            fcm_ratio = jax.random.uniform(
+                self.make_rng('fcm'), shape=(batch_size, 1, 1, 1),
+                minval=self.config.fcm_min_ratio,
+                maxval=self.config.fcm_max_ratio
+            )
+            fcm_mask = jax.random.uniform(
+                self.make_rng('fcm'),
+                shape=(batch_size, 1, seq_length, seq_length)
+            ) > fcm_ratio
+            fcm_mask = fcm_mask.at[:, :, :, 0].set(True)
+            fcm_mask = fcm_mask.astype('bool')
+        else:
+            fcm_mask = None
         for block in self.blocks:
             hidden_state = block(
-                hidden_state,
-                attention_mask,
+                hidden_state=hidden_state,
+                attention_mask=attention_mask,
+                deterministic=deterministic,
+                position_ids=position_ids,
+                fcm_mask=fcm_mask
 
             )
             hidden_states.append(hidden_state)
@@ -416,23 +484,28 @@ class FlaxLGeMModule(nn.Module):
     def setup(self) -> None:
         self.padding_idx = self.config.pad_token_id
         self.vocab_size = self.config.vocab_size
-
+        self.dropout = nn.Dropout(rate=self.config.embedding_dropout)
         self.wte = nn.Embed(self.config.vocab_size, self.config.hidden_size)
         self.block = FlaxLGeMCollection(config=self.config, dtype=self.dtype, param_dtype=self.param_dtype)
         self.norm = PMSNorm(dim=self.config.hidden_size, eps=self.config.rms_norm_eps, dtype=self.dtype)
 
     def __call__(self,
-                 input_ids: jnp.array = None,
-                 attention_mask: jnp.array = None,
-                 return_dict=True):
+                 input_ids,
+                 attention_mask=None,
+                 position_ids=None,
+                 deterministic: bool = True,
+                 return_dict: bool = True,
+                 ):
 
         last_hidden_state = self.wte(input_ids)
-
+        last_hidden_state = self.dropout(last_hidden_state, deterministic=deterministic)
         b, s, _ = last_hidden_state.shape
 
         last_hidden_state, hidden_states = self.block(
             hidden_state=last_hidden_state,
             attention_mask=attention_mask,
+            position_ids=position_ids,
+            deterministic=deterministic,
             return_dict=return_dict
         )
 
@@ -463,14 +536,25 @@ class FlaxLGeMForCausalLMModule(nn.Module):
                                 )
 
     def __call__(self,
-                 input_ids: jnp.array,
-                 attention_mask: jnp.array = None,
-                 return_dict: Optional[bool] = False,
+                 input_ids,
+                 attention_mask=None,
+                 position_ids=None,
+                 deterministic: bool = True,
+                 return_dict: bool = True,
                  ):
-        output = self.model(input_ids=input_ids,
-                            attention_mask=attention_mask,
-                            return_dict=return_dict,
-                            )
+        b, s = input_ids.shape
+        if attention_mask is None:
+            attention_mask = jnp.ones_like(input_ids)
+        if position_ids is None:
+            position_ids = jnp.broadcast_to(jnp.clip(jnp.cumsum(attention_mask, axis=-1) - 1, a_min=0), (b, s))
+
+        output = self.model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            deterministic=deterministic,
+            return_dict=return_dict,
+        )
 
         hidden_state = output.last_hidden_state if return_dict else output
         hidden_states = output.hidden_states if return_dict else None

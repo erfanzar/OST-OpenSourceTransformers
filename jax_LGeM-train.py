@@ -75,7 +75,7 @@ def main(opt):
     dataloader = DataLoader(
         CasualLMDataset(data=data, max_length=conf.max_sequence_length, tokenizer=tokenizer, return_tensors='np'),
         batch_size=1, shuffle=True)
-    print(model)
+
     train(model=model, config=conf,
           data_loader=dataloader, total=5000)
 
