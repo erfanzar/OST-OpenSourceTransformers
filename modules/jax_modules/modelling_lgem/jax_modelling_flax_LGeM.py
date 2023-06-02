@@ -340,6 +340,7 @@ class LGeMBlock(nn.Module):
                                       position_ids=position_ids,
                                       fcm_mask=fcm_mask
                                       ) + hidden_state
+
         return self.mlp(self.post_attention_layernorm(hidden_state)) + hidden_state
 
 
@@ -393,6 +394,7 @@ class FlaxLGeMPretrainedModel(FlaxPreTrainedModel):
             params: dict = None,
             return_dict: Optional[bool] = None,
             deterministic: bool = True,
+            position_ids=None,
             add_params_field: bool = False,
     ):
 
@@ -404,6 +406,8 @@ class FlaxLGeMPretrainedModel(FlaxPreTrainedModel):
             input_ids=jnp.array(input_ids, dtype="i4"),
             attention_mask=jnp.array(attention_mask, dtype="i4") if attention_mask is not None else attention_mask,
             return_dict=return_dict,
+            position_ids=position_ids,
+            deterministic=deterministic
 
         )
 
@@ -498,6 +502,7 @@ class FlaxLGeMModule(nn.Module):
                  ):
 
         last_hidden_state = self.wte(input_ids)
+
         last_hidden_state = self.dropout(last_hidden_state, deterministic=deterministic)
         b, s, _ = last_hidden_state.shape
 
@@ -510,6 +515,7 @@ class FlaxLGeMModule(nn.Module):
         )
 
         last_hidden_state = self.norm(last_hidden_state)
+
         if return_dict:
             return FlaxBaseModelOutput(
                 hidden_states=hidden_states,
@@ -571,8 +577,10 @@ class FlaxLGeMForCausalLMModule(nn.Module):
 class FlaxLGeMForCausalLM(FlaxLGeMPretrainedModel):
     module_class = FlaxLGeMForCausalLMModule
 
-    def prepare_inputs_for_generation(self, input_ids, attention_mask: Optional[jnp.DeviceArray] = None):
+    def prepare_inputs_for_generation(self, input_ids, attention_mask: Optional[jnp.DeviceArray] = None,
+                                      position_ids: jnp.DeviceArray = None):
         return {
             "input_ids": input_ids,
-            'attention_mask': attention_mask
+            'attention_mask': attention_mask,
+            'position_ids': position_ids
         }
