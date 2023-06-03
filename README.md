@@ -247,10 +247,6 @@ Hi there 👋
 I like to train deep neural nets on large datasets 🧠.
 Among other things in this world:)
 
-## License
-
-it's available at [MIT](https://choosealicense.com/licenses/mit/) license But feel Free to Use :) <3
-
 ## Contributing
 
 Contributions are always welcome!
