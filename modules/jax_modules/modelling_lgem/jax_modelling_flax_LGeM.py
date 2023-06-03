@@ -129,7 +129,7 @@ def compute_freq_d(dim: int, end: int, theta: float = 10000.0, dtype: jnp.dtype 
 
 
 def compute_freq(dim: int, man_length: int, theta: int = 10000):
-    freq = 1 / (theta ** (jnp.arange(0, dim, 2) / dim))
+    freq = 1 / (theta ** (jnp.arange(0, dim, 2, dtype=jnp.float32) / dim))
     t = jnp.arange(man_length)
     m = jnp.einsum('i,j->ij', t, freq)
     m = jnp.concatenate([m, m], axis=-1)
@@ -212,17 +212,14 @@ class PMSNorm(nn.Module):
             self.param_dtype,
         )
 
-    def _norm(self, x: jnp.ndarray) -> jnp.ndarray:
-        return x * jax.lax.rsqrt(jnp.square(x).mean(-1, keepdims=True) + self.eps)
-
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
-        x = x.astype(jnp.promote_types(self.dtype, jnp.float32))
-        output = self._norm(x).astype(self.dtype)
         weight = jnp.asarray(self.weight, self.dtype)
-        return output * weight
+        variance = jnp.power(2, x).mean(-1, keepdims=True)
+        x = x * jax.lax.rsqrt(variance + self.eps)
+        return weight * x
 
 
-class RoEM(nn.Module):
+class RotaryEmbedding(nn.Module):
     config: FlaxLGeMConfig
 
     def setup(self) -> None:
@@ -233,7 +230,8 @@ class RoEM(nn.Module):
     def __call__(self, x, max_l):
         if self.sin.shape[0] < max_l:
             self.cos, self.sin = compute_freq(self.dim, max_l)
-        return self.cos[jnp.newaxis, jnp.newaxis, :, :], self.sin[jnp.newaxis, jnp.newaxis, :, :]
+        return self.cos[jnp.newaxis, jnp.newaxis, :, :].astype(x.dtype), self.sin[jnp.newaxis, jnp.newaxis, :,
+                                                                         :].astype(x.dtype)
 
 
 class LGeMSelfAttention(nn.Module):
@@ -252,7 +250,8 @@ class LGeMSelfAttention(nn.Module):
         self.v_proj = dense()
         self.q_proj = dense()
         self.o_proj = dense()
-        self.rotary_embedding = RoEM(config=self.config)
+        self.rotary_embedding = RotaryEmbedding(config=self.config)
+        self.scale = self.config.hidden_size // self.config.num_attention_heads
 
     def __call__(self,
                  hidden_states: jnp.DeviceArray,
@@ -276,13 +275,15 @@ class LGeMSelfAttention(nn.Module):
 
         k, q = apply_rotary_embedding(k=k, q=q, c=cos, s=sin)
         k = rearrange(k, 'b h s d -> b h d s')
-        attn = q @ k / math.sqrt(k.shape[-1])
+        attn = jnp.matmul(q, k) / math.sqrt(self.scale)
+
         if attention_mask is not None:
             attn += attention_mask
+
         if self.config.fsdp:
             attn = with_sharding_constraint_(attn, PartitionSpec(("dp", "fsdp"), "mp", None, None))
-        attn = jax.nn.softmax(attn, axis=-1)
-        attn = (attn @ v).swapaxes(1, 2)
+        attn = jax.nn.softmax(attn.astype(jnp.float32), axis=-1).astype(attn.dtype)
+        attn = jnp.matmul(attn, v).swapaxes(1, 2)
         attn = self.o_proj(attn.reshape(b, t, c))
 
         return attn
