@@ -252,6 +252,27 @@ class FlaxLTPretrainedModel(FlaxPreTrainedModel):
             params = self.module.init(rng, input_ids, attention_mask)['params']
         return {'params': params} if add_params_field else params
 
+    def __call__(
+            self,
+            input_ids: jnp.ndarray,
+            attention_mask: Optional[jnp.ndarray] = None,
+            params: dict = None,
+            return_dict: Optional[bool] = None,
+            add_params_field: bool = False,
+    ):
+        return_dict = return_dict if return_dict is not None else self.config.return_dict
+        inputs = {'params': params or self.params} if add_params_field else params or {'params': self.params}
+
+        outputs = self.module.apply(
+            inputs,
+            input_ids=jnp.array(input_ids, dtype="i4"),
+            attention_mask=jnp.array(attention_mask, dtype="i4") if attention_mask is not None else attention_mask,
+            return_dict=return_dict,
+
+        )
+
+        return outputs
+
 
 class FlaxLTModelModule(nn.Module):
     config: FlaxLTConfig
