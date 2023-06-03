@@ -26,7 +26,7 @@ ACT2CLS = {
 }
 
 
-class LTConfig(PretrainedConfig):
+class FlaxLTConfig(PretrainedConfig):
     def __init__(self,
                  initializer_range: float = 0.02,
                  hidden_size: int = 4096,
@@ -88,7 +88,7 @@ class LTConfig(PretrainedConfig):
         return ('params', 'dropout', 'fcm')
 
 
-def is_name(names):
+def is_name(*names):
     return set(names) <= set(pxla.thread_resources.env.physical_mesh.axis_names)
 
 
@@ -112,13 +112,13 @@ def with_sharding_constraint(x, p):
 
 
 class LTSelfAttention(nn.Module):
-    config: LTConfig
+    config: FlaxLTConfig
     dtype: jnp.dtype = jnp.float32
-    params_dtype: jnp.dtype = jnp.float32
+    param_dtype: jnp.dtype = jnp.float32
 
     def setup(self) -> None:
         dense = partial(nn.Dense,
-                        num_feauters=self.config.hidden_size,
+                        features=self.config.hidden_size,
                         use_bias=False,
                         kernel_init=jax.nn.initializers.normal(self.config.initializer_range)
                         )
@@ -129,6 +129,7 @@ class LTSelfAttention(nn.Module):
         self.scale = 1 / math.sqrt(self.config.hidden_size // self.config.hidden_size)
 
     def __call__(self, hidden_state: jnp.DeviceArray, attention_mask=None):
+        b, t, c = hidden_state.shape
         wq, wk, wv = self.q_proj(hidden_state), self.k_proj(hidden_state), self.v_proj(hidden_state)
 
         if self.config.fsdp:
@@ -137,10 +138,12 @@ class LTSelfAttention(nn.Module):
             wv = with_sharding_constraint(wv, PartitionSpec(('dp', 'fsdp'), None, 'mp'))
 
         wq = rearrange(wq, 'b s (h d) -> b h s d', h=self.config.num_attention_heads)
-        wk = rearrange(wk, 'b s (h d) -> b h s d', h=self.config.num_attention_heads)
+        wk = rearrange(wk, 'b s (h d) -> b h d s', h=self.config.num_attention_heads)
         wv = rearrange(wv, 'b s (h d) -> b h s d', h=self.config.num_attention_heads)
 
-        attn_weights = jnp.einsum('...qhd,...khd->...hqk', wq, wk) / self.scale
+        attn_weights = jnp.matmul(wq, wk) / self.scale
+
+        # attention_mask batch,head_size,seq,seq
         if attention_mask is not None:
             attn_weights = jnp.add(attention_mask, attn_weights)
 
@@ -148,14 +151,14 @@ class LTSelfAttention(nn.Module):
             attn_weights = with_sharding_constraint(attn_weights, PartitionSpec(("dp", "fsdp"), "mp", None, None))
 
         attn_weights = jax.nn.softmax(attn_weights, axis=-1)
-        value = jnp.einsum('...hqk,...khd->...qhd', attn_weights, wv)
+        value = jnp.matmul(attn_weights, wv).reshape(b, t, c)
         return self.o_proj(value)
 
 
 class LTMlp(nn.Module):
-    config: LTConfig
+    config: FlaxLTConfig
     dtype: jnp.dtype = jnp.float32
-    params_dtype: jnp.dtype = jnp.float32
+    param_dtype: jnp.dtype = jnp.float32
 
     def setup(self) -> None:
         self.up = nn.Dense(
@@ -179,19 +182,19 @@ class LTMlp(nn.Module):
 
 
 class LTBlock(nn.Module):
-    config: LTConfig
+    config: FlaxLTConfig
     dtype: jnp.dtype = jnp.float32
-    params_dtype: jnp.dtype = jnp.float32
+    param_dtype: jnp.dtype = jnp.float32
 
     def setup(self) -> None:
         self.attn = LTSelfAttention(
             config=self.config,
-            params_dtype=self.params_dtype,
+            param_dtype=self.param_dtype,
             dtype=self.dtype
         )
         self.mlp = LTMlp(
             config=self.config,
-            params_dtype=self.params_dtype,
+            param_dtype=self.param_dtype,
             dtype=self.dtype
         )
         self.ln1 = nn.LayerNorm(
@@ -208,12 +211,12 @@ class LTBlock(nn.Module):
 
 
 class LTCollection(nn.Module):
-    config: LTConfig
+    config: FlaxLTConfig
     dtype: jnp.dtype = jnp.float32
-    params_dtype: jnp.dtype = jnp.float32
+    param_dtype: jnp.dtype = jnp.float32
 
     def setup(self) -> None:
-        self.layers = [LTBlock(config=self.config, dtype=self.dtype, params_dtype=self.params_dtype) for _ in
+        self.layers = [LTBlock(config=self.config, dtype=self.dtype, param_dtype=self.param_dtype) for _ in
                        range(self.config.num_hidden_layers)]
 
     def __call__(self, hidden_state: jnp.DeviceArray, attention_mask: jnp.DeviceArray = None):
@@ -225,36 +228,47 @@ class LTCollection(nn.Module):
 
 
 class FlaxLTPretrainedModel(FlaxPreTrainedModel):
-    config_class = LTConfig
-    base_model_prefix = 'model'
-    module: nn.Module = None
+    module_class: nn.Module = None
+    module_config: FlaxLTConfig
+    base_model_prefix: str = 'model'
 
-    def __init__(self, config: LTConfig, _do_init=False, **kwargs):
-        super().__init__(config=config, module=self.module, _do_init=_do_init, **kwargs)
+    def __init__(
+            self,
+            config: FlaxLTConfig,
+            input_shape=(1, 256),
+            seed: int = 0,
+            dtype: jnp.dtype = jnp.float32,
+            _do_init: bool = False,
+            **kwargs,
+    ):
+        module = self.module_class(config=config, dtype=dtype, **kwargs)
+        super().__init__(config, module, input_shape=input_shape, seed=seed, dtype=dtype, _do_init=_do_init)
 
-    def init_weights(self, rng: jax.random.PRNGKey, input_ids: Tuple, attention_mask=None,
-                     params: flax.core.FrozenDict = None) -> Dict:
+    def init_weights(self, rng: jax.random.PRNGKey, input_shape,
+                     params: flax.core.FrozenDict = None, add_params_field=True) -> Dict:
+        input_ids = jnp.ones(input_shape, dtype='i4')
+        attention_mask = jnp.ones(input_shape, dtype='i4')
         if params is None:
             params = self.module.init(rng, input_ids, attention_mask)['params']
-        return {'params': params}
+        return {'params': params} if add_params_field else params
 
 
 class FlaxLTModelModule(nn.Module):
-    config: LTConfig
+    config: FlaxLTConfig
     dtype: jnp.dtype = jnp.float32
-    params_dtype: jnp.dtype = jnp.float32
+    param_dtype: jnp.dtype = jnp.float32
 
     def setup(self) -> None:
         self.wte = nn.Embed(
             self.config.vocab_size,
             self.config.hidden_size,
             dtype=self.dtype,
-            params_dtype=self.params_dtype
+            param_dtype=self.param_dtype
         )
         self.blocks = LTCollection(
             config=self.config,
             dtype=self.dtype,
-            params_dtype=self.params_dtype
+            param_dtype=self.param_dtype
         )
 
         self.ln = nn.LayerNorm(use_bias=False)
@@ -267,7 +281,7 @@ class FlaxLTModelModule(nn.Module):
         slope = 1 / jnp.power(2, base_mxl)
         if self.config.num_attention_heads != cp2:
             slope = jnp.concatenate([slope[1::2], slope[::2]], axis=-1)[:self.config.num_attention_heads]
-        mxl = (mxl * slope).reshape(1, self.config.num_attention_heads, 1, 1)
+        mxl = (mxl * slope).reshape(1, self.config.num_attention_heads, 1, sequence_length)
         return mxl
 
     def __call__(self, input_ids: jnp.DeviceArray, attention_mask: jnp.DeviceArray = None, return_dict: bool = True):
@@ -280,17 +294,21 @@ class FlaxLTModelModule(nn.Module):
             attention_mask = attention_mask[:, jnp.newaxis, jnp.newaxis, :]
         assert attention_mask.ndim == 4
         attention_mask = jnp.where(attention_mask == 1, 0, jnp.finfo(hidden_state.dtype).min)
+
         attention_mask = jnp.add(attention_mask, alibi)
-        causal_mask = nn.attention.make_causal_mask(hidden_state)
+
+        causal_mask = nn.attention.make_causal_mask(input_ids)
         causal_mask = jnp.where(causal_mask == 1, 0, jnp.finfo(hidden_state.dtype).min)
+
         attention_mask = jnp.add(attention_mask, causal_mask)
+
         hidden_state, hidden_states = self.blocks(
             hidden_state=hidden_state, attention_mask=attention_mask
         )
 
         hidden_state = self.ln(hidden_state)
         if return_dict:
-            FlaxBaseModelOutput(
+            return FlaxBaseModelOutput(
                 last_hidden_state=hidden_state,
                 hidden_states=hidden_states
             )
@@ -299,20 +317,20 @@ class FlaxLTModelModule(nn.Module):
 
 
 class FlaxLTModel(FlaxLTPretrainedModel):
-    module = FlaxLTModelModule
+    module_class = FlaxLTModelModule
 
 
 class FlaxLTModelForCausalLMModule(nn.Module):
-    config: LTConfig
+    config: FlaxLTConfig
     dtype: jnp.dtype = jnp.float32
-    params_dtype: jnp.dtype = jnp.float32
+    param_dtype: jnp.dtype = jnp.float32
 
     def setup(self) -> None:
         self.model = FlaxLTModelModule(
-            config=self.config, dtype=self.dtype, params_dtype=self.params_dtype
+            config=self.config, dtype=self.dtype, param_dtype=self.param_dtype
         )
         self.lm_head = nn.Dense(
-            num_feauters=self.config.vocab_size,
+            self.config.vocab_size,
             use_bias=False,
             kernel_init=jax.nn.initializers.normal(self.config.initializer_range)
         )
@@ -337,5 +355,5 @@ class FlaxLTModelForCausalLMModule(nn.Module):
             return logits, hidden_states
 
 
-class FlaxLTModelForCausalLM(FlaxLTPretrainedModel):
-    module = FlaxLTModelForCausalLMModule
+class FlaxLTForCausalLM(FlaxLTPretrainedModel):
+    module_class = FlaxLTModelForCausalLMModule

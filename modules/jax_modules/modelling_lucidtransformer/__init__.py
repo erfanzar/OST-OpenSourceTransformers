@@ -1,1 +1,1 @@
-from .jax_modelling_lucidtransformer import FlaxLTModelForCausalLM, FlaxLTPretrainedModel, FlaxLTModel, LTConfig
+from .jax_modelling_lucidtransformer import FlaxLTForCausalLM, FlaxLTPretrainedModel, FlaxLTModel, FlaxLTConfig
