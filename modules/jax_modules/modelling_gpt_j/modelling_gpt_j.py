@@ -604,6 +604,7 @@ class FlaxGPTJPreTrainedModel(FlaxPreTrainedModel):
             output_attentions: Optional[bool] = None,
             output_hidden_states: Optional[bool] = None,
             return_dict: Optional[bool] = None,
+            add_params_field: bool = False
     ):
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
@@ -627,7 +628,7 @@ class FlaxGPTJPreTrainedModel(FlaxPreTrainedModel):
         if dropout_rng is not None:
             rngs["dropout"] = dropout_rng
 
-        inputs = {"params": params or self.params}
+        inputs = {"params": params or self.params} if add_params_field else params or self.params
 
         if past_key_values:
             inputs["cache"] = past_key_values
