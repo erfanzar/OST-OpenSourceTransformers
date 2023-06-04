@@ -554,32 +554,24 @@ class FlaxGPTJPreTrainedModel(FlaxPreTrainedModel):
         params_rng, dropout_rng = jax.random.split(rng)
         rngs = {"params": params_rng, "dropout": dropout_rng}
 
-        if self.config.add_cross_attention:
-            encoder_hidden_states = jnp.zeros(input_shape + (self.config.n_embd,))
-            encoder_attention_mask = attention_mask
-            module_init_outputs = self.module.init(
-                rngs,
-                input_ids,
-                attention_mask,
-                position_ids,
-                encoder_hidden_states,
-                encoder_attention_mask,
-                return_dict=False,
-            )
+        if params is None:
+            if self.config.add_cross_attention:
+                encoder_hidden_states = jnp.zeros(input_shape + (self.config.n_embd,))
+                encoder_attention_mask = attention_mask
+                module_init_outputs = self.module.init(
+                    rngs,
+                    input_ids,
+                    attention_mask,
+                    position_ids,
+                    encoder_hidden_states,
+                    encoder_attention_mask,
+                    return_dict=False,
+                )
+            else:
+                module_init_outputs = self.module.init(rngs, input_ids, attention_mask, position_ids, return_dict=False)
+            return module_init_outputs
         else:
-            module_init_outputs = self.module.init(rngs, input_ids, attention_mask, position_ids, return_dict=False)
-
-        random_params = module_init_outputs["params"]
-
-        if params is not None:
-            random_params = flatten_dict(unfreeze(random_params))
-            params = flatten_dict(unfreeze(params))
-            for missing_key in self._missing_keys:
-                params[missing_key] = random_params[missing_key]
-            self._missing_keys = set()
-            return freeze(unflatten_dict(params))
-        else:
-            return random_params
+            return params
 
     def init_cache(self, batch_size, max_length):
 
