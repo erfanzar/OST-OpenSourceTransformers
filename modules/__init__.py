@@ -15,4 +15,4 @@ from modules.pytorch_modules import PalmConfig, PalmModel, PalmForCausalLM, LtMo
 
 from modules.jax_modules import FlaxLGeMModule, FlaxLGeMConfig, FlaxLGeMModel, FlaxLGeMForCausalLM, \
     FlaxLTForCausalLM, FlaxLTPretrainedModel, FlaxLTModel, FlaxLTConfig as FlaxLTConfig, FlaxGPTJForCausalLM, \
-    FlaxGPTJModel, GPTJConfig
+    FlaxGPTJModel, GPTJConfig, FlaxLGeMVConfig, FlaxLGeMVModel, FlaxLGeMVForCausalLM
