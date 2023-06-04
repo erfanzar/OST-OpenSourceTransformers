@@ -71,7 +71,7 @@ class FlaxLGeMConfig(PretrainedConfig):
     def get_partition_rules():
         return (
             # Emb
-            ("model/embed_tokens/embedding", PartitionSpec("mp", "fsdp")),
+            ("model/wte/embedding", PartitionSpec("mp", "fsdp")),
 
             # ATTn
             ("self_attn/(k_proj|v_proj|q_proj)/kernel", PartitionSpec("fsdp", "mp")),
