@@ -5,6 +5,16 @@ some researchs in `NLP`
 OST Collection: An AI-powered suite of models that predict the next word matches with remarkable accuracy (Text
 Generative Models). OST Collection is based on a novel approach to work as a full and intelligent NLP Model.
 
+## Trained Available Models 
+
+| Model       Link                                                           | Max Sentence Length | Parameters |
+|:---------------------------------------------------------------------------|---------------------|------------|
+| [GT-J-6B 🚀 ](https://huggingface.co/erfanzar/GT-J)                        | 2048                | 6B         |    
+| [LGeM-3.5B 🚀 (Soon)]()                                                    | 2048                | 3.5B       |      
+| [LGeM-1B 🚀 ](https://huggingface.co/erfanzar/LGeM-1B)                     | 1024                | 1B         | 
+| [LGeM-7B 🚀 ](https://huggingface.co/erfanzar/LGeM-7B)                     | 2048                | 7B         | 
+| [PGT-1B 🚀 ](https://huggingface.co/erfanzar/PGT-1B)                       | 1280                | 1B         |
+
 # TODO
 
 - Example and tutorial for training models (Update on M27 [LGeMJax Added support FSDP PMAP](https://github.com/erfanzar/OST-OpenSourceTransformers/blob/main/examples/jax_pmap_fsdp_normal_train.ipynb))
@@ -59,20 +69,6 @@ torchrun --nproc-per-node=<number_of_your_gpus_here> --master-port=4008 --standa
 ```
 
 
-## Models
-
-- OST Project Contain currently 5 Models
-
-## Trained Available Models 
-
-| Model       Link                                                           | Max Sentence Length | Parameters |
-|:---------------------------------------------------------------------------|---------------------|------------|
-| [LGeM-1B 🚀 ](https://huggingface.co/erfanzar/LGeM-1B)                     | 1024                | 1B         | 
-| [GPT-12B 🚀 ](https://huggingface.co/erfanzar/Pythia-12B-Epoch-2)          | 2048                | 12B        | 
-| [GPT-12B-8BIT 🚀](https://huggingface.co/erfanzar/Pythia-12B-Epoch-2-8BIT) | 2048                | 12B        | 
-| [LGeM-7B 🚀 ](https://huggingface.co/erfanzar/LGeM-7B)                     | 2048                | 7B         | 
-| [PGT-1B-2EP 🚀 ](https://huggingface.co/erfanzar/PGT-1B-2EP)               | 1024                | 1B         |
-| [PGT-1B 🚀 ](https://huggingface.co/erfanzar/PGT-1B)                       | 1280                | 1B         |
 
 ### LT (LucidTransformers)-Models
 
