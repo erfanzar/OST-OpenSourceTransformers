@@ -67,7 +67,9 @@ def generate(model: AutoModelForCausalLM, tokenizer, text: str, max_stream_token
                              generation_config=generation_config)
         text = tokenizer.decode(enc[0], skip_special_tokens=False)
         text = text[:-4] + tokenizer.eos_token if text[-4:] == '\n\n\n\n' else text
-        if text.endswith(tokenizer.eos_token) or text.endswith('\n\n\n\n'):
+        lan_ = len('<|endoftext|>')
+        text = text[:lan_] + tokenizer.eos_token if text[lan_:] == '<|endoftext|>' else text
+        if text.endswith(tokenizer.eos_token) or text.endswith('\n\n\n\n') or text.endswith('<|endoftext|>'):
             yield text[len(text_r):] if b_pair else text
             break
         else:
@@ -119,7 +121,8 @@ class Conversation:
                              generation_config=generation_config,
                              use_prompt_to_instruction=False):
             final_res = byte
-            if byte[len(text):].endswith('<|endoftext|>'):
+            if '<|endoftext|>' in byte[len(text):]:
+                print('Break')
                 break
             yield byte[len(text):].replace('<|endoftext|>', '')
 
