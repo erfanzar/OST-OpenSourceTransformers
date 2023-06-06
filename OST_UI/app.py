@@ -18,7 +18,7 @@ logger = logging.get_logger(__name__)
 @dataclass
 class LoadConfig:
     mode: str = field(default='gui-chat', metadata={'help': 'mode to use ai in '})
-    model_id: str = field(default='erfanzar/PGT-1B', metadata={'help': 'model to load'})
+    model_id: str = field(default='erfanzar/GT-J', metadata={'help': 'model to load'})
     load_model: bool = field(default=True, metadata={'help': "load model set to false for debug mode"})
     torch_type: torch.dtype = field(default=torch.float16, metadata={'help': "data type"})
     load_in_8bit: bool = field(default=False,
@@ -122,8 +122,7 @@ class Conversation:
         cache.append([original_text, answer])
         return '', cache
 
-from datasets import load_dataset
-load_dataset()
+
 def sort_cache_pgt(cache_):
     if len(cache_) == 0:
         opt = ''
@@ -206,14 +205,6 @@ def gradio_ui(main_class_conversation):
     interface.launch(share=True)
 
 
-image_classes = {
-    'erfanzar/PGT-1B': 'https://raw.githubusercontent.com/erfanzar/Assets/main/IMG_20230427_152247_986.png',
-    'erfanzar/PGT-1B-2EP': 'https://raw.githubusercontent.com/erfanzar/Assets/main/1W.png',
-    'erfanzar/Pythia-12B-Epoch-2-8BIT': 'https://raw.githubusercontent.com/erfanzar/Assets/main/IMG_20230427_152248_550.png',
-    'erfanzar/Pythia-12B-Epoch-2': 'https://raw.githubusercontent.com/erfanzar/Assets/main/IMG_20230427_152248_688.png'
-}
-
-
 def gradio_ui_chat(main_class_conversation: Conversation):
     theme = gr.themes.Soft(
         primary_hue="cyan",
@@ -230,7 +221,7 @@ def gradio_ui_chat(main_class_conversation: Conversation):
             with gr.Column(scale=1):
                 max_new_tokens = gr.Slider(value=1024, maximum=1024, minimum=1, label='Max New Tokens', step=1)
                 max_length = gr.Slider(value=1536, maximum=2048, minimum=1, label='Max Length', step=1)
-                max_steam_tokens = gr.Slider(value=1, maximum=3, minimum=1, label='Max Stream Tokens', step=1)
+                max_steam_tokens = gr.Slider(value=3, maximum=100, minimum=1, label='Max Stream Tokens', step=1)
                 temperature = gr.Slider(value=0.9, maximum=1, minimum=0.2, label='Temperature', step=0.01)
                 top_p = gr.Slider(value=0.95, maximum=0.9999, minimum=0.1, label='Top P', step=0.01)
                 top_k = gr.Slider(value=50, maximum=100, minimum=1, label='Top K', step=1)
@@ -248,7 +239,6 @@ def gradio_ui_chat(main_class_conversation: Conversation):
             with gr.Column(scale=1):
                 submit = gr.Button()
             with gr.Column(scale=4):
-
                 text = gr.Textbox(show_label=False).style(container=False)
 
         sub_event = submit.click(fn=chat_bot_run,
