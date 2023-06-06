@@ -4,7 +4,7 @@ import optax
 from functools import partial
 from datasets import load_dataset
 from tqdm.auto import tqdm
-
+from fjutils.optimizers import get_adamw_with_cosine_scheduler
 from dataclasses import dataclass, field
 from jax.random import PRNGKey, split
 import re
@@ -323,19 +323,9 @@ def main():
     weight_decay: float = 2e-1
     mask = None
 
-    scheduler = optax.cosine_decay_schedule(
-        init_value=train_args.learning_rate,
-        decay_steps=total_iterations,
-    )
-
-    tx = optax.chain(
-        optax.clip_by_global_norm(1.0),
-        optax.adamw(
-            learning_rate=scheduler,
-            weight_decay=0.01,
-            mask=None,
-            mu_dtype=get_dtype(model_args.dtype),
-        ),
+    tx, scheduler = get_adamw_with_cosine_scheduler(
+        learning_rate=train_args.learning_rate,
+        steps=total_iterations,
     )
 
     def init_fn():
@@ -372,8 +362,8 @@ def main():
 
         def loss_fn(params):
             logits = state.apply_fn(params, **batch, return_dict=True).logits
-            loss_ = optax.softmax_cross_entropy_with_integer_labels(logits=logits[..., 1:, :],
-                                                                    labels=batch['input_ids'][..., :-1],
+            loss_ = optax.softmax_cross_entropy_with_integer_labels(logits=logits[..., :-1, :],
+                                                                    labels=batch['input_ids'][..., 1:],
                                                                     )
             return loss_
 
@@ -437,7 +427,8 @@ def main():
                 i += 1
                 state, loss = sharded_apply_model(state=state, batch=batch)
                 pbar.update(1)
-                pbar.set_postfix(loss=loss, passed=i / total, epoch=f'[{ep}/{train_args.num_train_epochs}]')
+                pbar.set_postfix(loss=loss, passed=i / total, learning_rate=scheduler(i).tolist(),
+                                 epoch=f'[{ep}/{train_args.num_train_epochs}]')
                 if i % train_args.logging_steps == 0:
                     prefix_printer(f'Loss Step {i}', loss)
 
