@@ -29,6 +29,7 @@ class LoadConfig:
     use_custom: bool = field(default=False, metadata={
         'help': 'use pipeline or custom generate func'
     })
+    use_lgem_stoper: bool = field(default=False)
 
 
 def load_model(config: LoadConfig):
@@ -64,7 +65,8 @@ def generate(model: AutoModelForCausalLM, tokenizer, text: str, max_stream_token
         text_r = text
         enc = model.generate(enc.input_ids.to(model.device),
                              attention_mask=enc.attention_mask.to(model.device),
-                             generation_config=generation_config)
+                             generation_config=generation_config,
+                             )
         text = tokenizer.decode(enc[0], skip_special_tokens=False)
         text = text[:-4] + tokenizer.eos_token if text[-4:] == '\n\n\n\n' else text
         lan_ = len('<|endoftext|>')
@@ -229,7 +231,8 @@ def gradio_ui_chat(main_class_conversation: Conversation):
             with gr.Column(scale=1):
                 max_new_tokens = gr.Slider(value=1024, maximum=1024, minimum=1, label='Max New Tokens', step=1)
                 max_length = gr.Slider(value=1536, maximum=2048, minimum=1, label='Max Length', step=1)
-                max_steam_tokens = gr.Slider(value=3, maximum=100, minimum=1, label='Max Stream Tokens', step=1)
+                max_steam_tokens = gr.Slider(value=1, maximum=100, minimum=1, label='Max Stream Tokens', step=1,
+                                             visible=False)
                 temperature = gr.Slider(value=0.9, maximum=1, minimum=0.2, label='Temperature', step=0.01)
                 top_p = gr.Slider(value=0.95, maximum=0.9999, minimum=0.1, label='Top P', step=0.01)
                 top_k = gr.Slider(value=50, maximum=100, minimum=1, label='Top K', step=1)
