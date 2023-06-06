@@ -182,7 +182,7 @@ def chat_bot_run(text: str,
         eos_token_id=tokenizer.eos_token_id,
         pad_token_id=tokenizer.pad_token_id,
         bos_token_id=tokenizer.bos_token_id,
-        use_cache=True
+        use_cache=use_cache
     )
 
     cache_f = cache
@@ -244,7 +244,7 @@ def gradio_ui_chat(main_class_conversation: Conversation):
                 voice = gr.Audio(source='microphone', type="filepath", streaming=False, label='Smart Voice', )
                 stop = gr.Button(value='Stop ')
                 clear = gr.Button(value='Clear Conversation')
-                use_cache = gr.Radio(label='Use Cache', value='True')
+                use_cache = gr.Checkbox(label='Use Cache', value=True)
             with gr.Column(scale=4):
                 cache = gr.Chatbot(elem_id=main_class_conversation.config.model_id,
                                    label=main_class_conversation.config.model_id).style(container=True,
