@@ -13,9 +13,9 @@ from transformers import PretrainedConfig, FlaxPreTrainedModel
 from transformers.modeling_flax_outputs import FlaxBaseModelOutput, FlaxCausalLMOutput
 
 
-class FlaxLGeMConfig(PretrainedConfig):
-    # HuggingFace FlaxLGeMConfig
-    model_type = "LGeM"
+class FlaxAGeMConfig(PretrainedConfig):
+    # HuggingFace FlaxAGeMConfig
+    model_type = "AGeM"
 
     def __init__(
             self,
@@ -35,11 +35,7 @@ class FlaxLGeMConfig(PretrainedConfig):
             tie_word_embeddings=False,
             fsdp=False,
             gradient_checkpointing='',
-            embedding_dropout: float = 0.,
-            fcm_min_ratio: float = 0.,
-            fcm_max_ratio: float = 0.,
-            residual_dropout: float = 0.,
-            attention_dropout: float = 0.,
+
             **kwargs,
     ):
         self.vocab_size = vocab_size
@@ -54,11 +50,7 @@ class FlaxLGeMConfig(PretrainedConfig):
         self.use_cache = use_cache
         self.fsdp = fsdp
         self.gradient_checkpointing = gradient_checkpointing
-        self.fcm_max_ratio = fcm_max_ratio
-        self.fcm_min_ratio = fcm_min_ratio
-        self.embedding_dropout = embedding_dropout
-        self.residual_dropout = residual_dropout
-        self.attention_dropout = attention_dropout
+
         super().__init__(
             pad_token_id=pad_token_id,
             bos_token_id=bos_token_id,
@@ -178,8 +170,8 @@ class PMSNorm(nn.Module):
         return weight * x
 
 
-class LGeMSelfAttention(nn.Module):
-    config: FlaxLGeMConfig
+class AGeMSelfAttention(nn.Module):
+    config: FlaxAGeMConfig
     dtype: jnp.dtype = jnp.float32
     param_dtype: jnp.dtype = jnp.float32
     precision: Optional[Union[jax.lax.Precision, str]] = None
@@ -238,8 +230,8 @@ class LGeMSelfAttention(nn.Module):
         return attn
 
 
-class LGeMMLP(nn.Module):
-    config: FlaxLGeMConfig
+class AGeMMLP(nn.Module):
+    config: FlaxAGeMConfig
     dtype: jnp.dtype = jnp.float32
     param_dtype: jnp.dtype = jnp.float32
     precision: Optional[Union[jax.lax.Precision, str]] = None
@@ -260,14 +252,14 @@ class LGeMMLP(nn.Module):
         return self.down_proj(self.act(self.gate_proj(x)))
 
 
-class LGeMBlock(nn.Module):
-    config: FlaxLGeMConfig
+class AGeMBlock(nn.Module):
+    config: FlaxAGeMConfig
     dtype: jnp.dtype = jnp.float32
     param_dtype: jnp.dtype = jnp.float32
 
     def setup(self) -> None:
-        self.self_attn = LGeMSelfAttention(config=self.config, dtype=self.dtype, param_dtype=self.param_dtype)
-        self.mlp = LGeMMLP(config=self.config, dtype=self.dtype, param_dtype=self.param_dtype)
+        self.self_attn = AGeMSelfAttention(config=self.config, dtype=self.dtype, param_dtype=self.param_dtype)
+        self.mlp = AGeMMLP(config=self.config, dtype=self.dtype, param_dtype=self.param_dtype)
         # self.input_layernorm = PMSNorm(dim=self.config.hidden_size, eps=self.config.rms_norm_eps, dtype=self.dtype)
         # self.post_attention_layernorm = PMSNorm(dim=self.config.hidden_size, eps=self.config.rms_norm_eps,
         #                                         dtype=self.dtype)
@@ -288,14 +280,14 @@ class LGeMBlock(nn.Module):
         return self.mlp(self.post_attention_layernorm(hidden_state)) + hidden_state
 
 
-class FlaxLGeMPretrainedModel(FlaxPreTrainedModel):
+class FlaxAGeMPretrainedModel(FlaxPreTrainedModel):
     module_class: nn.Module = None
-    module_config: FlaxLGeMConfig
+    module_config: FlaxAGeMConfig
     base_model_prefix: str = 'model'
 
     def __init__(
             self,
-            config: FlaxLGeMConfig,
+            config: FlaxAGeMConfig,
             input_shape=(1, 256),
             seed: int = 0,
             dtype: jnp.dtype = jnp.float32,
@@ -357,19 +349,19 @@ def get_gradient(name):
     }[name]
 
 
-class FlaxLGeMCollection(nn.Module):
-    config: FlaxLGeMConfig
+class FlaxAGeMCollection(nn.Module):
+    config: FlaxAGeMConfig
     dtype: jnp.dtype = jnp.float32
     param_dtype: jnp.dtype = jnp.float32
 
     def setup(self):
-        block = LGeMBlock
+        block = AGeMBlock
         if self.config.gradient_checkpointing != '':
-            LGeMCheckPointBlock = flax.linen.partitioning.remat(
+            AGeMCheckPointBlock = flax.linen.partitioning.remat(
                 block,
                 policy=get_gradient(self.config.gradient_checkpointing)
             )
-            block = LGeMCheckPointBlock
+            block = AGeMCheckPointBlock
         self.blocks = [
             block(self.config, dtype=self.dtype, param_dtype=self.param_dtype)
             for _ in range(self.config.num_hidden_layers)
@@ -395,8 +387,8 @@ class FlaxLGeMCollection(nn.Module):
         return hidden_state, hidden_states
 
 
-class FlaxLGeMModule(nn.Module):
-    config: FlaxLGeMConfig
+class FlaxAGeMModule(nn.Module):
+    config: FlaxAGeMConfig
     dtype: jnp.dtype = jnp.float32
     param_dtype: jnp.dtype = jnp.float32
 
@@ -404,7 +396,7 @@ class FlaxLGeMModule(nn.Module):
         self.padding_idx = self.config.pad_token_id
         self.vocab_size = self.config.vocab_size
         self.wte = nn.Embed(self.config.vocab_size, self.config.hidden_size)
-        self.block = FlaxLGeMCollection(config=self.config, dtype=self.dtype, param_dtype=self.param_dtype)
+        self.block = FlaxAGeMCollection(config=self.config, dtype=self.dtype, param_dtype=self.param_dtype)
         # self.norm = PMSNorm(dim=self.config.hidden_size, eps=self.config.rms_norm_eps, dtype=self.dtype)
         self.norm = nn.LayerNorm(use_bias=False)
         h_d = self.config.hidden_size // self.config.num_attention_heads
@@ -445,17 +437,17 @@ class FlaxLGeMModule(nn.Module):
             return last_hidden_state
 
 
-class FlaxLGeMModel(FlaxLGeMPretrainedModel):
-    module_class = FlaxLGeMModule
+class FlaxAGeMModel(FlaxAGeMPretrainedModel):
+    module_class = FlaxAGeMModule
 
 
-class FlaxLGeMForCausalLMModule(nn.Module):
-    config: FlaxLGeMConfig
+class FlaxAGeMForCausalLMModule(nn.Module):
+    config: FlaxAGeMConfig
     dtype: jnp.dtype = jnp.float32
     param_dtype: jnp.dtype = jnp.float32
 
     def setup(self) -> None:
-        self.model = FlaxLGeMModule(config=self.config, dtype=self.dtype, param_dtype=self.param_dtype)
+        self.model = FlaxAGeMModule(config=self.config, dtype=self.dtype, param_dtype=self.param_dtype)
         self.lm_head = nn.Dense(features=self.config.vocab_size, use_bias=False, dtype=self.dtype,
                                 param_dtype=self.param_dtype,
                                 kernel_init=nn.initializers.normal(self.config.initializer_range),
@@ -488,8 +480,8 @@ class FlaxLGeMForCausalLMModule(nn.Module):
             return pred,
 
 
-class FlaxLGeMForCausalLM(FlaxLGeMPretrainedModel):
-    module_class = FlaxLGeMForCausalLMModule
+class FlaxAGeMForCausalLM(FlaxAGeMPretrainedModel):
+    module_class = FlaxAGeMForCausalLMModule
 
     def prepare_inputs_for_generation(self, input_ids, attention_mask: Optional[jnp.DeviceArray] = None,
                                       ):

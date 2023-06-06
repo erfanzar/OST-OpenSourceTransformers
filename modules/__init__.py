@@ -13,6 +13,6 @@ from modules.pytorch_modules import PalmConfig, PalmModel, PalmForCausalLM, LtMo
     LLmPUForConditionalGeneration, LLmPUModel, \
     LLmPUConfig, LLMoUModel, LLMoUConfig, LGeMModel, LGeMConfig, LGeMForCausalLM
 
-from modules.jax_modules import FlaxLGeMModule, FlaxLGeMConfig, FlaxLGeMModel, FlaxLGeMForCausalLM, \
-    FlaxLTForCausalLM, FlaxLTPretrainedModel, FlaxLTModel, FlaxLTConfig as FlaxLTConfig, FlaxGPTJForCausalLM, \
-    FlaxGPTJModel, GPTJConfig, FlaxLGeMVConfig, FlaxLGeMVModel, FlaxLGeMVForCausalLM
+from modules.jax_modules import FlaxAGeMModule, FlaxAGeMConfig, FlaxAGeMModel, FlaxAGeMForCausalLM, \
+    FlaxLTForCausalLM, FlaxLTPretrainedModel, FlaxLTModel, FlaxLTConfig, FlaxGPTJForCausalLM, \
+    FlaxGPTJModel, GPTJConfig, FlaxLGeMConfig, FlaxLGeMModel, FlaxLGeMForCausalLM
