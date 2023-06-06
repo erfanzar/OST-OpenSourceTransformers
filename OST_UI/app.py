@@ -46,7 +46,8 @@ def load_model(config: LoadConfig):
         f'Done Loading Model with {(sum(m.numel() for m in _model.parameters()) / 1e9) if _model is not None else "NONE"} Billion Parameters')
     logger.info(f'Loading Tokenizer FROM : {config.model_id}')
     _tokenizer = AutoTokenizer.from_pretrained(config.model_id)
-
+    _tokenizer.pad_token = _tokenizer.eos_token
+    _tokenizer.pad_token_id = _tokenizer.eos_token_id
     logger.info('Done Loading Tokenizer')
     return _model, _tokenizer, model_whisper
 
@@ -164,7 +165,7 @@ def chat_bot_run(text: str,
                  top_p,
                  top_k,
                  repetition_penalty,
-                 voice):
+                 voice, use_cache):
     if voice is not None:
         text_rec = whisper_model.transcribe(voice)['text']
         if text == '':
@@ -181,6 +182,7 @@ def chat_bot_run(text: str,
         eos_token_id=tokenizer.eos_token_id,
         pad_token_id=tokenizer.pad_token_id,
         bos_token_id=tokenizer.bos_token_id,
+        use_cache=True
     )
 
     cache_f = cache
@@ -240,8 +242,9 @@ def gradio_ui_chat(main_class_conversation: Conversation):
                 # TODO
 
                 voice = gr.Audio(source='microphone', type="filepath", streaming=False, label='Smart Voice', )
-                stop = gr.Button(value='Stop 🛑')
-                clear = gr.Button(value='Clear Conversation 🧼')
+                stop = gr.Button(value='Stop ')
+                clear = gr.Button(value='Clear Conversation')
+                use_cache = gr.Radio(label='Use Cache', value='True')
             with gr.Column(scale=4):
                 cache = gr.Chatbot(elem_id=main_class_conversation.config.model_id,
                                    label=main_class_conversation.config.model_id).style(container=True,
@@ -251,17 +254,11 @@ def gradio_ui_chat(main_class_conversation: Conversation):
                 submit = gr.Button()
             with gr.Column(scale=4):
                 text = gr.Textbox(show_label=False).style(container=False)
-
+        inputs = [text, cache, max_steam_tokens, max_new_tokens, max_length, temperature, top_p,
+                  top_k,
+                  penalty, voice, use_cache]
         sub_event = submit.click(fn=chat_bot_run,
-                                 inputs=[text, cache,
-                                         max_steam_tokens,
-                                         max_new_tokens,
-                                         max_length,
-                                         temperature,
-                                         top_p,
-                                         top_k,
-                                         penalty,
-                                         voice],
+                                 inputs=inputs,
                                  outputs=[text, cache])
 
         def stop_():
@@ -272,9 +269,7 @@ def gradio_ui_chat(main_class_conversation: Conversation):
 
         clear.click(fn=clear_, outputs=[cache])
         txt_event = text.submit(fn=chat_bot_run,
-                                inputs=[text, cache, max_steam_tokens, max_new_tokens, max_length, temperature, top_p,
-                                        top_k,
-                                        penalty, voice],
+                                inputs=inputs,
                                 outputs=[text, cache])
 
         stop.click(fn=None, inputs=None, outputs=None, cancels=[txt_event, sub_event])
