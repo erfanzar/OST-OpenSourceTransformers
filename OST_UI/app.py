@@ -37,6 +37,7 @@ def load_model(config: LoadConfig):
         config.model_id,
         load_in_8bit=config.load_in_8bit,
         torch_dtype=config.torch_type,
+        trust_remote_code=True
     ) if config.load_model else None
     model_whisper = whisper.load_model(config.whisper_model)
     logger.info(
