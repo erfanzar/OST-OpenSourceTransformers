@@ -119,7 +119,10 @@ class Conversation:
                              generation_config=generation_config,
                              use_prompt_to_instruction=False):
             final_res = byte
+
             yield byte[len(text):].replace('<|endoftext|>', '')
+            if byte[len(text):].endswith('<|endoftext|>'):
+                break
         answer = final_res[len(text):len(final_res) - len('<|endoftext|>')]
         cache.append([original_text, answer])
         return '', cache
