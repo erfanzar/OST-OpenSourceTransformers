@@ -150,7 +150,7 @@ def sort_cache_lgem(cache_):
     else:
         opt = ''
         for f in cache_:
-            opt += f"USER:{f[0]}\nAI:{f[1]}"
+            opt += f"<|prompter|>{f[0]}</s><|ai|>{f[1]}</s>"
 
     return opt
 
