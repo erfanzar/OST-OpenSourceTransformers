@@ -125,9 +125,8 @@ class Conversation:
                              use_prompt_to_instruction=False):
             final_res = byte
             if '<|endoftext|>' in byte[len(text):]:
-                print('Break')
                 break
-            yield byte[len(text):].replace('<|endoftext|>', '')
+            yield byte[len(text) - 1:].replace('<|endoftext|>', '')
 
         answer = final_res[len(text):len(final_res) - len('<|endoftext|>')]
         cache.append([original_text, answer])
