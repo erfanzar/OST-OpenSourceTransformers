@@ -195,7 +195,7 @@ class RMSNorm(nn.Module):
         return output * weight
 
 
-def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0, dtype: jnp.dtype = jnp.float32) -> jnp.ndarray:
+def precompute_freqs_cis_old(dim: int, end: int, theta: float = 10000.0, dtype: jnp.dtype = jnp.float32) -> jnp.ndarray:
     freqs = 1.0 / (theta ** (np.arange(0, dim, 2)[: (dim // 2)].astype(dtype) / dim))
     t = np.arange(end)
     freqs = np.outer(t, freqs).astype(dtype)
@@ -204,7 +204,31 @@ def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0, dtype: jnp.
     return jnp.asarray(freqs_cis)
 
 
-def apply_rotary_emb(
+def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0, dtype: jnp.dtype = jnp.float32) -> jnp.ndarray:
+    freqs = 1.0 / (theta ** (jnp.arange(0, dim, 2)[: (dim // 2)].astype(dtype) / dim))
+    t = jnp.arange(end)
+    freqs = jnp.einsum('i,j->ij', t, freqs).astype(dtype)
+    return jnp.concatenate([freqs, freqs], axis=-1)
+
+
+def rotate_half(x):
+    x1 = x[..., : x.shape[-1] // 2]
+    x2 = x[..., x.shape[-1] // 2:]
+    return jnp.concatenate([-x2, x1], axis=-1)
+
+
+def apply_rotary_emb(xq: jnp.ndarray,
+                     xk: jnp.ndarray,
+                     freqs_cis: jnp.ndarray,
+                     dtype: jnp.dtype = jnp.float32, ):
+    sin, cos = jnp.sin(freqs_cis), jnp.cos(freqs_cis)
+
+    xq = (cos * xq) + (sin * rotate_half(xq))
+    xk = (cos * xk) + (sin * rotate_half(xk))
+    return xq.astype(dtype), xk.astype(dtype)
+
+
+def apply_rotary_emb_old(
         xq: jnp.ndarray,
         xk: jnp.ndarray,
         freqs_cis: jnp.ndarray,
@@ -336,7 +360,7 @@ class FlaxLGeMAttention(nn.Module):
 
         freqs_cis = jnp.take(self.freqs_cis, position_ids, axis=0)
 
-        xq, xk = apply_rotary_emb(xq, xk, freqs_cis=freqs_cis, dtype=self.dtype)
+        xq, xk = apply_rotary_emb(xq, xk, freqs_cis=freqs_cis[:, :, jnp.newaxis, :], dtype=self.dtype)
 
         query_length, key_length = xq.shape[1], xk.shape[1]
 
