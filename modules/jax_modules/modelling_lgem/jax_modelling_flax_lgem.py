@@ -204,38 +204,14 @@ def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0, dtype: jnp.
     return jnp.asarray(freqs_cis)
 
 
-# def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0, dtype: jnp.dtype = jnp.bfloat16) -> jnp.ndarray:
-#     freqs = 1.0 / (theta ** (jnp.arange(0, dim, 2)[: (dim // 2)].astype(dtype) / dim))
-#     t = jnp.arange(end)
-#     freqs = jnp.einsum('i,j->ij', t, freqs).astype(dtype)
-#     return jnp.concatenate([freqs, freqs], axis=-1)
-
-
-def rotate_half(x):
-    x1 = x[..., : x.shape[-1] // 2]
-    x2 = x[..., x.shape[-1] // 2:]
-    return jnp.concatenate([-x2, x1], axis=-1)
-
-
-# def apply_rotary_emb(xq: jnp.ndarray,
-#                      xk: jnp.ndarray,
-#                      freqs_cis: jnp.ndarray,
-#                      dtype: jnp.dtype = jnp.bfloat16, ):
-#     sin, cos = jnp.sin(freqs_cis), jnp.cos(freqs_cis)
-#
-#     xq = (cos * xq) + (sin * rotate_half(xq))
-#     xk = (cos * xk) + (sin * rotate_half(xk))
-#     return xq.astype(dtype), xk.astype(dtype)
-
-
 def apply_rotary_emb(
         xq: jnp.ndarray,
         xk: jnp.ndarray,
         freqs_cis: jnp.ndarray,
         dtype: jnp.dtype = jnp.bfloat16,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
-    reshape_xq = xq.astype(jnp.bfloat16).reshape(*xq.shape[:-1], -1, 2)
-    reshape_xk = xk.astype(jnp.bfloat16).reshape(*xk.shape[:-1], -1, 2)
+    reshape_xq = xq.astype(jnp.float32).reshape(*xq.shape[:-1], -1, 2)
+    reshape_xk = xk.astype(jnp.float32).reshape(*xk.shape[:-1], -1, 2)
 
     xq_ = jax.lax.complex(reshape_xq[..., 0], reshape_xq[..., 1])
     xk_ = jax.lax.complex(reshape_xk[..., 0], reshape_xk[..., 1])
