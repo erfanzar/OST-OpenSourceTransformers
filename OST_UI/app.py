@@ -77,6 +77,9 @@ def generate(model: AutoModelForCausalLM, tokenizer, text: str, max_stream_token
         text = text[:-4] + tokenizer.eos_token if text[-4:] == '\n\n\n\n' else text
         lan_ = len('<|endoftext|>')
         text = text[:lan_] + tokenizer.eos_token if text[lan_:] == '<|endoftext|>' else text
+        text = remove_spaces_between_tokens(text, '</s>', '<|ai|>')
+        text = remove_spaces_between_tokens(text, '</s>', '<|prompter|>')
+        text = remove_spaces_between_tokens(text, '<|prompter|>', '</s>')
         if text.endswith(tokenizer.eos_token) or text.endswith('\n\n\n\n') or text.endswith('<|endoftext|>'):
             yield text[len(text_r):] if b_pair else text
             break
@@ -159,6 +162,12 @@ def sort_cache_lgem(cache_):
             opt += f"<|prompter|>{f[0]}</s><|ai|>:{f[1]}</s>"
 
     return opt
+
+
+def remove_spaces_between_tokens(text, token1, token2):
+    import re
+    pattern = re.compile(re.escape(token1) + r'\s+' + re.escape(token2))
+    return pattern.sub(token1 + token2, text)
 
 
 def chat_bot_run(text: str,
