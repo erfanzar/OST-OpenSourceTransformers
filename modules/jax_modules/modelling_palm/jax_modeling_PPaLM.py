@@ -55,8 +55,10 @@ def apply_rotary_pos_emb(x, sincos):
 
 
 class PPaLMBlock(Module):
+    config: PPaLMConfig
 
-    def __init__(self, config: Optional[PPaLMConfig]):
+    def setup(self) -> None:
+        config = self.config
         hidden_size = config.hidden_size
         dim_head = config.n_layers
         n_heads = config.n_heads

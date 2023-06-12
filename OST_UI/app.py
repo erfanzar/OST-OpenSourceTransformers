@@ -169,8 +169,10 @@ def chat_bot_run(text: str,
         text_rec = whisper_model.transcribe(voice)['text']
         if text == '':
             text = text_rec
-
-    opt = sort_cache_pgt(cache)
+    if config_.use_lgem_stoper:
+        opt = sort_cache_lgem(cache)
+    else:
+        opt = sort_cache_pgt(cache)
     original_text = text
     text = opt + prompt_to_instruction(text)
     final_res = ''
