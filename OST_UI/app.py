@@ -154,7 +154,7 @@ def sort_cache_lgem(cache_):
     else:
         opt = ''
         for f in cache_:
-            opt += f"<|prompter|>{f[0]}</s><|ai|>{f[1]}<s></s>"
+            opt += f"<|prompter|>{f[0]}</s><|ai|>:{f[1]}<s></s>"
 
     return opt
 
