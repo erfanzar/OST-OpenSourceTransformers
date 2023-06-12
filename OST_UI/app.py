@@ -4,6 +4,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig, 
 import torch
 import textwrap
 import os
+import datetime
 from dataclasses import field, dataclass
 from transformers import HfArgumentParser
 import gradio as gr
@@ -150,7 +151,8 @@ def sort_cache_pgt(cache_):
 
 def sort_cache_lgem(cache_):
     if len(cache_) == 0:
-        opt = ''
+        opt = f'<|prompter|> today is {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} make sure' \
+              f' to stay polite and smart </s><|ai|>: OK ! </s>'
     else:
         opt = ''
         for f in cache_:
