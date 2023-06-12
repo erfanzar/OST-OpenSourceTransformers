@@ -154,7 +154,7 @@ def sort_cache_lgem(cache_):
     else:
         opt = ''
         for f in cache_:
-            opt += f"<|prompter|>{f[0]}</s><|ai|>:{f[1]}<s></s>"
+            opt += f"<|prompter|>{f[0]}</s><|ai|>:{f[1]}</s>"
 
     return opt
 
@@ -195,7 +195,6 @@ def chat_bot_run(text: str,
     cache_f = cache
     cache_f.append([original_text, ''])
 
-    print(text)
     if model is not None:
         for byte in generate(model, tokenizer, text=text, b_pair=False,
                              generation_config=generation_config, max_stream_tokens=max_new_tokens,
@@ -203,7 +202,7 @@ def chat_bot_run(text: str,
                              use_prompt_to_instruction=False):
             final_res = byte
             chosen_byte = byte[len(text):].replace('<|endoftext|>', '')
-            print(chosen_byte)
+
             cache_f[-1][1] = chosen_byte
             yield '', cache_f
         answer = final_res[len(text):len(final_res) - len('<|endoftext|>')]
