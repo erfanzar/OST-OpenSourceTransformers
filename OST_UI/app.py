@@ -212,7 +212,7 @@ def chat_bot_run(text: str,
                                  max_length=max_length,
                                  use_prompt_to_instruction=False):
                 final_res = byte
-                chosen_byte = byte[len(text) + 7:]
+                chosen_byte = byte[len(text):]
                 print(byte)
                 cache_f[-1][1] = chosen_byte
                 yield '', cache_f
