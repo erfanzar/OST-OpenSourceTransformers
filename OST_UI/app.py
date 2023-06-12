@@ -196,20 +196,34 @@ def chat_bot_run(text: str,
 
     cache_f = cache
     cache_f.append([original_text, ''])
+    if config_.use_lgem_stoper:
+        if model is not None:
+            for byte in generate(model, tokenizer, text=text, b_pair=False,
+                                 generation_config=generation_config, max_stream_tokens=max_new_tokens,
+                                 max_length=max_length,
+                                 use_prompt_to_instruction=False):
+                final_res = byte
+                chosen_byte = byte[len(text):].replace('<|ai|>:', '')
 
-    if model is not None:
-        for byte in generate(model, tokenizer, text=text, b_pair=False,
-                             generation_config=generation_config, max_stream_tokens=max_new_tokens,
-                             max_length=max_length,
-                             use_prompt_to_instruction=False):
-            final_res = byte
-            chosen_byte = byte[len(text):].replace('<|endoftext|>', '').replace('<|ai|>:', '')
-
-            cache_f[-1][1] = chosen_byte
-            yield '', cache_f
-        answer = final_res[len(text):len(final_res) - len('<|endoftext|>')].replace('<|ai|>:', '')
+                cache_f[-1][1] = chosen_byte
+                yield '', cache_f
+            answer = final_res[len(text):len(final_res)]
+        else:
+            answer = 'It seems like im down or im not loaded yet 😇'
     else:
-        answer = 'It seems like im down or im not loaded yet 😇'
+        if model is not None:
+            for byte in generate(model, tokenizer, text=text, b_pair=False,
+                                 generation_config=generation_config, max_stream_tokens=max_new_tokens,
+                                 max_length=max_length,
+                                 use_prompt_to_instruction=False):
+                final_res = byte
+                chosen_byte = byte[len(text):].replace('<|endoftext|>', '')
+
+                cache_f[-1][1] = chosen_byte
+                yield '', cache_f
+            answer = final_res[len(text):len(final_res) - len('<|endoftext|>')]
+        else:
+            answer = 'It seems like im down or im not loaded yet 😇'
     cache.append([original_text, answer])
     return '', cache
 
