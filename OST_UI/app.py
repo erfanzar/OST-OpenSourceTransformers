@@ -56,6 +56,10 @@ def prompt_to_instruction(text: str):
     return f"<|prompter|> {text} <|endoftext|><|assistant|>"
 
 
+def prompt_to_instruction_lgem(text: str):
+    return f"<|prompter|> {text} </s><|ai|>:"
+
+
 def generate(model: AutoModelForCausalLM, tokenizer, text: str, max_stream_tokens: int = 1,
              use_prompt_to_instruction: bool = False, generation_config=None, max_length=1536,
              b_pair=False):
@@ -150,7 +154,7 @@ def sort_cache_lgem(cache_):
     else:
         opt = ''
         for f in cache_:
-            opt += f"<|prompter|>{f[0]}</s><|ai|>{f[1]}</s>"
+            opt += f"<|prompter|>{f[0]}</s><|ai|>{f[1]}<s></s>"
 
     return opt
 
@@ -171,10 +175,12 @@ def chat_bot_run(text: str,
             text = text_rec
     if config_.use_lgem_stoper:
         opt = sort_cache_lgem(cache)
+        original_text = text
+        text = opt + prompt_to_instruction_lgem(text)
     else:
         opt = sort_cache_pgt(cache)
-    original_text = text
-    text = opt + prompt_to_instruction(text)
+        original_text = text
+        text = opt + prompt_to_instruction(text)
     final_res = ''
     generation_config = GenerationConfig(
         max_length=max_length,
