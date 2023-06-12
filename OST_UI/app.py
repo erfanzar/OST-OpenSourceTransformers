@@ -194,6 +194,8 @@ def chat_bot_run(text: str,
 
     cache_f = cache
     cache_f.append([original_text, ''])
+
+    print(text)
     if model is not None:
         for byte in generate(model, tokenizer, text=text, b_pair=False,
                              generation_config=generation_config, max_stream_tokens=max_new_tokens,
