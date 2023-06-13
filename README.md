@@ -9,8 +9,9 @@ Generative Models). OST Collection is based on a novel approach to work as a ful
 
 | Model       Link                                                           | Max Sentence Length | Parameters |
 |:---------------------------------------------------------------------------|---------------------|------------|
+| [LGeM-7B-C 🚀 ](https://huggingface.co/erfanzar/LGeM-7B-C)                 | 2048                | 7B         | 
 | [GT-J-6B 🚀 ](https://huggingface.co/erfanzar/GT-J)                        | 2048                | 6B         |    
-| [LGeM-3.5B 🚀 (Soon)]()                                                    | 2048                | 3.5B       |      
+| [LGeM-3.5B 🚀 ](https://huggingface.co/erfanzar/LGeM-3B5)                  | 2048                | 3.5B       |      
 | [LGeM-1B 🚀 ](https://huggingface.co/erfanzar/LGeM-1B)                     | 1024                | 1B         | 
 | [LGeM-7B 🚀 ](https://huggingface.co/erfanzar/LGeM-7B)                     | 2048                | 7B         | 
 | [PGT-1B 🚀 ](https://huggingface.co/erfanzar/PGT-1B)                       | 1280                | 1B         |
