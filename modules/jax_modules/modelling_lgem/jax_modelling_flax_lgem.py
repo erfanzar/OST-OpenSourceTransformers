@@ -51,7 +51,7 @@ def with_sharding_constraint(x, partition_specs):
 
 
 class FlaxLGeMConfig(PretrainedConfig):
-    model_type = "lgem"
+    model_type = "llama"
 
     def __init__(
             self,
