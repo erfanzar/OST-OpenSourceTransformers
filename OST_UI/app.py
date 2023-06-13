@@ -31,6 +31,7 @@ class LoadConfig:
         'help': 'use pipeline or custom generate func'
     })
     use_lgem_stoper: bool = field(default=False)
+    theme_id: str = field(default='snehilsanyal/scikit-learn')
 
 
 def load_model(config: LoadConfig):
@@ -261,7 +262,7 @@ def gradio_ui_chat(main_class_conversation: Conversation):
     )
 
     with gr.Blocks(
-            theme=gr.themes.Soft.from_hub('gstaff/xkcd@0.0.3')) as block:
+            theme=gr.themes.Soft.from_hub(config_.theme_id)) as block:
         with gr.Row():
             with gr.Column(scale=1):
                 max_new_tokens = gr.Slider(value=1536, maximum=2048, minimum=1, label='Max New Tokens', step=1)
