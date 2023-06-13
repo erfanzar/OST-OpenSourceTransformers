@@ -316,7 +316,8 @@ def gradio_ui_chat(main_class_conversation: Conversation):
             'with using Artificial Intelligence and Pushing Technology Beyond Limits'
             '\n[OST-OpenSourceTransformers](https://github.com/erfanzar/OST-OpenSourceTransformers) From LucidBrains 🧠\n'
         )
-    block.queue().launch(debug=True, share=True, inline=True, show_tips=True, width='100%')
+    block.queue().launch(debug=True, share=True, inline=True, show_tips=True, width='100%', show_error=True,
+                         max_threads=os.cpu_count(), )
 
 
 def main(config):
