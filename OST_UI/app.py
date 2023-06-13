@@ -268,17 +268,18 @@ def gradio_ui_chat(main_class_conversation: Conversation):
                 max_new_tokens = gr.Slider(value=1536, maximum=2048, minimum=1, label='Max New Tokens', step=1)
                 max_length = gr.Slider(value=2048, maximum=2048, minimum=1, label='Max Length', step=1)
                 max_steam_tokens = gr.Slider(value=1, maximum=100, minimum=1, label='Max Stream Tokens', step=1,
-                                             visible=False)
+                                             visible=True)
                 temperature = gr.Slider(value=0.9, maximum=1, minimum=0.2, label='Temperature', step=0.01)
                 top_p = gr.Slider(value=0.95, maximum=0.9999, minimum=0.1, label='Top P', step=0.01)
                 top_k = gr.Slider(value=50, maximum=100, minimum=1, label='Top K', step=1)
                 penalty = gr.Slider(value=1.2, maximum=5, minimum=1, label='Repetition Penalty', step=0.1, visible=True)
                 # TODO
+                use_cache = gr.Checkbox(label='Use Cache', value=True)
 
                 voice = gr.Audio(source='microphone', type="filepath", streaming=False, label='Smart Voice', )
                 stop = gr.Button(value='Stop ')
                 clear = gr.Button(value='Clear Conversation')
-                use_cache = gr.Checkbox(label='Use Cache', value=True)
+
             with gr.Column(scale=4):
                 cache = gr.Chatbot(elem_id=main_class_conversation.config.model_id,
                                    label=main_class_conversation.config.model_id).style(container=True,
