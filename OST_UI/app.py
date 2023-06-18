@@ -54,7 +54,8 @@ def load_model(config: LoadConfig):
                                                 'must pass block name for model for example ' \
                                                 'mpt model block name is GPTBlock'
 
-            _model = AutoModelForCausalLM.from_pretrained(config.model_id)
+            _model = AutoModelForCausalLM.from_pretrained(config.model_id,
+                                                          trust_remote_code=True)
             model_class = type(_model)
 
             model_class._no_split_modules = [config.block_name]
