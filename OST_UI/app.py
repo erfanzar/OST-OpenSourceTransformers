@@ -1,3 +1,4 @@
+import accelerate
 import transformers
 from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig, PreTrainedTokenizer, logging, \
     pipeline
@@ -32,17 +33,39 @@ class LoadConfig:
     })
     use_lgem_stoper: bool = field(default=False)
     theme_id: str = field(default='snehilsanyal/scikit-learn')
+    use_land: bool = field(default=False)
+    block_name: str = field(default='none')
 
 
 def load_model(config: LoadConfig):
     logger.info(f'Loading model FROM : {config.model_id}')
-    _model = AutoModelForCausalLM.from_pretrained(
-        config.model_id,
-        load_in_8bit=config.load_in_8bit,
-        torch_dtype=config.torch_type,
-        trust_remote_code=True,
-        device_map='auto'
-    ) if config.load_model else None
+    if not config.use_land:
+        _model = AutoModelForCausalLM.from_pretrained(
+            config.model_id,
+            load_in_8bit=config.load_in_8bit,
+            torch_dtype=config.torch_type,
+            trust_remote_code=True,
+            device_map='auto'
+        ) if config.load_model else None
+    else:
+        with accelerate.init_empty_weights():
+
+            assert config.block_name != 'none', 'if you are using land option to use auto map for devices you ' \
+                                                'must pass block name for model for example ' \
+                                                'mpt model block name is GPTBlock'
+
+            _model = AutoModelForCausalLM.from_pretrained(config.model_id)
+            model_class = type(_model)
+
+            model_class._no_split_modules = [config.block_name]
+
+        _model = model_class.from_pretrained(config.model_id,
+                                             load_in_8bit=config.load_in_8bit,
+                                             torch_dtype=config.torch_type,
+                                             trust_remote_code=True,
+                                             device_map='auto'
+                                             ) if config.load_model else None
+
     model_whisper = whisper.load_model(config.whisper_model)
     logger.info(
         f'Done Loading Model with {(sum(m.numel() for m in _model.parameters()) / 1e9) if _model is not None else "NONE"} Billion Parameters')
