@@ -60,12 +60,12 @@ def load_model(config: LoadConfig):
             assert config.block_name != 'none', 'if you are using land option to use auto map for devices you ' \
                                                 'must pass block name for model for example ' \
                                                 'mpt model block name is GPTBlock'
-            config = AutoConfig.from_pretrained(
+            # config = AutoConfig.from_pretrained(
+            #     config.model_id,
+            #     trust_remote_code=True
+            # )
+            _model = AutoModelForCausalLM.from_pretrained(
                 config.model_id,
-                trust_remote_code=True
-            )
-            _model = AutoModelForCausalLM.from_config(
-                config,
                 trust_remote_code=True
             )
             model_class = type(_model)
