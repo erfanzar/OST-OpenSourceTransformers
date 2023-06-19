@@ -57,7 +57,7 @@ def load_model(config: LoadConfig):
             _model = AutoModelForCausalLM.from_pretrained(config.model_id,
                                                           trust_remote_code=True)
             model_class = type(_model)
-
+            del _model
             model_class._no_split_modules = [config.block_name]
 
         _model = model_class.from_pretrained(config.model_id,
