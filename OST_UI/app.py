@@ -48,14 +48,22 @@ def load_model(config: LoadConfig):
             device_map='auto'
         ) if config.load_model else None
     else:
+        print("""
+            This Process will take longer time in order to use models that are not built by huggingface and in are not 
+            available in transformers library this option will add extra required options to module_class(pytorch)
+            so device map can be used so model will load 2 times first time model will load without any weight and biases
+            just to initialize and next time will load model and use it
+        """)
         with accelerate.init_empty_weights():
 
             assert config.block_name != 'none', 'if you are using land option to use auto map for devices you ' \
                                                 'must pass block name for model for example ' \
                                                 'mpt model block name is GPTBlock'
 
-            _model = AutoModelForCausalLM.from_pretrained(config.model_id,
-                                                          trust_remote_code=True)
+            _model = AutoModelForCausalLM.from_pretrained(
+                config.model_id,
+                trust_remote_code=True
+            )
             model_class = type(_model)
             del _model
             model_class._no_split_modules = [config.block_name]
@@ -71,7 +79,8 @@ def load_model(config: LoadConfig):
     logger.info(
         f'Done Loading Model with {(sum(m.numel() for m in _model.parameters()) / 1e9) if _model is not None else "NONE"} Billion Parameters')
     logger.info(f'Loading Tokenizer FROM : {config.model_id}')
-    _tokenizer = AutoTokenizer.from_pretrained(config.model_id)
+    _tokenizer = AutoTokenizer.from_pretrained(config.model_id,
+                                               trust_remote_code=True)
     _tokenizer.pad_token = _tokenizer.eos_token
     _tokenizer.pad_token_id = _tokenizer.eos_token_id
     logger.info('Done Loading Tokenizer')
