@@ -1,7 +1,7 @@
 import accelerate
 import transformers
 from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig, PreTrainedTokenizer, logging, \
-    pipeline
+    pipeline, AutoConfig
 import torch
 import textwrap
 import os
@@ -60,9 +60,12 @@ def load_model(config: LoadConfig):
             assert config.block_name != 'none', 'if you are using land option to use auto map for devices you ' \
                                                 'must pass block name for model for example ' \
                                                 'mpt model block name is GPTBlock'
-
-            _model = AutoModelForCausalLM.from_pretrained(
+            config = AutoConfig.from_pretrained(
                 config.model_id,
+                trust_remote_code=True
+            )
+            _model = AutoModelForCausalLM.from_config(
+                config,
                 trust_remote_code=True
             )
             model_class = type(_model)
@@ -116,8 +119,8 @@ def generate(model: AutoModelForCausalLM, tokenizer, text: str, max_stream_token
 
         text = text[:-4] + tokenizer.eos_token if text[-4:] == '\n\n\n\n' else text
 
-        text = text[:len('<|assistant|>')] + tokenizer.eos_token if text[
-                                                                    len('<|assistant|>'):] == '<|assistant|>' else text
+        # text = text[:len('<|assistant|>')] + tokenizer.eos_token if text[
+        #                                                             len('<|assistant|>'):] == '<|assistant|>' else text
         lan_ = len('<|endoftext|>')
         text = text[:lan_] + tokenizer.eos_token if text[lan_:] == '<|endoftext|>' else text
         text = remove_spaces_between_tokens(text, '</s>', '<|ai|>')
