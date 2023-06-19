@@ -72,7 +72,7 @@ def load_model(config: LoadConfig):
                                              load_in_8bit=config.load_in_8bit,
                                              torch_dtype=config.torch_type,
                                              trust_remote_code=True,
-                                             device_map='auto'
+                                             device_map='auto',
                                              ) if config.load_model else None
 
     model_whisper = whisper.load_model(config.whisper_model)
