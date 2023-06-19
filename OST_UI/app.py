@@ -35,6 +35,7 @@ class LoadConfig:
     theme_id: str = field(default='snehilsanyal/scikit-learn')
     use_land: bool = field(default=False)
     block_name: str = field(default='none')
+    use_n_eos: bool = field(default=False)
 
 
 def load_model(config: LoadConfig):
@@ -91,6 +92,10 @@ def prompt_to_instruction(text: str):
     return f"<|prompter|> {text} <|endoftext|><|assistant|>"
 
 
+def prompt_to_instruction_n_eos(text: str):
+    return f"<|prompter|> {text} <|assistant|>"
+
+
 def prompt_to_instruction_lgem(text: str):
     return f"<|prompter|> {text} </s><|ai|>:"
 
@@ -108,13 +113,18 @@ def generate(model: AutoModelForCausalLM, tokenizer, text: str, max_stream_token
                              generation_config=generation_config,
                              )
         text = tokenizer.decode(enc[0], skip_special_tokens=False)
+
         text = text[:-4] + tokenizer.eos_token if text[-4:] == '\n\n\n\n' else text
+
+        text = text[:len('<|assistant|>')] + tokenizer.eos_token if text[
+                                                                    len('<|assistant|>'):] == '<|assistant|>' else text
         lan_ = len('<|endoftext|>')
         text = text[:lan_] + tokenizer.eos_token if text[lan_:] == '<|endoftext|>' else text
         text = remove_spaces_between_tokens(text, '</s>', '<|ai|>')
         text = remove_spaces_between_tokens(text, '</s>', '<|prompter|>')
         text = remove_spaces_between_tokens(text, '<|prompter|>', '</s>')
-        if text.endswith(tokenizer.eos_token) or text.endswith('\n\n\n\n') or text.endswith('<|endoftext|>'):
+        if text.endswith(tokenizer.eos_token) or text.endswith('\n\n\n\n') or text.endswith(
+                '<|endoftext|>') or text.endswith('<|assistant|>'):
             yield text[len(text_r):] if b_pair else text
             break
         else:
@@ -186,6 +196,17 @@ def sort_cache_pgt(cache_):
     return opt
 
 
+def sort_cache_n_eos(cache_):
+    if len(cache_) == 0:
+        opt = ''
+    else:
+        opt = ''
+        for f in cache_:
+            opt += f"<|prompter|>{f[0]}<|assistant|>{f[1]}"
+
+    return opt
+
+
 def sort_cache_lgem(cache_):
     if len(cache_) == 0:
         opt = f'<|prompter|> today is {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} make sure' \
@@ -222,6 +243,10 @@ def chat_bot_run(text: str,
         opt = sort_cache_lgem(cache)
         original_text = text
         text = opt + prompt_to_instruction_lgem(text)
+    elif config_.use_n_eos:
+        opt = sort_cache_n_eos(cache)
+        original_text = text
+        text = opt + prompt_to_instruction_n_eos(text)
     else:
         opt = sort_cache_pgt(cache)
         original_text = text
@@ -239,7 +264,7 @@ def chat_bot_run(text: str,
 
     cache_f = cache
     cache_f.append([original_text, ''])
-    if config_.use_lgem_stoper:
+    if config_.use_lgem_stoper or config_.use_n_eos:
         if model is not None:
             for byte in generate(model, tokenizer, text=text, b_pair=False,
                                  generation_config=generation_config, max_stream_tokens=max_new_tokens,
