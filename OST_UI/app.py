@@ -81,7 +81,8 @@ def load_model(config: LoadConfig):
 
     model_whisper = whisper.load_model(config.whisper_model)
     logger.info(
-        f'Done Loading Model with {(sum(m.numel() for m in _model.parameters()) / 1e9) if _model is not None else "NONE"} Billion Parameters')
+        f'Done Loading Model with {(sum(m.numel() for m in _model.parameters()) / 1e9) if _model is not None else "NONE"}'
+        f' Billion Parameters')
     logger.info(f'Loading Tokenizer FROM : {config.model_id}')
     _tokenizer = AutoTokenizer.from_pretrained(config.model_id,
                                                trust_remote_code=True)
