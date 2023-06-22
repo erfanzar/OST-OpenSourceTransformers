@@ -128,7 +128,7 @@ def generate(model: AutoModelForCausalLM, tokenizer, text: str, max_stream_token
         text = remove_spaces_between_tokens(text, '</s>', '<|prompter|>')
         text = remove_spaces_between_tokens(text, '<|prompter|>', '</s>')
         if text.endswith(tokenizer.eos_token) or text.endswith('\n\n\n\n') or text.endswith(
-                '<|endoftext|>') or text.endswith('<|assistant|>'):
+                '<|endoftext|>') or text.endswith('<|assistant|>') or text.endswith('<|ai|>'):
             yield text[len(text_r):] if b_pair else text
             break
         else:
@@ -213,8 +213,7 @@ def sort_cache_n_eos(cache_):
 
 def sort_cache_lgem(cache_):
     if len(cache_) == 0:
-        opt = f'<|prompter|> today is {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} make sure' \
-              f' to stay polite and smart </s><|ai|> OK ! </s>'
+        opt = ''
     else:
         opt = ''
         for f in cache_:
@@ -277,11 +276,11 @@ def chat_bot_run(text: str,
                 final_res = byte
                 chosen_byte = byte[len(text):]
                 print(byte)
-                cache_f[-1][1] = chosen_byte
-                if chosen_byte.endswith(tokenizer.eos_token):
+                cache_f[-1][1] = chosen_byte.replace('<|ai|>', '')
+                if chosen_byte.endswith(tokenizer.eos_token) or chosen_byte.endswith('<|ai|>'):
                     break
                 yield '', cache_f
-            answer = final_res[len(text):len(final_res)]
+            answer = final_res[len(text):len(final_res)].replace('<|ai|>', '')
         else:
             answer = 'It seems like im down or im not loaded yet 😇'
     else:
