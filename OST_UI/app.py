@@ -100,7 +100,7 @@ def prompt_to_instruction_n_eos(text: str):
 
 
 def prompt_to_instruction_lgem(text: str):
-    return f"<|prompter|> {text} </s><|ai|>:"
+    return f"<|prompter|> {text} </s><|ai|>"
 
 
 def generate(model: AutoModelForCausalLM, tokenizer, text: str, max_stream_tokens: int = 1,
