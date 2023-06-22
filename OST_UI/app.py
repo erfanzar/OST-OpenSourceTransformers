@@ -214,11 +214,11 @@ def sort_cache_n_eos(cache_):
 def sort_cache_lgem(cache_):
     if len(cache_) == 0:
         opt = f'<|prompter|> today is {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} make sure' \
-              f' to stay polite and smart </s><|ai|>: OK ! </s>'
+              f' to stay polite and smart </s><|ai|> OK ! </s>'
     else:
         opt = ''
         for f in cache_:
-            opt += f"<|prompter|>{f[0]}</s><|ai|>:{f[1]}</s>"
+            opt += f"<|prompter|>{f[0]}</s><|ai|>{f[1]}</s>"
 
     return opt
 
@@ -276,7 +276,7 @@ def chat_bot_run(text: str,
                                  use_prompt_to_instruction=False):
                 final_res = byte
                 chosen_byte = byte[len(text):]
-                # print(byte)
+                print(byte)
                 cache_f[-1][1] = chosen_byte
                 yield '', cache_f
             answer = final_res[len(text):len(final_res)]
