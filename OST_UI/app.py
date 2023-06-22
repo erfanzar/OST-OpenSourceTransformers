@@ -120,13 +120,11 @@ def generate(model: AutoModelForCausalLM, tokenizer, text: str, max_stream_token
 
         text = text[:-4] + tokenizer.eos_token if text[-4:] == '\n\n\n\n' else text
 
-        # text = text[:len('<|assistant|>')] + tokenizer.eos_token if text[
-        #                                                             len('<|assistant|>'):] == '<|assistant|>' else text
         lan_ = len('<|endoftext|>')
         text = text[:lan_] + tokenizer.eos_token if text[lan_:] == '<|endoftext|>' else text
-        # text = remove_spaces_between_tokens(text, '</s>', '<|ai|>')
-        # text = remove_spaces_between_tokens(text, '</s>', '<|prompter|>')
-        # text = remove_spaces_between_tokens(text, '<|prompter|>', '</s>')
+        text = remove_spaces_between_tokens(text, '</s>', '<|ai|>')
+        text = remove_spaces_between_tokens(text, '</s>', '<|prompter|>')
+        text = remove_spaces_between_tokens(text, '<|prompter|>', '</s>')
         if text.endswith(tokenizer.eos_token) or text.endswith('\n\n\n\n') or text.endswith(
                 '<|endoftext|>') or text.endswith('<|assistant|>') or text.endswith('<|ai|>'):
             yield text[len(text_r):] if b_pair else text
