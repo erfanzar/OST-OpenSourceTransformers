@@ -116,7 +116,7 @@ def generate(model: AutoModelForCausalLM, tokenizer, text: str, max_stream_token
                              attention_mask=enc.attention_mask.to(model.device),
                              generation_config=generation_config,
                              )
-        text = tokenizer.decode(enc[0], skip_special_tokens=False)
+        text = tokenizer.decode(enc[0], skip_special_tokens=True)
 
         text = text[:-4] + tokenizer.eos_token if text[-4:] == '\n\n\n\n' else text
 
@@ -278,6 +278,8 @@ def chat_bot_run(text: str,
                 chosen_byte = byte[len(text):]
                 print(byte)
                 cache_f[-1][1] = chosen_byte
+                if chosen_byte.endswith(tokenizer.eos_token):
+                    break
                 yield '', cache_f
             answer = final_res[len(text):len(final_res)]
         else:
