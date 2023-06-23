@@ -52,7 +52,7 @@ class Seafoam(Base):
             font_mono=font_mono,
 
         )
-        super.set(
+        super().set(
             button_primary_background_fill="linear-gradient(90deg, *primary_300, *secondary_400)",
             button_primary_background_fill_hover="linear-gradient(90deg, *primary_200, *secondary_300)",
             button_primary_text_color="white",
