@@ -8,8 +8,11 @@ import os
 from dataclasses import field, dataclass
 from transformers import HfArgumentParser
 import gradio as gr
-import whisper
 
+try:
+    import whisper
+except:
+    pass
 from gradio.themes.base import Base
 from gradio.themes.utils import colors, fonts, sizes
 
@@ -26,15 +29,13 @@ class Seafoam(Base):
             spacing_size: sizes.Size | str = sizes.spacing_md,
             radius_size: sizes.Size | str = sizes.radius_md,
             text_size: sizes.Size | str = sizes.text_lg,
-            font: fonts.Font
-                  | str
+            font: fonts.Font | str
             = (
                     fonts.GoogleFont("Quicksand"),
                     "ui-sans-serif",
                     "sans-serif",
             ),
-            font_mono: fonts.Font
-                       | str
+            font_mono: fonts.Font | str
             = (
                     fonts.GoogleFont("IBM Plex Mono"),
                     "ui-monospace",
@@ -53,6 +54,8 @@ class Seafoam(Base):
 
         )
         super().set(
+            body_background_fill="linear-gradient(80deg, *secondary_900, *neutral_800)",
+            body_background_fill_dark="linear-gradient(80deg, *secondary_900, *neutral_800)",
             button_primary_background_fill="linear-gradient(90deg, *primary_300, *secondary_400)",
             button_primary_background_fill_hover="linear-gradient(90deg, *primary_200, *secondary_300)",
             button_primary_text_color="white",
@@ -60,10 +63,10 @@ class Seafoam(Base):
             slider_color="*secondary_300",
             slider_color_dark="*secondary_600",
             block_title_text_weight="600",
-            block_border_width="3px",
+            block_border_width="0px",
             block_shadow="*shadow_drop_lg",
             button_shadow="*shadow_drop_lg",
-            button_large_padding="32px",
+            button_large_padding="4px",
         )
 
 
@@ -136,7 +139,7 @@ def load_model(config: LoadConfig):
                                              device_map='auto',
                                              ) if config.load_model else None
 
-    model_whisper = whisper.load_model(config.whisper_model)
+    model_whisper = whisper.load_model(config.whisper_model) if config.load_model else None
     logger.info(
         f'Done Loading Model with {(sum(m.numel() for m in _model.parameters()) / 1e9) if _model is not None else "NONE"}'
         f' Billion Parameters')
@@ -370,7 +373,7 @@ def gradio_ui_chat(main_class_conversation: Conversation):
                 max_length = gr.Slider(value=2048, maximum=4096, minimum=1, label='Max Length', step=1)
                 max_steam_tokens = gr.Slider(value=2, maximum=100, minimum=1, label='Max Stream Tokens', step=1,
                                              visible=True)
-                temperature = gr.Slider(value=0.9, maximum=1, minimum=0.2, label='Temperature', step=0.01)
+                temperature = gr.Slider(value=0.2, maximum=1, minimum=0.1, label='Temperature', step=0.01)
                 top_p = gr.Slider(value=0.95, maximum=0.9999, minimum=0.1, label='Top P', step=0.01)
                 top_k = gr.Slider(value=50, maximum=100, minimum=1, label='Top K', step=1)
                 penalty = gr.Slider(value=1.2, maximum=5, minimum=1, label='Repetition Penalty', step=0.1, visible=True)
@@ -387,7 +390,7 @@ def gradio_ui_chat(main_class_conversation: Conversation):
                                                                                         height=740)
         with gr.Row():
             with gr.Column(scale=1):
-                submit = gr.Button()
+                submit = gr.Button(variant="primary")
             with gr.Column(scale=4):
                 text = gr.Textbox(show_label=False).style(container=False)
         inputs = [text, cache, max_steam_tokens, max_new_tokens, max_length, temperature, top_p,
@@ -412,9 +415,7 @@ def gradio_ui_chat(main_class_conversation: Conversation):
         gr.Markdown(
             'LucidBrains is a platform that makes AI accessible and easy to use for everyone. '
             'Our mission is to empower individuals and businesses '
-            'with the tools they need to harness the power of AI and machine learning,'
-            'without requiring a background in data science or anything we '
-            'will just build what you want for you and help you to have better time and living life'
+            'without requiring a background in data science or anything '
             'with using Artificial Intelligence and Pushing Technology Beyond Limits'
             '\n[OST-OpenSourceTransformers](https://github.com/erfanzar/OST-OpenSourceTransformers) From LucidBrains 🧠\n'
         )
