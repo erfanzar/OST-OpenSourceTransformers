@@ -10,6 +10,8 @@ Generative Models). OST Collection is based on a novel approach to work as a ful
 
 ### EasyUse Model LInk
 [Mpt-7B-Assistant(Dragon) Colab 🚀 ](https://colab.research.google.com/drive/1H_6uNUqIVGTii5pMq4AXKmy2ee3IXmQq?usp=sharing)
+
+
 [LGeM-7B-C Colab 🚀 ](https://colab.research.google.com/drive/1tchS8fNObno4MxDVQd-1DCeUdGastd8L?usp=sharing)
 
 | Model       Link                                                                 | Max Sentence Length | Parameters |
