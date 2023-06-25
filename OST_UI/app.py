@@ -1,5 +1,6 @@
 import accelerate
 import transformers
+from IPython.core.display_functions import clear_output
 from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig, PreTrainedTokenizer, logging, \
     pipeline, AutoConfig
 import torch
@@ -48,7 +49,9 @@ def load_model(config: LoadConfig):
             trust_remote_code=True,
             device_map='auto'
         ) if config.load_model else None
+        clear_output()
     else:
+        clear_output()
         print("""
             This Process will take longer time in order to use models that are not built by huggingface and in are not 
             available in transformers library this option will add extra required options to module_class(pytorch)
