@@ -107,6 +107,7 @@ def load_model(config: LoadConfig):
             trust_remote_code=True,
             device_map='auto'
         ) if config.load_model else None
+        clear_output()
     else:
         clear_output()
         print("""
