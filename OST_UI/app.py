@@ -1,18 +1,76 @@
 import accelerate
 import transformers
 from IPython.core.display_functions import clear_output
-from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig, PreTrainedTokenizer, logging, \
-    pipeline, AutoConfig
+from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig, PreTrainedTokenizer, logging
 import torch
 import textwrap
 import os
-import datetime
 from dataclasses import field, dataclass
 from transformers import HfArgumentParser
 import gradio as gr
-import whisper
+
+try:
+    import whisper
+except:
+    pass
+from gradio.themes.base import Base
+from gradio.themes.utils import colors, fonts, sizes
 
 logger = logging.get_logger(__name__)
+
+
+class Seafoam(Base):
+    def __init__(
+            self,
+            *,
+            primary_hue: colors.Color | str = colors.emerald,
+            secondary_hue: colors.Color | str = colors.blue,
+            neutral_hue: colors.Color | str = colors.gray,
+            spacing_size: sizes.Size | str = sizes.spacing_md,
+            radius_size: sizes.Size | str = sizes.radius_md,
+            text_size: sizes.Size | str = sizes.text_lg,
+            font: fonts.Font | str
+            = (
+                    fonts.GoogleFont("Quicksand"),
+                    "ui-sans-serif",
+                    "sans-serif",
+            ),
+            font_mono: fonts.Font | str
+            = (
+                    fonts.GoogleFont("IBM Plex Mono"),
+                    "ui-monospace",
+                    "monospace",
+            ),
+    ):
+        super().__init__(
+            primary_hue=primary_hue,
+            secondary_hue=secondary_hue,
+            neutral_hue=neutral_hue,
+            spacing_size=spacing_size,
+            radius_size=radius_size,
+            text_size=text_size,
+            font=font,
+            font_mono=font_mono,
+
+        )
+        super().set(
+            body_background_fill="linear-gradient(80deg, *secondary_900, *neutral_800)",
+            body_background_fill_dark="linear-gradient(80deg, *secondary_900, *neutral_800)",
+            button_primary_background_fill="linear-gradient(90deg, *primary_300, *secondary_400)",
+            button_primary_background_fill_hover="linear-gradient(90deg, *primary_200, *secondary_300)",
+            button_primary_text_color="white",
+            button_primary_background_fill_dark="linear-gradient(90deg, *primary_600, *secondary_800)",
+            slider_color="*secondary_300",
+            slider_color_dark="*secondary_600",
+            block_title_text_weight="600",
+            block_border_width="0px",
+            block_shadow="*shadow_drop_lg",
+            button_shadow="*shadow_drop_lg",
+            button_large_padding="4px",
+        )
+
+
+seafoam = Seafoam()
 
 
 # logging.set_verbosity_info()
@@ -33,7 +91,7 @@ class LoadConfig:
         'help': 'use pipeline or custom generate func'
     })
     use_lgem_stoper: bool = field(default=False)
-    theme_id: str = field(default='snehilsanyal/scikit-learn')
+    theme_id: str = field(default='none')
     use_land: bool = field(default=False)
     block_name: str = field(default='none')
     use_n_eos: bool = field(default=False)
@@ -49,7 +107,6 @@ def load_model(config: LoadConfig):
             trust_remote_code=True,
             device_map='auto'
         ) if config.load_model else None
-        clear_output()
     else:
         clear_output()
         print("""
@@ -82,7 +139,7 @@ def load_model(config: LoadConfig):
                                              device_map='auto',
                                              ) if config.load_model else None
 
-    model_whisper = whisper.load_model(config.whisper_model)
+    model_whisper = whisper.load_model(config.whisper_model) if config.load_model else None
     logger.info(
         f'Done Loading Model with {(sum(m.numel() for m in _model.parameters()) / 1e9) if _model is not None else "NONE"}'
         f' Billion Parameters')
@@ -104,7 +161,7 @@ def prompt_to_instruction_n_eos(text: str):
 
 
 def prompt_to_instruction_lgem(text: str):
-    return f"<|prompter|> {text} </s><|ai|>:"
+    return f"<|prompter|> {text} </s><|ai|>"
 
 
 def generate(model: AutoModelForCausalLM, tokenizer, text: str, max_stream_tokens: int = 1,
@@ -121,17 +178,15 @@ def generate(model: AutoModelForCausalLM, tokenizer, text: str, max_stream_token
                              )
         text = tokenizer.decode(enc[0], skip_special_tokens=False)
 
-        text = text[:-4] + tokenizer.eos_token if text[-4:] == '\n\n\n\n' else text
-
-        # text = text[:len('<|assistant|>')] + tokenizer.eos_token if text[
-        #                                                             len('<|assistant|>'):] == '<|assistant|>' else text
-        lan_ = len('<|endoftext|>')
-        text = text[:lan_] + tokenizer.eos_token if text[lan_:] == '<|endoftext|>' else text
-        text = remove_spaces_between_tokens(text, '</s>', '<|ai|>')
-        text = remove_spaces_between_tokens(text, '</s>', '<|prompter|>')
-        text = remove_spaces_between_tokens(text, '<|prompter|>', '</s>')
-        if text.endswith(tokenizer.eos_token) or text.endswith('\n\n\n\n') or text.endswith(
-                '<|endoftext|>') or text.endswith('<|assistant|>'):
+        if config_.use_lgem_stoper:
+            text = remove_spaces_between_tokens(text, '</s>', '<|ai|>')
+            text = remove_spaces_between_tokens(text, '</s>', '<|prompter|>')
+            text = remove_spaces_between_tokens(text, '<|prompter|>', '</s>')
+        else:
+            text = text[:-4] + tokenizer.eos_token if text[-4:] == '\n\n\n\n' else text
+            lan_ = len('<|endoftext|>')
+            text = text[:lan_] + tokenizer.eos_token if text[lan_:] == '<|endoftext|>' else text
+        if text.endswith(tokenizer.eos_token):
             yield text[len(text_r):] if b_pair else text
             break
         else:
@@ -216,12 +271,11 @@ def sort_cache_n_eos(cache_):
 
 def sort_cache_lgem(cache_):
     if len(cache_) == 0:
-        opt = f'<|prompter|> today is {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} make sure' \
-              f' to stay polite and smart </s><|ai|>: OK ! </s>'
+        opt = ''
     else:
         opt = ''
         for f in cache_:
-            opt += f"<|prompter|>{f[0]}</s><|ai|>:{f[1]}</s>"
+            opt += f"<|prompter|>{f[0]}</s><|ai|>{f[1]}</s>"
 
     return opt
 
@@ -271,34 +325,19 @@ def chat_bot_run(text: str,
 
     cache_f = cache
     cache_f.append([original_text, ''])
-    if config_.use_lgem_stoper or config_.use_n_eos:
-        if model is not None:
-            for byte in generate(model, tokenizer, text=text, b_pair=False,
-                                 generation_config=generation_config, max_stream_tokens=max_new_tokens,
-                                 max_length=max_length,
-                                 use_prompt_to_instruction=False):
-                final_res = byte
-                chosen_byte = byte[len(text):]
-                # print(byte)
-                cache_f[-1][1] = chosen_byte
-                yield '', cache_f
-            answer = final_res[len(text):len(final_res)]
-        else:
-            answer = 'It seems like im down or im not loaded yet 😇'
-    else:
-        if model is not None:
-            for byte in generate(model, tokenizer, text=text, b_pair=False,
-                                 generation_config=generation_config, max_stream_tokens=max_new_tokens,
-                                 max_length=max_length,
-                                 use_prompt_to_instruction=False):
-                final_res = byte
-                chosen_byte = byte[len(text):].replace('<|endoftext|>', '')
 
-                cache_f[-1][1] = chosen_byte
-                yield '', cache_f
-            answer = final_res[len(text):len(final_res) - len('<|endoftext|>')]
-        else:
-            answer = 'It seems like im down or im not loaded yet 😇'
+    if model is not None:
+        for byte in generate(model, tokenizer, text=text, b_pair=False,
+                             generation_config=generation_config, max_stream_tokens=max_new_tokens,
+                             max_length=max_length,
+                             use_prompt_to_instruction=False):
+            final_res = byte
+            chosen_byte = byte[len(text):].replace(tokenizer.eos_token, '')
+            cache_f[-1][1] = chosen_byte
+            yield '', cache_f
+        answer = final_res[len(text):len(final_res) - len(tokenizer.eos_token)]
+    else:
+        answer = 'It seems like im down or im not loaded yet 😇'
     cache.append([original_text, answer])
     return '', cache
 
@@ -317,29 +356,29 @@ def gradio_ui(main_class_conversation):
 
 
 def gradio_ui_chat(main_class_conversation: Conversation):
-    theme = gr.themes.Soft(
-        primary_hue="cyan",
-        secondary_hue="teal",
-        neutral_hue=gr.themes.Color(c100="#f3f4f6", c200="#e5e7eb", c300="#d1d5db",
-                                    c400="#9ca3af", c50="#f9fafb", c500="#6b7280",
-                                    c600="#4b5563", c700="#374151", c800="#1f2937",
-                                    c900="#47a9c2", c950="#0b0f19"),
-    )
+    # theme = gr.themes.Soft(
+    #     primary_hue="cyan",
+    #     secondary_hue="teal",
+    #     neutral_hue=gr.themes.Color(c100="#f3f4f6", c200="#e5e7eb", c300="#d1d5db",
+    #                                 c400="#9ca3af", c50="#f9fafb", c500="#6b7280",
+    #                                 c600="#4b5563", c700="#374151", c800="#1f2937",
+    #                                 c900="#47a9c2", c950="#0b0f19"),
+    # )
 
     with gr.Blocks(
-            theme=gr.themes.Soft.from_hub(config_.theme_id)) as block:
+            theme=gr.themes.Soft.from_hub(config_.theme_id) if config_.theme_id != 'none' else Seafoam()) as block:
         with gr.Row():
             with gr.Column(scale=1):
-                max_new_tokens = gr.Slider(value=1536, maximum=2048, minimum=1, label='Max New Tokens', step=1)
-                max_length = gr.Slider(value=2048, maximum=2048, minimum=1, label='Max Length', step=1)
-                max_steam_tokens = gr.Slider(value=6, maximum=100, minimum=1, label='Max Stream Tokens', step=1,
+                max_new_tokens = gr.Slider(value=2048, maximum=3072, minimum=1, label='Max New Tokens', step=1)
+                max_length = gr.Slider(value=2048, maximum=4096, minimum=1, label='Max Length', step=1)
+                max_steam_tokens = gr.Slider(value=2, maximum=100, minimum=1, label='Max Stream Tokens', step=1,
                                              visible=True)
-                temperature = gr.Slider(value=0.9, maximum=1, minimum=0.2, label='Temperature', step=0.01)
+                temperature = gr.Slider(value=0.2, maximum=1, minimum=0.1, label='Temperature', step=0.01)
                 top_p = gr.Slider(value=0.95, maximum=0.9999, minimum=0.1, label='Top P', step=0.01)
                 top_k = gr.Slider(value=50, maximum=100, minimum=1, label='Top K', step=1)
                 penalty = gr.Slider(value=1.2, maximum=5, minimum=1, label='Repetition Penalty', step=0.1, visible=True)
                 # TODO
-                use_cache = gr.Checkbox(label='Use Cache', value=True)
+                use_cache = gr.Checkbox(label='Use Cache', value=False)
 
                 voice = gr.Audio(source='microphone', type="filepath", streaming=False, label='Smart Voice', )
                 stop = gr.Button(value='Stop ')
@@ -351,7 +390,7 @@ def gradio_ui_chat(main_class_conversation: Conversation):
                                                                                         height=740)
         with gr.Row():
             with gr.Column(scale=1):
-                submit = gr.Button()
+                submit = gr.Button(variant="primary")
             with gr.Column(scale=4):
                 text = gr.Textbox(show_label=False).style(container=False)
         inputs = [text, cache, max_steam_tokens, max_new_tokens, max_length, temperature, top_p,
@@ -376,9 +415,7 @@ def gradio_ui_chat(main_class_conversation: Conversation):
         gr.Markdown(
             'LucidBrains is a platform that makes AI accessible and easy to use for everyone. '
             'Our mission is to empower individuals and businesses '
-            'with the tools they need to harness the power of AI and machine learning,'
-            'without requiring a background in data science or anything we '
-            'will just build what you want for you and help you to have better time and living life'
+            'without requiring a background in data science or anything '
             'with using Artificial Intelligence and Pushing Technology Beyond Limits'
             '\n[OST-OpenSourceTransformers](https://github.com/erfanzar/OST-OpenSourceTransformers) From LucidBrains 🧠\n'
         )

@@ -7,21 +7,30 @@ Generative Models). OST Collection is based on a novel approach to work as a ful
 
 ## Trained Available Models 
 
-| Model       Link                                                           | Max Sentence Length | Parameters |
-|:---------------------------------------------------------------------------|---------------------|------------|
-| [LGeM-7B-C 🚀 ](https://huggingface.co/erfanzar/LGeM-7B-C)                 | 2048                | 7B         | 
-| [GT-J-6B 🚀 ](https://huggingface.co/erfanzar/GT-J)                        | 2048                | 6B         |    
-| [LGeM-3.5B 🚀 ](https://huggingface.co/erfanzar/LGeM-3B5)                  | 2048                | 3.5B       |      
-| [LGeM-1B 🚀 ](https://huggingface.co/erfanzar/LGeM-1B)                     | 1024                | 1B         | 
-| [LGeM-7B 🚀 ](https://huggingface.co/erfanzar/LGeM-7B)                     | 2048                | 7B         | 
-| [PGT-1B 🚀 ](https://huggingface.co/erfanzar/PGT-1B)                       | 1280                | 1B         |
+
+### EasyUse Model LInk
+[Mpt-7B-Assistant(Dragon) Colab 🚀 ](https://colab.research.google.com/drive/1H_6uNUqIVGTii5pMq4AXKmy2ee3IXmQq?usp=sharing)
+
+
+[LGeM-7B-C Colab 🚀 ](https://colab.research.google.com/drive/1tchS8fNObno4MxDVQd-1DCeUdGastd8L?usp=sharing)
+
+| Model       Link                                                                 | Max Sentence Length | Parameters |
+|:---------------------------------------------------------------------------------|---------------------|------------|
+| [Mpt-7B-Assistant(Dragon) 🚀 ](https://huggingface.co/erfanzar/Mpt-7B-Assistant) | 5144                | 7B         | 
+| [LGeM-13B-MT 🚀 ](https://huggingface.co/erfanzar/LGeM-13B-MT)                   | 2048                | 13B        | 
+| [LGeM-7B-MT 🚀 ](https://huggingface.co/erfanzar/LGeM-7B-MT)                     | 2048                | 7B         | 
+| [LGeM-7B-C 🚀 ](https://huggingface.co/erfanzar/LGeM-7B-C)                       | 2048                | 7B         | 
+| [GT-J-6B 🚀 ](https://huggingface.co/erfanzar/GT-J)                              | 2048                | 6B         |    
+| [LGeM-3.5B 🚀 ](https://huggingface.co/erfanzar/LGeM-3B5)                        | 2048                | 3.5B       |      
+| [LGeM-1B 🚀 ](https://huggingface.co/erfanzar/LGeM-1B)                           | 1024                | 1B         | 
+| [LGeM-7B 🚀 ](https://huggingface.co/erfanzar/LGeM-7B)                           | 2048                | 7B         | 
+| [PGT-1B 🚀 ](https://huggingface.co/erfanzar/PGT-1B)                             | 1280                | 1B         |
 
 # TODO
 
-- Example and tutorial for training models (Update on M27 [LGeMJax Added support FSDP PMAP](https://github.com/erfanzar/OST-OpenSourceTransformers/blob/main/examples/jax_pmap_fsdp_normal_train.ipynb))
-- Move all the models from only native pytorch to the triton / pytorch
-- Make all of the models available in flax/jax
-- create weight convertor from pytorch to -> jax / flax / tensorflow
+- Create a Tutorial on How to train or finetune your own LLM up to 16 billion parameters for free!
+
+  
 ## Train or Finetune 
 
 you have many options to choose which code to choose for train the models but we recommend using train.py that you can use fsdp and deepspeed 
