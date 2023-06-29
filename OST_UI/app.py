@@ -153,7 +153,7 @@ def load_model(config: LoadConfig):
 
 
 def prompt_to_instruction(text: str):
-    return f"<|prompter|> {text} <|endoftext|><|assistant|>"
+    return f"{tokenizer.eos_token}<|prompter|> {text} {tokenizer.eos_token}<|assistant|>"
 
 
 def prompt_to_instruction_n_eos(text: str):
