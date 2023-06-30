@@ -333,6 +333,8 @@ def chat_bot_run(text: str,
                              max_length=max_length,
                              use_prompt_to_instruction=False):
             final_res = byte
+            clear_output()
+            print(byte)
             chosen_byte = byte[len(text):].replace(tokenizer.eos_token, '')
             cache_f[-1][1] = chosen_byte
             yield '', cache_f
