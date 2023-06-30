@@ -220,7 +220,7 @@ class Conversation:
             cache, max_length, temperature, top_p, top_k,
             repetition_penalty
             ):
-        opt = sort_cache_pgt(cache)
+        opt = sort_cache_asst(cache)
         original_text = text
         text = opt + prompt_to_instruction(text)
         final_res = ''
@@ -248,13 +248,13 @@ class Conversation:
         return '', cache
 
 
-def sort_cache_pgt(cache_):
+def sort_cache_asst(cache_):
     if len(cache_) == 0:
         opt = ''
     else:
         opt = ''
         for f in cache_:
-            opt += f"<|prompter|>{f[0]}<|endoftext|><|assistant|>{f[1]}<|endoftext|>"
+            opt += f"<|prompter|>{f[0]}{tokenizer.eos_token}<|assistant|>{f[1]}{tokenizer.eos_token}"
 
     return opt
 
@@ -310,7 +310,7 @@ def chat_bot_run(text: str,
         original_text = text
         text = opt + prompt_to_instruction_n_eos(text)
     else:
-        opt = sort_cache_pgt(cache)
+        opt = sort_cache_asst(cache)
         original_text = text
         text = opt + prompt_to_instruction(text)
     final_res = ''
