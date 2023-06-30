@@ -179,14 +179,14 @@ def generate(model: AutoModelForCausalLM, tokenizer, text: str, max_stream_token
                              )
         text = tokenizer.decode(enc[0], skip_special_tokens=False)
 
-        if config_.use_lgem_stoper:
-            text = remove_spaces_between_tokens(text, '</s>', '<|ai|>')
-            text = remove_spaces_between_tokens(text, '</s>', '<|prompter|>')
-            text = remove_spaces_between_tokens(text, '<|prompter|>', '</s>')
-        else:
-            text = text[:-4] + tokenizer.eos_token if text[-4:] == '\n\n\n\n' else text
-            lan_ = len('<|endoftext|>')
-            text = text[:lan_] + tokenizer.eos_token if text[lan_:] == '<|endoftext|>' else text
+        # if config_.use_lgem_stoper:
+        text = remove_spaces_between_tokens(text, '</s>', '<|assistant|>')
+        text = remove_spaces_between_tokens(text, '</s>', '<|prompter|>')
+        text = remove_spaces_between_tokens(text, '<|prompter|>', '</s>')
+
+        text = text[:-4] + tokenizer.eos_token if text[-4:] == '\n\n\n\n' else text
+        lan_ = len('<|endoftext|>')
+        text = text[:lan_] + tokenizer.eos_token if text[lan_:] == '<|endoftext|>' else text
         if text.endswith(tokenizer.eos_token):
             yield text[len(text_r):] if b_pair else text
             break
