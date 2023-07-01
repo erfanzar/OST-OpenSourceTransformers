@@ -128,6 +128,10 @@ def load_model(config: LoadConfig):
     }
     if len(available_gpus) > 1 and config_.use_sequential:
         load_kwargs['device_map'] = 'sequential'
+    if config_.debug:
+        print(
+            load_kwargs
+        )
     if not config.use_land:
         _model = AutoModelForCausalLM.from_pretrained(
             config.model_id,
