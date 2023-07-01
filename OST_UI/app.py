@@ -7,6 +7,7 @@ import textwrap
 import os
 from dataclasses import field, dataclass
 from transformers import HfArgumentParser
+from utils.utils import get_gpu_memory
 import gradio as gr
 
 try:
@@ -95,17 +96,32 @@ class LoadConfig:
     use_land: bool = field(default=False)
     block_name: str = field(default='none')
     use_n_eos: bool = field(default=False)
+    num_gpus: int = field(default=None, metadata={
+        'help': 'num gpus to use to load model'
+    })
+    use_sequential: bool = field(default=False, metadata={
+        'help': 'use sequential weight loading'
+    })
 
 
 def load_model(config: LoadConfig):
     logger.info(f'Loading model FROM : {config.model_id}')
+    available_gpus = get_gpu_memory(config_.num_gpus)
+    load_kwargs = {
+        'load_in_8bit': config.load_in_8bit,
+        'torch_dtype': config.torch_type,
+        'device_map': 'auto',
+        'max_memory': {i: str(int(available_gpus[i] * 0.90)) + 'GiB' for i in range(len(available_gpus))}
+    }
+    if len(available_gpus) > 1 and config_.use_sequential:
+        load_kwargs['device_map'] = 'sequential'
     if not config.use_land:
         _model = AutoModelForCausalLM.from_pretrained(
             config.model_id,
-            load_in_8bit=config.load_in_8bit,
-            torch_dtype=config.torch_type,
+
             trust_remote_code=True,
-            device_map='auto'
+
+            **load_kwargs
         ) if config.load_model else None
         clear_output()
     else:
@@ -134,10 +150,8 @@ def load_model(config: LoadConfig):
             model_class._no_split_modules = [config.block_name]
 
         _model = model_class.from_pretrained(config.model_id,
-                                             load_in_8bit=config.load_in_8bit,
-                                             torch_dtype=config.torch_type,
                                              trust_remote_code=True,
-                                             device_map='auto',
+                                             **load_kwargs
                                              ) if config.load_model else None
 
     model_whisper = whisper.load_model(config.whisper_model) if config.load_model else None
