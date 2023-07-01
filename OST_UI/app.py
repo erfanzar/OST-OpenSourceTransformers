@@ -140,7 +140,7 @@ def load_model(config: LoadConfig):
         ) if config.load_model else None
         clear_output()
     else:
-        clear_output()
+        clear_output(True)
         print("""
             This Process will take longer time in order to use models that are not built by huggingface and in are not 
             available in transformers library this option will add extra required options to module_class(pytorch)
@@ -152,10 +152,7 @@ def load_model(config: LoadConfig):
             assert config.block_name != 'none', 'if you are using land option to use auto map for devices you ' \
                                                 'must pass block name for model for example ' \
                                                 'mpt model block name is GPTBlock'
-            # config = AutoConfig.from_pretrained(
-            #     config.model_id,
-            #     trust_remote_code=True
-            # )
+
             _model = AutoModelForCausalLM.from_pretrained(
                 config.model_id,
                 trust_remote_code=True
