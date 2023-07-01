@@ -154,7 +154,7 @@ def load_model(config: LoadConfig):
 
 
 def prompt_to_instruction(text: str):
-    return f"<|prompter|> {text} <|endoftext|><|assistant|>"
+    return f"{tokenizer.eos_token}<|prompter|> {text} {tokenizer.eos_token}<|assistant|>"
 
 
 def prompt_to_instruction_n_eos(text: str):
@@ -179,14 +179,14 @@ def generate(model: AutoModelForCausalLM, tokenizer, text: str, max_stream_token
                              )
         text = tokenizer.decode(enc[0], skip_special_tokens=False)
 
-        if config_.use_lgem_stoper:
-            text = remove_spaces_between_tokens(text, '</s>', '<|ai|>')
-            text = remove_spaces_between_tokens(text, '</s>', '<|prompter|>')
-            text = remove_spaces_between_tokens(text, '<|prompter|>', '</s>')
-        else:
-            text = text[:-4] + tokenizer.eos_token if text[-4:] == '\n\n\n\n' else text
-            lan_ = len('<|endoftext|>')
-            text = text[:lan_] + tokenizer.eos_token if text[lan_:] == '<|endoftext|>' else text
+        # if config_.use_lgem_stoper:
+        text = remove_spaces_between_tokens(text, '</s>', '<|assistant|>')
+        text = remove_spaces_between_tokens(text, '</s>', '<|prompter|>')
+        # text = remove_spaces_between_tokens(text, '<|prompter|>', '</s>')
+
+        # text = text[:-4] + tokenizer.eos_token if text[-4:] == '\n\n\n\n' else text
+        # lan_ = len('<|endoftext|>')
+        # text = text[:lan_] + tokenizer.eos_token if text[lan_:] == '<|endoftext|>' else text
         if text.endswith(tokenizer.eos_token):
             yield text[len(text_r):] if b_pair else text
             break
@@ -220,7 +220,7 @@ class Conversation:
             cache, max_length, temperature, top_p, top_k,
             repetition_penalty
             ):
-        opt = sort_cache_pgt(cache)
+        opt = sort_cache_asst(cache)
         original_text = text
         text = opt + prompt_to_instruction(text)
         final_res = ''
@@ -248,13 +248,13 @@ class Conversation:
         return '', cache
 
 
-def sort_cache_pgt(cache_):
+def sort_cache_asst(cache_):
     if len(cache_) == 0:
         opt = ''
     else:
         opt = ''
         for f in cache_:
-            opt += f"<|prompter|>{f[0]}<|endoftext|><|assistant|>{f[1]}<|endoftext|>"
+            opt += f"<|prompter|>{f[0]}{tokenizer.eos_token}<|assistant|>{f[1]}{tokenizer.eos_token}"
 
     return opt
 
@@ -310,7 +310,7 @@ def chat_bot_run(text: str,
         original_text = text
         text = opt + prompt_to_instruction_n_eos(text)
     else:
-        opt = sort_cache_pgt(cache)
+        opt = sort_cache_asst(cache)
         original_text = text
         text = opt + prompt_to_instruction(text)
     final_res = ''
@@ -333,6 +333,7 @@ def chat_bot_run(text: str,
                              max_length=max_length,
                              use_prompt_to_instruction=False):
             final_res = byte
+
             chosen_byte = byte[len(text):].replace(tokenizer.eos_token, '')
             cache_f[-1][1] = chosen_byte
             yield '', cache_f
