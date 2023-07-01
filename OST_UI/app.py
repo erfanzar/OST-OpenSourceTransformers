@@ -7,7 +7,7 @@ import textwrap
 import os
 from dataclasses import field, dataclass
 from transformers import HfArgumentParser
-from utils.utils import get_gpu_memory
+
 import gradio as gr
 
 try:
@@ -74,7 +74,16 @@ class Seafoam(Base):
 seafoam = Seafoam()
 
 
-# logging.set_verbosity_info()
+def get_gpu_memory(num_gpus_req=None):
+    gpu_m = []
+    dc = torch.cuda.device_count()
+    num_gpus = torch.cuda.device_count() if num_gpus_req is None else min(num_gpus_req, dc)
+
+    for gpu_id in range(num_gpus):
+        with torch.cuda.device(gpu_id):
+            gpu_properties = torch.cuda.get_device_properties(torch.cuda.current_device())
+            gpu_m.append((gpu_properties.total_memory / (1024 ** 3)) - (torch.cuda.memory_allocated() / (1024 ** 3)))
+    return gpu_m
 
 
 @dataclass
