@@ -111,6 +111,10 @@ class LoadConfig:
     use_sequential: bool = field(default=False, metadata={
         'help': 'use sequential weight loading'
     })
+    debug: bool = field(default=False,
+                        metadata={
+                            'help': 'set script to debug mode'
+                        })
 
 
 def load_model(config: LoadConfig):
@@ -186,7 +190,7 @@ def prompt_to_instruction_lgem(text: str):
     return f"<|prompter|> {text} </s><|ai|>"
 
 
-def generate(model: AutoModelForCausalLM, tokenizer, text: str, max_stream_tokens: int = 1,
+def generate(model: transformers.PreTrainedModel, tokenizer, text: str, max_stream_tokens: int = 1,
              use_prompt_to_instruction: bool = False, generation_config=None, max_length=1536,
              b_pair=False):
     text = prompt_to_instruction(text) if use_prompt_to_instruction else text
@@ -357,6 +361,8 @@ def chat_bot_run(text: str,
 
             chosen_byte = byte[len(text):].replace(tokenizer.eos_token, '')
             cache_f[-1][1] = chosen_byte
+            if config_.debug:
+                print(byte)
             yield '', cache_f
         answer = final_res[len(text):len(final_res) - len(tokenizer.eos_token)]
     else:
@@ -466,6 +472,8 @@ if __name__ == "__main__":
     model, tokenizer, whisper_model = load_model(config=config_)
 
     # model = model.cuda() if model is not None else model
+    if config_.debug:
+        print(model)
     whisper_model = whisper_model.cuda() if whisper_model is not None else whisper_model
 
     main(config_)
