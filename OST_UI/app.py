@@ -130,7 +130,7 @@ def load_model(config: LoadConfig):
         load_kwargs['device_map'] = 'sequential'
     if config_.debug:
         print(
-            load_kwargs
+            f'Loading Model Config : \n\t{load_kwargs}'
         )
     if not config.use_land:
         _model = AutoModelForCausalLM.from_pretrained(
