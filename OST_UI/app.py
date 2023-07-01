@@ -55,14 +55,14 @@ class Seafoam(Base):
 
         )
         super().set(
-            body_background_fill="linear-gradient(80deg, *secondary_900, *neutral_800)",
-            body_background_fill_dark="linear-gradient(80deg, *secondary_900, *neutral_800)",
+            body_background_fill="linear-gradient(90deg, *secondary_800, *neutral_900)",
+            body_background_fill_dark="linear-gradient(90deg, *secondary_800, *neutral_900)",
             button_primary_background_fill="linear-gradient(90deg, *primary_300, *secondary_400)",
             button_primary_background_fill_hover="linear-gradient(90deg, *primary_200, *secondary_300)",
             button_primary_text_color="white",
             button_primary_background_fill_dark="linear-gradient(90deg, *primary_600, *secondary_800)",
             slider_color="*secondary_300",
-            slider_color_dark="*secondary_600",
+            slider_color_dark="*secondary_400",
             block_title_text_weight="600",
             block_border_width="0px",
             block_shadow="*shadow_drop_lg",
@@ -400,32 +400,50 @@ def gradio_ui_chat(main_class_conversation: Conversation):
 
     with gr.Blocks(
             theme=gr.themes.Soft.from_hub(config_.theme_id) if config_.theme_id != 'none' else Seafoam()) as block:
+        gr.Markdown(
+            f"""<h1><center>LuciBrains {config_.model_id.split("/")[1]}</center></h1>
+            <h3><center>This is the Demo Chat of <a href="https://huggingface.co/{config_.model_id}" >{config_.model_id}
+            </a>
+            Powered by <a href="https://github.com/erfanzar/OST-OpenSourceTransformers">OST-OpenSourceTransformers</a>
+             and <a href='https://github.com/erfanzar/EasyDeL'>EasyDeL</a>"""
+        )
         with gr.Row():
-            with gr.Column(scale=1):
-                max_new_tokens = gr.Slider(value=2048, maximum=3072, minimum=1, label='Max New Tokens', step=1)
+            cache = gr.Chatbot(elem_id=main_class_conversation.config.model_id,
+                               label=main_class_conversation.config.model_id,
+                               ).style(container=True,
+                                       height=600
+                                       )
+
+        with gr.Row():
+            with gr.Column():
+                text = gr.Textbox(show_label=False, placeholder='Message Box').style(container=False)
+            with gr.Column():
+                with gr.Row():
+                    submit = gr.Button(variant="primary")
+                    stop = gr.Button(value='Stop ')
+                    clear = gr.Button(value='Clear Conversation')
+
+        with gr.Row():
+            with gr.Accordion('Advanced Options', open=False):
+                max_new_tokens = gr.Slider(value=2048, maximum=3072, minimum=1, label='Max New Tokens', step=1, )
                 max_length = gr.Slider(value=2048, maximum=4096, minimum=1, label='Max Length', step=1)
                 max_steam_tokens = gr.Slider(value=2, maximum=100, minimum=1, label='Max Stream Tokens', step=1,
                                              visible=True)
                 temperature = gr.Slider(value=0.2, maximum=1, minimum=0.1, label='Temperature', step=0.01)
                 top_p = gr.Slider(value=0.95, maximum=0.9999, minimum=0.1, label='Top P', step=0.01)
                 top_k = gr.Slider(value=50, maximum=100, minimum=1, label='Top K', step=1)
-                penalty = gr.Slider(value=1.2, maximum=5, minimum=1, label='Repetition Penalty', step=0.1, visible=True)
+                penalty = gr.Slider(value=1.2, maximum=5, minimum=1, label='Repetition Penalty', step=0.1,
+                                    visible=True)
                 # TODO
-                use_cache = gr.Checkbox(label='Use Cache', value=False)
+                with gr.Row():
+                    use_cache = gr.Checkbox(label='Use Cache', value=True).style(
+                        container=True
+                    )
+                    voice = gr.Audio(source='microphone', type="filepath", streaming=False, label='Smart Voice',
+                                     show_label=False, ).style(
+                        container=True
+                    )
 
-                voice = gr.Audio(source='microphone', type="filepath", streaming=False, label='Smart Voice', )
-                stop = gr.Button(value='Stop ')
-                clear = gr.Button(value='Clear Conversation')
-
-            with gr.Column(scale=4):
-                cache = gr.Chatbot(elem_id=main_class_conversation.config.model_id,
-                                   label=main_class_conversation.config.model_id).style(container=True,
-                                                                                        height=740)
-        with gr.Row():
-            with gr.Column(scale=1):
-                submit = gr.Button(variant="primary")
-            with gr.Column(scale=4):
-                text = gr.Textbox(show_label=False).style(container=False)
         inputs = [text, cache, max_steam_tokens, max_new_tokens, max_length, temperature, top_p,
                   top_k,
                   penalty, voice, use_cache]
