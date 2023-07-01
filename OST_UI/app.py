@@ -127,9 +127,7 @@ def load_model(config: LoadConfig):
     if not config.use_land:
         _model = AutoModelForCausalLM.from_pretrained(
             config.model_id,
-
             trust_remote_code=True,
-
             **load_kwargs
         ) if config.load_model else None
         clear_output()
@@ -467,7 +465,7 @@ if __name__ == "__main__":
     print(f'Running WITH MODE : {config_.mode}')
     model, tokenizer, whisper_model = load_model(config=config_)
 
-    model = model.cuda() if model is not None else model
+    # model = model.cuda() if model is not None else model
     whisper_model = whisper_model.cuda() if whisper_model is not None else whisper_model
 
     main(config_)
