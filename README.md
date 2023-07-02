@@ -11,6 +11,7 @@ Generative Models). OST Collection is based on a novel approach to work as a ful
 ### EasyUse Model LInk
 [Mpt-7B-Assistant(Dragon) Colab 🚀 ](https://colab.research.google.com/drive/1H_6uNUqIVGTii5pMq4AXKmy2ee3IXmQq?usp=sharing)
 
+[chatLGeM Colab 🚀](https://colab.research.google.com/drive/1nWS_FhWIDH3-g56F3FbWCIYi0ngVdWHx?usp=sharing#scrollTo=iW2JPnuCpVy6)
 
 [LGeM-7B-C Colab 🚀 ](https://colab.research.google.com/drive/1tchS8fNObno4MxDVQd-1DCeUdGastd8L?usp=sharing)
 
@@ -18,7 +19,7 @@ Generative Models). OST Collection is based on a novel approach to work as a ful
 |:---------------------------------------------------------------------------------|---------------------|------------|
 | [Mpt-7B-Assistant(Dragon) 🚀 ](https://huggingface.co/erfanzar/Mpt-7B-Assistant) | 5144                | 7B         | 
 | [LGeM-13B-MT 🚀 ](https://huggingface.co/erfanzar/LGeM-13B-MT)                   | 2048                | 13B        | 
-| [LGeM-7B-MT 🚀 ](https://huggingface.co/erfanzar/LGeM-7B-MT)                     | 2048                | 7B         | 
+| [chatLGeM 🚀 ](https://huggingface.co/erfanzar/chatLGeM)                         | 3300                | 7B         | 
 | [LGeM-7B-C 🚀 ](https://huggingface.co/erfanzar/LGeM-7B-C)                       | 2048                | 7B         | 
 | [GT-J-6B 🚀 ](https://huggingface.co/erfanzar/GT-J)                              | 2048                | 6B         |    
 | [LGeM-3.5B 🚀 ](https://huggingface.co/erfanzar/LGeM-3B5)                        | 2048                | 3.5B       |      
