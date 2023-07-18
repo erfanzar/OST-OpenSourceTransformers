@@ -26,11 +26,6 @@ Generative Models). OST Collection is based on a novel approach to work as a ful
 | [LGeM-1B 🚀 ](https://huggingface.co/erfanzar/LGeM-1B)                           | 1024                | 1B         | 
 | [LGeM-7B 🚀 ](https://huggingface.co/erfanzar/LGeM-7B)                           | 2048                | 7B         | 
 | [PGT-1B 🚀 ](https://huggingface.co/erfanzar/PGT-1B)                             | 1280                | 1B         |
-
-# TODO
-
-- Create a Tutorial on How to train or finetune your own LLM up to 16 billion parameters for free!
-
   
 ## Train or Finetune 
 
