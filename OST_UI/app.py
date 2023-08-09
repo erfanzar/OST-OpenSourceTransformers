@@ -1,3 +1,5 @@
+from threading import Thread
+
 import accelerate
 import transformers
 from IPython.core.display_functions import clear_output
@@ -6,7 +8,7 @@ import torch
 import textwrap
 import os
 from dataclasses import field, dataclass
-from transformers import HfArgumentParser
+from transformers import HfArgumentParser, TextIteratorStreamer
 
 import gradio as gr
 
@@ -191,33 +193,50 @@ def prompt_to_instruction_lgem(text: str):
     return f"<|prompter|> {text} </s><|ai|>"
 
 
-def generate(model: transformers.PreTrainedModel, tokenizer, text: str, max_stream_tokens: int = 1,
-             use_prompt_to_instruction: bool = False, generation_config=None, max_length=1536,
-             b_pair=False):
+def generate(model: transformers.PreTrainedModel, tokenizer, text: str, use_prompt_to_instruction: bool = False,
+             generation_config=None, **kwargs):
     text = prompt_to_instruction(text) if use_prompt_to_instruction else text
+    inputs = tokenizer([text], return_tensors='pt', add_special_tokens=False).to('cuda')
+    stream = TextIteratorStreamer(
+        tokenizer=tokenizer,
+        timeout=10.,
+        skip_prompt=True,
+        skip_special_tokens=True
+    )
 
-    for i in range(max_stream_tokens):
-        enc = tokenizer(text, return_tensors='pt', add_special_tokens=False)
-        text_r = text
-        enc = model.generate(enc.input_ids.to(model.device),
-                             attention_mask=enc.attention_mask.to(model.device),
-                             generation_config=generation_config,
-                             )
-        text = tokenizer.decode(enc[0], skip_special_tokens=False)
-
-        # if config_.use_lgem_stoper:
-        text = remove_spaces_between_tokens(text, '</s>', '<|assistant|>')
-        text = remove_spaces_between_tokens(text, '</s>', '<|prompter|>')
-        # text = remove_spaces_between_tokens(text, '<|prompter|>', '</s>')
-
-        # text = text[:-4] + tokenizer.eos_token if text[-4:] == '\n\n\n\n' else text
-        # lan_ = len('<|endoftext|>')
-        # text = text[:lan_] + tokenizer.eos_token if text[lan_:] == '<|endoftext|>' else text
-        if text.endswith(tokenizer.eos_token):
-            yield text[len(text_r):] if b_pair else text
-            break
-        else:
-            yield text[len(text_r):] if b_pair else text
+    generate_kwargs = dict(
+        inputs,
+        streamer=stream,
+        generation_config=generation_config
+    )
+    t = Thread(target=model.generate, kwargs=generate_kwargs)
+    t.start()
+    tokens_ = []
+    for p in stream:
+        tokens_.append(p)
+        yield ''.join(tokens_)
+    # for i in range(max_new_tokens):
+    #     enc = tokenizer(text, return_tensors='pt', add_special_tokens=False)
+    #     text_r = text
+    #     enc = model.generate(enc.input_ids.to(model.device),
+    #                          attention_mask=enc.attention_mask.to(model.device),
+    #                          generation_config=generation_config,
+    #                          )
+    #     text = tokenizer.decode(enc[0], skip_special_tokens=False)
+    #
+    #     # if config_.use_lgem_stoper:
+    #     text = remove_spaces_between_tokens(text, '</s>', '<|assistant|>')
+    #     text = remove_spaces_between_tokens(text, '</s>', '<|prompter|>')
+    #     # text = remove_spaces_between_tokens(text, '<|prompter|>', '</s>')
+    #
+    #     # text = text[:-4] + tokenizer.eos_token if text[-4:] == '\n\n\n\n' else text
+    #     # lan_ = len('<|endoftext|>')
+    #     # text = text[:lan_] + tokenizer.eos_token if text[lan_:] == '<|endoftext|>' else text
+    #     if text.endswith(tokenizer.eos_token):
+    #         yield text[len(text_r):] if b_pair else text
+    #         break
+    #     else:
+    #         yield text[len(text_r):] if b_pair else text
 
 
 def verify_text(txt):
@@ -229,7 +248,7 @@ def conversation(model, tokenizer, cache=None, max_new_tokens=512, byte_pair=Fal
     while True:
         user = cache + prompt_to_instruction(input('>>  '))
         last_a = 'NONE'
-        for text in generate(model, tokenizer, text=user, max_stream_tokens=max_new_tokens, b_pair=byte_pair,
+        for text in generate(model, tokenizer, text=user, max_new_tokens=max_new_tokens, b_pair=byte_pair,
                              use_prompt_to_instruction=False):
             os.system('clear')
             last_a = text
@@ -315,7 +334,6 @@ def remove_spaces_between_tokens(text, token1, token2):
 
 def chat_bot_run(text: str,
                  cache,
-                 max_steam_tokens,
                  max_new_tokens,
                  max_length,
                  temperature,
@@ -342,7 +360,7 @@ def chat_bot_run(text: str,
     final_res = ''
     generation_config = GenerationConfig(
         max_length=max_length,
-        max_new_tokens=max_steam_tokens,
+        max_new_tokens=max_new_tokens,
         temperature=temperature, top_p=top_p, top_k=top_k, repetition_penalty=repetition_penalty,
         eos_token_id=tokenizer.eos_token_id,
         pad_token_id=tokenizer.pad_token_id,
@@ -355,8 +373,7 @@ def chat_bot_run(text: str,
 
     if model is not None:
         for byte in generate(model, tokenizer, text=text, b_pair=False,
-                             generation_config=generation_config, max_stream_tokens=max_new_tokens,
-                             max_length=max_length,
+                             generation_config=generation_config, max_new_tokens=max_new_tokens,
                              use_prompt_to_instruction=False):
             final_res = byte
 
@@ -424,8 +441,7 @@ def gradio_ui_chat(main_class_conversation: Conversation):
             with gr.Accordion('Advanced Options', open=False):
                 max_new_tokens = gr.Slider(value=2048, maximum=3072, minimum=1, label='Max New Tokens', step=1, )
                 max_length = gr.Slider(value=2048, maximum=4096, minimum=1, label='Max Length', step=1)
-                max_steam_tokens = gr.Slider(value=2, maximum=100, minimum=1, label='Max Stream Tokens', step=1,
-                                             visible=True)
+
                 temperature = gr.Slider(value=0.2, maximum=1, minimum=0.1, label='Temperature', step=0.01)
                 top_p = gr.Slider(value=0.95, maximum=0.9999, minimum=0.1, label='Top P', step=0.01)
                 top_k = gr.Slider(value=50, maximum=100, minimum=1, label='Top K', step=1)
@@ -441,7 +457,7 @@ def gradio_ui_chat(main_class_conversation: Conversation):
                         container=True
                     )
 
-        inputs = [text, cache, max_steam_tokens, max_new_tokens, max_length, temperature, top_p,
+        inputs = [text, cache, max_new_tokens, max_length, temperature, top_p,
                   top_k,
                   penalty, voice, use_cache]
         sub_event = submit.click(fn=chat_bot_run,
