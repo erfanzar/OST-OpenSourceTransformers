@@ -377,7 +377,8 @@ def chat_bot_run(text: str,
                              use_prompt_to_instruction=False):
             final_res = byte
 
-            chosen_byte = byte[len(text):].replace(tokenizer.eos_token, '')
+            # chosen_byte = byte[len(text):].replace(tokenizer.eos_token, '')
+            chosen_byte = byte
             cache_f[-1][1] = chosen_byte
             if config_.debug:
                 print(byte)
