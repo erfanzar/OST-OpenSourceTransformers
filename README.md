@@ -1,14 +1,60 @@
 # OST
 
-some researchs in `NLP`
+some research in `NLP`
 
 OST Collection: An AI-powered suite of models that predict the next word matches with remarkable accuracy (Text
 Generative Models). OST Collection is based on a novel approach to work as a full and intelligent NLP Model.
 
-## Trained Available Models 
+## EasyDel
 
+what is [EasyDel](https://github.com/erfanzar/EasyDeL) ?
+
+EasyDeL is an OpenSource Library to make your training faster and more Optimized With cool Options for training and
+serving in JAX/Flax
+and support these models with their cool options
+
+- **_Llama_**     (Support `FSDP`, `MP`,` DP`)(_Supports gradient checkpointing_)
+- **_GPT-J_**     (Support `FSDP`, `MP`,` DP`)(_Supports gradient checkpointing_)
+- **_LT_**        (Support `FSDP`, `MP`, `DP`)(_Supports gradient checkpointing_)
+- **_MosaicMPT_** (Support `FSDP`, `MP`,` DP`)(_Supports gradient checkpointing_)
+- **_GPTNeoX_**   (Support `FSDP`, `MP`, `DP`)(_Supports gradient checkpointing_)
+- **_Falcon_**    (Support `FSDP`, `MP`, `DP`)(_Supports gradient checkpointing_)
+- **_Palm_**      (Support `FSDP`, `MP`, `DP`)(_Supports gradient checkpointing_)
+- **_T5_**        (Support `FSDP`, `MP`, `DP`)(_Supports gradient checkpointing_)
+- **_OPT_**       (Support `FSDP`, `MP`, `DP`)(_Supports gradient checkpointing_)
+
+the available models are trained with EasyDel on cloud TPUs
+
+check available pretrained model [EasyDel-OST Collection](https://huggingface.co/erfanzar/EasyDelCollection)  Like
+
+1. Base-Falcon-7B-easydel
+
+2. Base-MPT-1B-easydel
+
+3. Base-MPT-7B-easydel
+
+4. ITDF-Falcon-easydel-v0
+
+5. ITDF-Llama-easydel-v2
+
+6. ITDF-Llama2-easydel-v0
+
+7. ITDF-OpenLlama-easydel-v0
+
+8. ITDF-OpenLlama-easydel-v1
+
+9. ITDF-OpenLlama-easydel-v2
+
+10. Llama-Chat-easydel
+
+11. Llama-easydel
+
+and Many More...
+
+## Trained Available Models
 
 ### EasyUse Model LInk
+
 [Mpt-7B-Assistant(Dragon) Colab 🚀 ](https://colab.research.google.com/drive/1H_6uNUqIVGTii5pMq4AXKmy2ee3IXmQq?usp=sharing)
 
 [chatLGeM Colab 🚀](https://colab.research.google.com/drive/1nWS_FhWIDH3-g56F3FbWCIYi0ngVdWHx?usp=sharing#scrollTo=iW2JPnuCpVy6)
@@ -26,12 +72,11 @@ Generative Models). OST Collection is based on a novel approach to work as a ful
 | [LGeM-1B 🚀 ](https://huggingface.co/erfanzar/LGeM-1B)                           | 1024                | 1B         | 
 | [LGeM-7B 🚀 ](https://huggingface.co/erfanzar/LGeM-7B)                           | 2048                | 7B         | 
 | [PGT-1B 🚀 ](https://huggingface.co/erfanzar/PGT-1B)                             | 1280                | 1B         |
-  
-## Train or Finetune 
 
-you have many options to choose which code to choose for train the models but we recommend using train.py that you can use fsdp and deepspeed 
+## Train or Finetune
 
-
+you have many options to choose which code to choose for train the models but we recommend using train.py that you can
+use fsdp and deepspeed
 
 DeepSpeed Example
 
@@ -55,7 +100,6 @@ deepspeed --no_python --master_addr=4008 --num_gpus=<number_of_your_gpus_here> t
 
 FSDP Example
 
-
 ```shell
 torchrun --nproc-per-node=<number_of_your_gpus_here> --master-port=4008 --standalone train.py \
 --use_fsdp \
@@ -73,8 +117,6 @@ torchrun --nproc-per-node=<number_of_your_gpus_here> --master-port=4008 --standa
 --no_do_eval \
 --lr_scheduler_type='cosine'
 ```
-
-
 
 ### LT (LucidTransformers)-Models
 
