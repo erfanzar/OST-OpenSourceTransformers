@@ -5,6 +5,44 @@ some research in `NLP`
 OST Collection: An AI-powered suite of models that predict the next word matches with remarkable accuracy (Text
 Generative Models). OST Collection is based on a novel approach to work as a full and intelligent NLP Model.
 
+## LLLM-Assistance
+
+What is LLLM Assitance ?
+
+it's stand for *_Large Local Language Model Assistance_* and what does this have to do?
+
+let first see what are the Pros and Cons for Current LLMs available from big companies like OpenAI and Google
+
+Pros:
+
+1. Advanced Natural Language Understanding: These LLMs have the ability to understand and generate human-like text,
+   making them useful for a wide range of natural language processing tasks.
+
+2. Broad Applications: LLMs can be applied to various tasks such as language translation, text summarization, question
+   answering, and more, making them versatile tools for developers and researchers.
+
+3. Continuous Improvement: Both OpenAI and Google are actively working on improving their LLMs, which means that users
+   can benefit from ongoing updates and enhancements.
+
+Cons:
+
+1. Ethical Concerns: Large language models have raised ethical concerns related to misinformation, bias, and potential
+   misuse, prompting the need for responsible deployment and usage.
+
+2. Computational Resources: Training and using LLMs require significant computational resources, which can be a barrier
+   for smaller organizations or individuals with limited access to high-performance computing.
+
+3. Environmental Impact: The energy consumption associated with training and running large language models has raised
+   concerns about their environmental impact, particularly in terms of carbon emissions.
+
+4. Data Safety: when you are using These companies AIs you data is not safe, and they have a fully transparent layer to
+   see through your messages
+
+5. Acting Limitations: You can not tell AI exactly how and when to act or talk
+
+But with *_Large Local Language Model Assistance_* these things are going to be supported and i don't think like just
+telling without any proof in progress is something cool so just wait until 20 Nov :)
+
 ## EasyDel
 
 what is [EasyDel](https://github.com/erfanzar/EasyDeL) ?

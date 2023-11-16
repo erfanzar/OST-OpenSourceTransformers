@@ -26,7 +26,7 @@ def train():
     CTX_LEN = 128
 
     device = config.device
-    data = get_data('data/alpaca_data.json')[:5000]
+    data = get_data('../data/alpaca_data.json')[:5000]
     model = RWKV_GPT_CasualLM(config=config).to(device)
     optimizer = model.configure_optimizers(train_config)
     model = torch.jit.script(model)
